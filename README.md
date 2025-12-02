@@ -38,9 +38,6 @@ Clotilde wraps Claude Code session UUIDs with human-friendly names:
 
 - Sessions stored as folders in `.claude/clotilde/sessions/<name>/`
 - Each session has metadata, optional settings, system prompt, and context files
-- Two-level context system:
-  - Global context (`.claude/clotilde/context.md`) - What this worktree is about
-  - Session context (`sessions/<name>/context.md`) - Extra details for this session
 - SessionStart hooks automatically register forked sessions and load context
 - Works alongside Claude Code without patching or modifying it
 
