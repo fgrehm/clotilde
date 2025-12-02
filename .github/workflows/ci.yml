@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+
+jobs:
+  test:
+    name: Test & Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.x'
+          cache: true
+
+      - name: Install dependencies
+        run: |
+          go mod download
+          go install github.com/onsi/ginkgo/v2/ginkgo@latest
+          go install golang.org/x/tools/cmd/goimports@latest
+
+      - name: Check formatting
+        run: |
+          make fmt
+          git diff --exit-code || (echo "Code is not formatted. Run 'make fmt'" && exit 1)
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: latest
+          args: --timeout=5m
+
+      - name: Run tests with coverage
+        run: make coverage
+
+      - name: Display coverage
+        run: |
+          echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
+          go tool cover -func=coverage.txt | tail -1 | awk '{print "Total coverage: " $3}' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.html
+          retention-days: 14
+
+      - name: Build
+        run: make build
