@@ -98,9 +98,6 @@ var _ = Describe("Inspect Command", func() {
 		err = store.SaveSystemPrompt("full-inspect", "Test system prompt")
 		Expect(err).NotTo(HaveOccurred())
 
-		err = store.SaveContext("full-inspect", "Test context")
-		Expect(err).NotTo(HaveOccurred())
-
 		// Execute inspect command
 		rootCmd := cmd.NewRootCmd()
 		rootCmd.SetOut(io.Discard)
@@ -143,10 +140,6 @@ var _ = Describe("Inspect Command", func() {
 		// Add global context
 		globalCtx := filepath.Join(clotildeRoot, config.GlobalContextFile)
 		err = os.WriteFile(globalCtx, []byte("Global context line 1\nGlobal context line 2\n"), 0644)
-		Expect(err).NotTo(HaveOccurred())
-
-		// Add session context
-		err = store.SaveContext("ctx-session", "Session context line 1\n")
 		Expect(err).NotTo(HaveOccurred())
 
 		// Execute inspect command

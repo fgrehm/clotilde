@@ -51,13 +51,12 @@ Each session is a folder in `.claude/clotilde/sessions/<name>/`:
 
 ```
 .claude/clotilde/
-  context.md              # Global context for all sessions in this worktree (optional)
+  context.md              # Global context for all sessions (optional)
   sessions/
     my-session/
       metadata.json       # Session metadata (name, sessionId, timestamps, parent info)
       settings.json       # Claude Code settings (model, permissions - optional)
       system-prompt.md    # System prompt content (optional)
-      context.md          # Session-specific context (optional)
 ```
 
 **Metadata format** (`metadata.json`):
@@ -96,9 +95,9 @@ Each session is a folder in `.claude/clotilde/sessions/<name>/`:
 
 **Settings scope**: Only session-specific settings (model, permissions). Not global stuff like hooks, MCP servers, status line. Settings file is ALWAYS created (empty object if no model/permissions specified).
 
-**Context loading**: Two-level system loaded at session start via SessionStart hooks:
-- **Global** (`.claude/clotilde/context.md`): What this worktree is about (ticket info, task goal, relevant specs)
-- **Session-specific** (`sessions/<name>/context.md`): Extra details for this particular session
+**Context loading**: Global context loaded at session start via SessionStart hooks:
+- **Global** (`.claude/clotilde/context.md`): What you're working on (ticket info, task goal, relevant specs)
+- Hook outputs context with a header indicating the source file so Claude knows where to make updates if needed
 
 ### Claude Code Integration Patterns
 
@@ -172,9 +171,8 @@ No matcher field - the single hook handles all sources (startup, resume, compact
 
 **Context loading:**
 - Hook outputs context to stdout which gets automatically injected by Claude Code
-- Two levels:
-  - Global (`.claude/clotilde/context.md`): What this worktree is about (ticket/issue info, task goal)
-  - Session-specific (`sessions/<name>/context.md`): Extra details for this conversation (only for forks)
+- Global context (`.claude/clotilde/context.md`): What you're working on (ticket/issue info, task goal)
+- Hook outputs a header ("Clotilde session context source / --- Loaded from .claude/clotilde/context.md ---") so Claude knows where to make updates if needed
 - Hooks use os.Stdin piping to read JSON input from Claude Code
 
 ### Claude Code Path Conversion

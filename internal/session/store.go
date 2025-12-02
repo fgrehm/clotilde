@@ -15,7 +15,6 @@ const (
 	metadataFile     = "metadata.json"
 	settingsFile     = "settings.json"
 	systemPromptFile = "system-prompt.md"
-	contextFile      = "context.md"
 )
 
 // Store defines the interface for session storage operations.
@@ -49,12 +48,6 @@ type Store interface {
 
 	// SaveSystemPrompt saves system-prompt.md for a session
 	SaveSystemPrompt(name string, content string) error
-
-	// LoadContext loads context.md for a session (returns empty if not exists)
-	LoadContext(name string) (string, error)
-
-	// SaveContext saves context.md for a session
-	SaveContext(name string, content string) error
 }
 
 // FileStore implements Store using the filesystem.
@@ -260,43 +253,6 @@ func (fs *FileStore) SaveSystemPrompt(name string, content string) error {
 	promptPath := filepath.Join(sessionDir, systemPromptFile)
 
 	return util.WriteFile(promptPath, []byte(content))
-}
-
-// LoadContext loads context.md for a session (returns empty if not exists).
-func (fs *FileStore) LoadContext(name string) (string, error) {
-	if err := ValidateName(name); err != nil {
-		return "", err
-	}
-
-	sessionDir := config.GetSessionDir(fs.clotildeRoot, name)
-	contextPath := filepath.Join(sessionDir, contextFile)
-
-	if !util.FileExists(contextPath) {
-		return "", nil
-	}
-
-	content, err := util.ReadFile(contextPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read context: %w", err)
-	}
-
-	return string(content), nil
-}
-
-// SaveContext saves context.md for a session.
-func (fs *FileStore) SaveContext(name string, content string) error {
-	if err := ValidateName(name); err != nil {
-		return err
-	}
-
-	if !fs.Exists(name) {
-		return fmt.Errorf("session '%s' not found", name)
-	}
-
-	sessionDir := config.GetSessionDir(fs.clotildeRoot, name)
-	contextPath := filepath.Join(sessionDir, contextFile)
-
-	return util.WriteFile(contextPath, []byte(content))
 }
 
 var _ = errors.New // Import marker to ensure errors is imported

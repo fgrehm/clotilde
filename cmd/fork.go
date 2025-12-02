@@ -23,7 +23,7 @@ func newForkCmd() *cobra.Command {
 		Use:   "fork <parent-name> [fork-name] [-- <claude-flags>...]",
 		Short: "Fork an existing session",
 		Long: `Create a new session that branches from an existing one.
-The fork inherits settings, system prompt, and context from the parent.
+The fork inherits settings and system prompt from the parent.
 
 If fork-name is not provided for incognito forks, a random name will be generated.
 
@@ -136,15 +136,6 @@ Pass additional flags to Claude Code after '--':
 				forkPrompt := filepath.Join(forkDir, "system-prompt.md")
 				if err := util.CopyFile(parentPrompt, forkPrompt); err != nil {
 					return fmt.Errorf("failed to copy system prompt: %w", err)
-				}
-			}
-
-			// Copy context.md if exists
-			parentContext := filepath.Join(parentDir, "context.md")
-			if util.FileExists(parentContext) {
-				forkContext := filepath.Join(forkDir, "context.md")
-				if err := util.CopyFile(parentContext, forkContext); err != nil {
-					return fmt.Errorf("failed to copy context: %w", err)
 				}
 			}
 

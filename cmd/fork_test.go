@@ -163,30 +163,6 @@ var _ = Describe("Fork Command", func() {
 		Expect(args).NotTo(ContainSubstring("--append-system-prompt-file"))
 	})
 
-	It("should inherit context from parent", func() {
-		// Create parent with context
-		parent := session.NewSession("parent-ctx", "uuid-parent-ctx")
-		err := store.Create(parent)
-		Expect(err).NotTo(HaveOccurred())
-
-		err = store.SaveContext("parent-ctx", "Project context here")
-		Expect(err).NotTo(HaveOccurred())
-
-		// Execute fork command
-		rootCmd := cmd.NewRootCmd()
-		rootCmd.SetOut(io.Discard)
-		rootCmd.SetErr(io.Discard)
-		rootCmd.SetArgs([]string{"--claude-bin", filepath.Join(fakeClaudeDir, "claude"), "fork", "parent-ctx", "child-ctx"})
-
-		err = rootCmd.Execute()
-		Expect(err).NotTo(HaveOccurred())
-
-		// Verify context was copied
-		childCtx, err := store.LoadContext("child-ctx")
-		Expect(err).NotTo(HaveOccurred())
-		Expect(childCtx).To(Equal("Project context here"))
-	})
-
 	It("should reject fork of non-existent parent", func() {
 		rootCmd := cmd.NewRootCmd()
 		rootCmd.SetOut(io.Discard)

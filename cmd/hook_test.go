@@ -158,33 +158,6 @@ var _ = Describe("Hook Commands", func() {
 				// Note: Output goes to stdout, would need to capture to verify content
 			})
 
-			It("should output session context for fork", func() {
-				// Create fork with context
-				fork := session.NewSession("fork-with-ctx", "")
-				fork.Metadata.IsForkedSession = true
-				err := store.Create(fork)
-				Expect(err).NotTo(HaveOccurred())
-
-				err = store.SaveContext("fork-with-ctx", "Fork context content")
-				Expect(err).NotTo(HaveOccurred())
-
-				// Set environment variable
-				_ = os.Setenv("CLOTILDE_FORK_NAME", "fork-with-ctx")
-				defer func() { _ = os.Unsetenv("CLOTILDE_FORK_NAME") }()
-
-				// Create hook input
-				hookInput := map[string]string{
-					"session_id": "fork-uuid",
-					"source":     "startup",
-				}
-				inputJSON, err := json.Marshal(hookInput)
-				Expect(err).NotTo(HaveOccurred())
-
-				// Execute hook sessionstart
-				err = executeHookWithInput("sessionstart", inputJSON)
-				Expect(err).NotTo(HaveOccurred())
-			})
-
 			It("should handle non-clotilde project gracefully", func() {
 				// Change to a directory without clotilde
 				nonClotildeDir := GinkgoT().TempDir()

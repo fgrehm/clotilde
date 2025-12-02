@@ -72,7 +72,7 @@ files present, settings, context sources, and Claude Code data status.`,
 
 		// Show files present
 		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Files:")
-		files := []string{"metadata.json", "settings.json", "system-prompt.md", "context.md"}
+		files := []string{"metadata.json", "settings.json", "system-prompt.md"}
 		for _, file := range files {
 			path := filepath.Join(sessionDir, file)
 			if util.FileExists(path) {
@@ -140,26 +140,12 @@ files present, settings, context sources, and Claude Code data status.`,
 			if err == nil && len(content) > 0 {
 				lines, _ := util.CountLines(globalContext)
 				excerpt := util.TruncateText(string(content), 200)
-				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Global (%d lines): %s\n", lines, excerpt)
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  (%d lines): %s\n", lines, excerpt)
 			} else {
-				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "  Global: empty")
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "  empty")
 			}
 		} else {
-			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "  Global: not set")
-		}
-
-		sessionContext := filepath.Join(sessionDir, "context.md")
-		if util.FileExists(sessionContext) {
-			content, err := os.ReadFile(sessionContext)
-			if err == nil && len(content) > 0 {
-				lines, _ := util.CountLines(sessionContext)
-				excerpt := util.TruncateText(string(content), 200)
-				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Session (%d lines): %s\n", lines, excerpt)
-			} else {
-				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "  Session: empty")
-			}
-		} else {
-			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "  Session: not set")
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "  not set")
 		}
 
 		_, _ = fmt.Fprintln(cmd.OutOrStdout())

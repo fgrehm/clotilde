@@ -208,31 +208,6 @@ var _ = Describe("FileStore", func() {
 		})
 	})
 
-	Describe("Context operations", func() {
-		BeforeEach(func() {
-			s := session.NewSession("test-session", "uuid-123")
-			err := store.Create(s)
-			Expect(err).NotTo(HaveOccurred())
-		})
-
-		It("should save and load context", func() {
-			content := "This session is for implementing feature X"
-
-			err := store.SaveContext("test-session", content)
-			Expect(err).NotTo(HaveOccurred())
-
-			loaded, err := store.LoadContext("test-session")
-			Expect(err).NotTo(HaveOccurred())
-			Expect(loaded).To(Equal(content))
-		})
-
-		It("should return empty string if context doesn't exist", func() {
-			loaded, err := store.LoadContext("test-session")
-			Expect(err).NotTo(HaveOccurred())
-			Expect(loaded).To(BeEmpty())
-		})
-	})
-
 	Describe("File existence checks", func() {
 		It("should check if settings file exists", func() {
 			s := session.NewSession("test-session", "uuid-123")

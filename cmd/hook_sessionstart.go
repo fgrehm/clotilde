@@ -84,8 +84,8 @@ func handleStartup(clotildeRoot string, hookData hookInput, store session.Store)
 		}
 	}
 
-	// Output only global context for new sessions
-	if err := outputContexts(clotildeRoot, ""); err != nil {
+	// Output global context for new sessions
+	if err := outputContexts(clotildeRoot); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Warning: failed to output contexts: %v\n", err)
 	}
 
@@ -120,12 +120,8 @@ func handleResume(clotildeRoot string, hookData hookInput, store session.Store) 
 		}
 	}
 
-	// Output contexts (global + fork context if forking)
-	contextSessionName := ""
-	if forkName != "" {
-		contextSessionName = forkName
-	}
-	if err := outputContexts(clotildeRoot, contextSessionName); err != nil {
+	// Output global context
+	if err := outputContexts(clotildeRoot); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Warning: failed to output contexts: %v\n", err)
 	}
 
@@ -172,7 +168,7 @@ func handleCompact(clotildeRoot string, hookData hookInput, store session.Store)
 	}
 
 	// Output global context
-	if err := outputContexts(clotildeRoot, ""); err != nil {
+	if err := outputContexts(clotildeRoot); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "Warning: failed to output contexts: %v\n", err)
 	}
 
@@ -319,25 +315,14 @@ func writeSessionNameToEnv(sessionName string) error {
 	return nil
 }
 
-// outputContexts loads and outputs global and session-specific context.
-func outputContexts(clotildeRoot, sessionName string) error {
+// outputContexts loads and outputs global context.
+func outputContexts(clotildeRoot string) error {
 	// Output global context if exists
 	globalContext := filepath.Join(clotildeRoot, config.GlobalContextFile)
 	if util.FileExists(globalContext) {
 		content, err := os.ReadFile(globalContext)
 		if err == nil {
-			fmt.Printf("\n--- Global Context ---\n%s\n", string(content))
-		}
-	}
-
-	// Output session-specific context if sessionName is provided
-	if sessionName != "" {
-		sessionContext := filepath.Join(config.GetSessionDir(clotildeRoot, sessionName), "context.md")
-		if util.FileExists(sessionContext) {
-			content, err := os.ReadFile(sessionContext)
-			if err == nil {
-				fmt.Printf("\n--- Session Context ---\n%s\n", string(content))
-			}
+			fmt.Printf("\nClotilde session context source\n\n--- Loaded from .claude/clotilde/context.md ---\n\n%s\n", string(content))
 		}
 	}
 

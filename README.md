@@ -8,14 +8,14 @@ A traditional Brazilian name - sometimes considered old-fashioned or humorous - 
 
 ## Why?
 
-Claude Code's `--continue` and `--resume` work great for linear workflows, but managing multiple parallel conversations gets messy. Some alternatives include:
+Claude Code's `--continue` and `--resume` work great for linear workflows, but managing multiple parallel conversations gets messy:
 
-- **Git worktrees**: Claude Code treats each worktree as a separate project with isolated sessions. This works, but worktrees are "heavyweight" for some projects as you need to manage separate checkouts / folders and not every project needs that level of isolation.
-- **Just use `--resume`**: Fine for 2-3 sessions, but at times the picker shows unhelpful text like "This session is being continued from a previous conversation that ran out of context. The conversation is summarized below:..." Which one was your auth work again?
+- **`--resume` picker limitations**: Fine for 2-3 sessions, but scales poorly. The picker often shows unhelpful text like "This session is being continued from a previous conversation that ran out of context. The conversation is summarized below:..." Which one was your auth work again?
+- **Session identity**: UUIDs and auto-generated summaries don't convey the purpose or context of each conversation at a glance.
 
 ## What Clotilde does
 
-Even within a single branch, you might have multiple conversations going:
+You often need multiple conversations, even within a single branch:
 - Main feature work
 - Quick bug investigation
 - Experimental refactoring (forked from main work to explore tangents)
@@ -38,8 +38,11 @@ Clotilde wraps Claude Code session UUIDs with human-friendly names:
 
 - Sessions stored as folders in `.claude/clotilde/sessions/<name>/`
 - Each session has metadata, optional settings, system prompt, and context files
+- Global context file (`.claude/clotilde/context.md`) - What you're working on (ticket info, task goal)
 - SessionStart hooks automatically register forked sessions and load context
 - Works alongside Claude Code without patching or modifying it
+
+**Note on worktrees:** Since `.claude/clotilde/` lives in each worktree's `.claude/` directory, each worktree gets its own independent sessions and global context. This makes Clotilde and worktrees complementary - use worktrees for major branches/features, use Clotilde for managing multiple conversations within each worktree.
 
 
 ## Installation
