@@ -27,9 +27,12 @@ builds:
       - -X github.com/fgrehm/clotilde/cmd.date={{.Date}}
 
 archives:
-  - id: unix
+  - id: default
     formats:
       - tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
     name_template: >-
       {{ .ProjectName }}_
       {{- .Version }}_
@@ -37,22 +40,6 @@ archives:
       {{- .Arch }}
     builds:
       - clotilde
-    filters:
-      exclude:
-        - goos: windows
-  - id: windows
-    formats:
-      - zip
-    name_template: >-
-      {{ .ProjectName }}_
-      {{- .Version }}_
-      {{- .Os }}_
-      {{- .Arch }}
-    builds:
-      - clotilde
-    filters:
-      include:
-        - goos: windows
 
 checksum:
   name_template: 'checksums.txt'
