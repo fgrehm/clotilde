@@ -32,13 +32,14 @@ archives:
       - tar.gz
     format_overrides:
       - goos: windows
-        format: zip
+        formats:
+          - zip
     name_template: >-
       {{ .ProjectName }}_
       {{- .Version }}_
       {{- .Os }}_
       {{- .Arch }}
-    builds:
+    ids:
       - clotilde
 
 checksum:
