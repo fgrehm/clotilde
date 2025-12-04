@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2025-12-04
+
 ### Changed
 
 - **Context system simplified:** Removed session-specific context support. Now only supports global context (`.claude/clotilde/context.md`)
