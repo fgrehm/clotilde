@@ -12,6 +12,33 @@ All shorthand flags apply to `start`, `incognito`, `fork`, and `resume` commands
 
 ## Shorthand Flags
 
+### Composite Presets
+
+These are opinionated presets that set multiple flags at once, optimizing for a specific workflow.
+
+#### `--fast`
+
+Optimizes for speed over depth. Sets the cheapest/fastest model with minimal reasoning effort.
+
+| Equivalent flags set |
+|---------------------|
+| `--model haiku` |
+| `--effort low` |
+
+**Examples:**
+```bash
+clotilde start quick-question --fast
+clotilde incognito --fast
+clotilde resume my-session --fast
+```
+
+**Conflict rules:**
+- `--fast` conflicts with `--model` (error if both provided)
+- `--fast` conflicts with `--effort` (error if both provided)
+- Can be combined with any other flag (permission modes, `--debug`, etc.)
+
+**Rationale:** The two settings that matter most for speed are model choice and effort level. Haiku is the fastest model, and low effort minimizes thinking time. Other flags (like permission mode or debug) are orthogonal to speed, so they're left to the user.
+
 ### Permission Mode Shortcuts
 
 These translate to `--permission-mode <value>` and conflict with each other and with `--permission-mode`.
@@ -94,6 +121,29 @@ clotilde resume my-session --debug mcp
 
 3. **Pass-through handling** (`cmd/start.go`, `cmd/resume.go`, `cmd/fork.go`, `cmd/incognito.go`): For `--effort`, `--mcp-config`, and `--debug`, append to `additionalArgs` before invoking claude.
 
+### Fast mode resolution
+
+`--fast` is resolved early, before other flag processing. It expands into model and effort values, then those values flow through the normal paths.
+
+```go
+func applyFastMode(cmd *cobra.Command) error {
+    fast, _ := cmd.Flags().GetBool("fast")
+    if !fast {
+        return nil
+    }
+    if cmd.Flags().Changed("model") {
+        return fmt.Errorf("cannot use --fast with --model")
+    }
+    if cmd.Flags().Changed("effort") {
+        return fmt.Errorf("cannot use --fast with --effort")
+    }
+    // Set the underlying values that other code reads
+    cmd.Flags().Set("model", "haiku")
+    cmd.Flags().Set("effort", "low")
+    return nil
+}
+```
+
 ### Permission shorthand resolution
 
 ```go
@@ -144,6 +194,7 @@ func collectPassthroughFlags(cmd *cobra.Command, additionalArgs []string) []stri
 
 | Flag | `start` | `incognito` | `fork` | `resume` |
 |------|---------|-------------|--------|----------|
+| `--fast` | yes | yes | yes | yes |
 | `--accept-edits` | yes | yes | yes | yes |
 | `--yolo` | yes | yes | yes | yes |
 | `--plan` | yes | yes | yes | yes |
@@ -162,6 +213,7 @@ func collectPassthroughFlags(cmd *cobra.Command, additionalArgs []string) []stri
 
 ## Testing
 
+- Unit tests for `applyFastMode`: sets model and effort, conflicts with `--model`, conflicts with `--effort`, combinable with permission flags
 - Unit tests for `resolvePermissionMode`: each shorthand alone, conflicts between shorthands, conflicts with `--permission-mode`
 - Unit tests for `collectPassthroughFlags`: each flag, combinations, empty values
 - Integration tests: verify the assembled `claude` CLI args include the correct flags
