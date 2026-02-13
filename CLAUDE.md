@@ -200,6 +200,12 @@ This ensures complete cleanup even after multiple `/clear` operations (and `/com
 
 ## Build & Test
 
+**Setup git hooks** (recommended first step):
+```bash
+make setup-hooks   # Enables pre-commit checks for formatting and linting
+```
+
+**Common commands:**
 ```bash
 make build         # Build to dist/clotilde
 make test          # Run all tests

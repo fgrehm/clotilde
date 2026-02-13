@@ -371,6 +371,29 @@ Clotilde is different because:
 
 ## Development
 
+**Requirements:**
+- Go 1.25+
+- Make
+- golangci-lint v2.x (for linting - matches CI)
+
+**Setup golangci-lint:**
+```bash
+# Install golangci-lint v2.x (required for consistent linting with CI)
+curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
+
+# Verify installation
+golangci-lint --version  # Should show v2.x
+```
+
+**Configure git hooks** (recommended):
+```bash
+make setup-hooks
+```
+
+This enables pre-commit checks that automatically format and lint your code before committing, preventing CI failures.
+
+**Build & Test:**
+
 ```bash
 # Build
 make build
@@ -392,20 +415,6 @@ make lint
 
 # Install locally to ~/.local/bin
 make install
-```
-
-**Requirements:**
-- Go 1.25+
-- Make
-- golangci-lint v2.x (for linting - matches CI)
-
-**Setup golangci-lint:**
-```bash
-# Install golangci-lint v2.x (required for consistent linting with CI)
-curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
-
-# Verify installation
-golangci-lint --version  # Should show v2.x
 ```
 
 **Note:** The `make lint` command will warn you if your local golangci-lint version doesn't match CI (v2.x).
