@@ -117,6 +117,30 @@ clotilde fork my-session temp-fork --incognito
 - Cannot fork FROM incognito sessions (they'll auto-delete when you exit)
 - CAN fork TO incognito sessions (create an incognito fork of a regular session)
 
+## Shorthand Flags
+
+Common permission modes and presets have short, memorable flags available on all session commands (`start`, `incognito`, `resume`, `fork`):
+
+```bash
+# Permission mode shortcuts
+clotilde start refactor --accept-edits    # auto-approve edits, ask for the rest
+clotilde incognito --yolo                 # bypass all permission checks
+clotilde start spike --plan               # plan mode
+clotilde resume my-session --dont-ask     # approve everything
+
+# Fast mode (haiku + low effort)
+clotilde start quick-check --fast
+clotilde incognito --fast --yolo          # quick throwaway, no prompts
+
+# Works on resume and fork too
+clotilde resume my-session --fast
+clotilde fork my-session experiment --accept-edits
+```
+
+**Permission shortcuts** (`--accept-edits`, `--yolo`, `--plan`, `--dont-ask`) are mutually exclusive with each other and with `--permission-mode`.
+
+**`--fast`** sets `--model haiku` and `--effort low`. Cannot be combined with `--model`.
+
 ## Pass-Through Flags
 
 Pass additional Claude Code flags directly using `--` separator:
@@ -129,7 +153,7 @@ clotilde start my-session -- --debug api,hooks
 clotilde resume my-session -- --verbose
 
 # Multiple flags
-clotilde ephemeral test -- --debug --permission-mode plan
+clotilde incognito test -- --debug --permission-mode plan
 ```
 
 **Common use cases:**
@@ -199,11 +223,16 @@ clotilde start research --model haiku --append-system-prompt "Focus on explorati
 
 **Options:**
 - `--model <model>` - Model to use (haiku, sonnet, opus), defaults to whatever is specified on your project configs (`.claude/settings.json`) or globally (`~/.claude/settings.json`)
+- `--fast` - Use haiku model with low effort for quick tasks
 - `--append-system-prompt <text>` - Add system prompt text (appends to Claude's default)
 - `--append-system-prompt-file <path>` - Add system prompt from file (appends to Claude's default)
 - `--replace-system-prompt <text>` - Replace Claude's default system prompt entirely with custom text
 - `--replace-system-prompt-file <path>` - Replace Claude's default system prompt entirely with file contents
 - `--incognito` - Create incognito session (auto-deletes on exit)
+- `--accept-edits` - Shorthand for `--permission-mode acceptEdits`
+- `--yolo` - Shorthand for `--permission-mode bypassPermissions`
+- `--plan` - Shorthand for `--permission-mode plan`
+- `--dont-ask` - Shorthand for `--permission-mode dontAsk`
 - `--permission-mode <mode>` - Permission mode (acceptEdits, bypassPermissions, default, dontAsk, plan)
 - `--allowed-tools <tools>` - Comma-separated list of allowed tools (e.g. `Bash(npm:*),Read`)
 - `--disallowed-tools <tools>` - Comma-separated list of disallowed tools (e.g. `Write,Bash(git:*)`)
@@ -259,13 +288,17 @@ clotilde incognito --model haiku
 
 **Options:** Same as `clotilde start` (except `--incognito` is implicit)
 
-### `clotilde resume [name]`
+### `clotilde resume [name] [options]`
 
-Resume a session by name.
+Resume a session by name. Shorthand flags are passed directly to Claude Code for that invocation.
 
 ```bash
 clotilde resume auth-feature
+clotilde resume auth-feature --fast
+clotilde resume auth-feature --accept-edits
 ```
+
+**Options:** `--accept-edits`, `--yolo`, `--plan`, `--dont-ask`, `--fast` (see [Shorthand Flags](#shorthand-flags))
 
 ### `clotilde list`
 
@@ -297,6 +330,7 @@ clotilde fork auth-feature --incognito
 
 **Options:**
 - `--incognito` - Create fork as incognito session (auto-deletes on exit)
+- `--accept-edits`, `--yolo`, `--plan`, `--dont-ask`, `--fast` - Shorthand flags (see [Shorthand Flags](#shorthand-flags))
 
 **Note:** You cannot fork FROM incognito sessions, but you can fork TO incognito sessions.
 
