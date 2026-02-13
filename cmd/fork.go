@@ -73,6 +73,23 @@ Pass additional flags to Claude Code after '--':
 				additionalArgs = args[argsLenAtDash:]
 			}
 
+			// Resolve shorthand flags (fork doesn't create sessions, pass to claude CLI)
+			permMode, err := resolvePermissionMode(cmd)
+			if err != nil {
+				return err
+			}
+			if permMode != "" {
+				additionalArgs = append(additionalArgs, "--permission-mode", permMode)
+			}
+
+			fastEnabled, err := resolveFastMode(cmd)
+			if err != nil {
+				return err
+			}
+			if fastEnabled {
+				additionalArgs = append(additionalArgs, "--model", "haiku", "--effort", "low")
+			}
+
 			// Find clotilde root
 			clotildeRoot, err := config.FindClotildeRoot()
 			if err != nil {
@@ -211,5 +228,6 @@ Pass additional flags to Claude Code after '--':
 		},
 	}
 	cmd.Flags().Bool("incognito", false, "Create fork as incognito session (auto-deletes on exit)")
+	registerShorthandFlags(cmd)
 	return cmd
 }

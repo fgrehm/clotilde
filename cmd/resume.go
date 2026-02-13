@@ -15,19 +15,21 @@ import (
 	"github.com/fgrehm/clotilde/internal/util"
 )
 
-var resumeCmd = &cobra.Command{
-	Use:   "resume [name] [-- <claude-flags>...]",
-	Short: "Resume an existing session by name",
-	Long: `Resume a Claude Code session by its human-friendly name.
+// newResumeCmd creates a fresh resume command instance (avoids flag pollution in tests)
+func newResumeCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "resume [name] [-- <claude-flags>...]",
+		Short: "Resume an existing session by name",
+		Long: `Resume a Claude Code session by its human-friendly name.
 
 If no session name is provided, an interactive picker will be shown
 (in TTY environments).
 
 Pass additional flags to Claude Code after '--':
   clotilde resume my-session -- --debug api,hooks`,
-	Args:              cobra.MaximumNArgs(1),
-	ValidArgsFunction: sessionNameCompletion,
-	RunE: func(cmd *cobra.Command, args []string) error {
+		Args:              cobra.MaximumNArgs(1),
+		ValidArgsFunction: sessionNameCompletion,
+		RunE: func(cmd *cobra.Command, args []string) error {
 		// Find clotilde root
 		clotildeRoot, err := config.FindClotildeRoot()
 		if err != nil {
@@ -84,6 +86,23 @@ Pass additional flags to Claude Code after '--':
 			additionalArgs = args[argsLenAtDash:]
 		}
 
+		// Resolve shorthand flags (resume doesn't create sessions, pass to claude CLI)
+		permMode, err := resolvePermissionMode(cmd)
+		if err != nil {
+			return err
+		}
+		if permMode != "" {
+			additionalArgs = append(additionalArgs, "--permission-mode", permMode)
+		}
+
+		fastEnabled, err := resolveFastMode(cmd)
+		if err != nil {
+			return err
+		}
+		if fastEnabled {
+			additionalArgs = append(additionalArgs, "--model", "haiku", "--effort", "low")
+		}
+
 		// Load session
 		sess, err := store.Get(name)
 		if err != nil {
@@ -117,6 +136,9 @@ Pass additional flags to Claude Code after '--':
 		// Invoke claude
 		return claude.Resume(clotildeRoot, sess, settingsFile, systemPromptFile, additionalArgs)
 	},
+	}
+	registerShorthandFlags(cmd)
+	return cmd
 }
 
 // sortSessionsByLastAccessed sorts sessions by last accessed time (most recent first)

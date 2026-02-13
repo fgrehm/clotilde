@@ -35,6 +35,24 @@ Pass additional flags to Claude Code after '--':
 				additionalArgs = args[argsLenAtDash:]
 			}
 
+			// Resolve shorthand flags
+			permMode, err := resolvePermissionMode(cmd)
+			if err != nil {
+				return err
+			}
+			if permMode != "" {
+				_ = cmd.Flags().Set("permission-mode", permMode)
+			}
+
+			fastEnabled, err := resolveFastMode(cmd)
+			if err != nil {
+				return err
+			}
+			if fastEnabled {
+				_ = cmd.Flags().Set("model", "haiku")
+				additionalArgs = append(additionalArgs, "--effort", "low")
+			}
+
 			// Build params from flags
 			params, err := buildSessionCreateParams(cmd, args[0])
 			if err != nil {
@@ -76,6 +94,9 @@ Pass additional flags to Claude Code after '--':
 	// Output style flags
 	cmd.Flags().String("output-style", "", "Output style: 'default', 'Explanatory', 'Learning', or custom content")
 	cmd.Flags().String("output-style-file", "", "Path to custom output style file")
+
+	// Shorthand flags
+	registerShorthandFlags(cmd)
 
 	// Register flag completions
 	_ = cmd.RegisterFlagCompletionFunc("model", modelCompletion)

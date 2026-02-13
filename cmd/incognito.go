@@ -42,6 +42,24 @@ process crashes or is killed (SIGKILL), the session may persist. Use
 				additionalArgs = args[argsLenAtDash:]
 			}
 
+			// Resolve shorthand flags
+			permMode, err := resolvePermissionMode(cmd)
+			if err != nil {
+				return err
+			}
+			if permMode != "" {
+				_ = cmd.Flags().Set("permission-mode", permMode)
+			}
+
+			fastEnabled, err := resolveFastMode(cmd)
+			if err != nil {
+				return err
+			}
+			if fastEnabled {
+				_ = cmd.Flags().Set("model", "haiku")
+				additionalArgs = append(additionalArgs, "--effort", "low")
+			}
+
 			// Generate or use provided name
 			var name string
 			if len(args) > 0 {
@@ -100,6 +118,9 @@ process crashes or is killed (SIGKILL), the session may persist. Use
 	// Output style flags
 	cmd.Flags().String("output-style", "", "Output style: 'default', 'Explanatory', 'Learning', or custom content")
 	cmd.Flags().String("output-style-file", "", "Path to custom output style file")
+
+	// Shorthand flags
+	registerShorthandFlags(cmd)
 
 	// Register flag completions
 	_ = cmd.RegisterFlagCompletionFunc("model", modelCompletion)
