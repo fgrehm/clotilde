@@ -30,112 +30,112 @@ Pass additional flags to Claude Code after '--':
 		Args:              cobra.MaximumNArgs(1),
 		ValidArgsFunction: sessionNameCompletion,
 		RunE: func(cmd *cobra.Command, args []string) error {
-		// Find clotilde root
-		clotildeRoot, err := config.FindClotildeRoot()
-		if err != nil {
-			return fmt.Errorf("not in a clotilde project (run 'clotilde init' first)")
-		}
-
-		// Create store
-		store := session.NewFileStore(clotildeRoot)
-
-		// Determine session name
-		var name string
-		if len(args) == 0 {
-			// No session name provided - show picker if in TTY
-			isTTY := isatty.IsTerminal(os.Stdout.Fd())
-			if !isTTY {
-				return fmt.Errorf("session name required in non-interactive mode")
-			}
-
-			// Load all sessions
-			sessions, err := store.List()
+			// Find clotilde root
+			clotildeRoot, err := config.FindClotildeRoot()
 			if err != nil {
-				return fmt.Errorf("failed to list sessions: %w", err)
+				return fmt.Errorf("not in a clotilde project (run 'clotilde init' first)")
 			}
 
-			if len(sessions) == 0 {
-				return fmt.Errorf("no sessions available")
+			// Create store
+			store := session.NewFileStore(clotildeRoot)
+
+			// Determine session name
+			var name string
+			if len(args) == 0 {
+				// No session name provided - show picker if in TTY
+				isTTY := isatty.IsTerminal(os.Stdout.Fd())
+				if !isTTY {
+					return fmt.Errorf("session name required in non-interactive mode")
+				}
+
+				// Load all sessions
+				sessions, err := store.List()
+				if err != nil {
+					return fmt.Errorf("failed to list sessions: %w", err)
+				}
+
+				if len(sessions) == 0 {
+					return fmt.Errorf("no sessions available")
+				}
+
+				// Sort by last accessed (most recent first)
+				sortSessionsByLastAccessed(sessions)
+
+				// Show picker with preview pane
+				picker := ui.NewPicker(sessions, "Select session to resume").WithPreview()
+				selected, err := ui.RunPicker(picker)
+				if err != nil {
+					return fmt.Errorf("picker failed: %w", err)
+				}
+
+				if selected == nil {
+					// User cancelled
+					_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Cancelled.")
+					return nil
+				}
+
+				name = selected.Name
+			} else {
+				name = args[0]
 			}
 
-			// Sort by last accessed (most recent first)
-			sortSessionsByLastAccessed(sessions)
+			// Extract additional args after '--'
+			var additionalArgs []string
+			argsLenAtDash := cmd.Flags().ArgsLenAtDash()
+			if argsLenAtDash > 0 && len(args) > argsLenAtDash {
+				additionalArgs = args[argsLenAtDash:]
+			}
 
-			// Show picker with preview pane
-			picker := ui.NewPicker(sessions, "Select session to resume").WithPreview()
-			selected, err := ui.RunPicker(picker)
+			// Resolve shorthand flags (resume doesn't create sessions, pass to claude CLI)
+			permMode, err := resolvePermissionMode(cmd)
 			if err != nil {
-				return fmt.Errorf("picker failed: %w", err)
+				return err
+			}
+			if permMode != "" {
+				additionalArgs = append(additionalArgs, "--permission-mode", permMode)
 			}
 
-			if selected == nil {
-				// User cancelled
-				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Cancelled.")
-				return nil
+			fastEnabled, err := resolveFastMode(cmd)
+			if err != nil {
+				return err
+			}
+			if fastEnabled {
+				additionalArgs = append(additionalArgs, "--model", "haiku", "--effort", "low")
 			}
 
-			name = selected.Name
-		} else {
-			name = args[0]
-		}
+			// Load session
+			sess, err := store.Get(name)
+			if err != nil {
+				return fmt.Errorf("session '%s' not found", name)
+			}
 
-		// Extract additional args after '--'
-		var additionalArgs []string
-		argsLenAtDash := cmd.Flags().ArgsLenAtDash()
-		if argsLenAtDash > 0 && len(args) > argsLenAtDash {
-			additionalArgs = args[argsLenAtDash:]
-		}
+			// Update lastAccessed timestamp
+			sess.UpdateLastAccessed()
+			if err := store.Update(sess); err != nil {
+				return fmt.Errorf("failed to update session: %w", err)
+			}
 
-		// Resolve shorthand flags (resume doesn't create sessions, pass to claude CLI)
-		permMode, err := resolvePermissionMode(cmd)
-		if err != nil {
-			return err
-		}
-		if permMode != "" {
-			additionalArgs = append(additionalArgs, "--permission-mode", permMode)
-		}
+			sessionDir := config.GetSessionDir(clotildeRoot, name)
 
-		fastEnabled, err := resolveFastMode(cmd)
-		if err != nil {
-			return err
-		}
-		if fastEnabled {
-			additionalArgs = append(additionalArgs, "--model", "haiku", "--effort", "low")
-		}
+			// Check for settings file
+			var settingsFile string
+			settingsPath := filepath.Join(sessionDir, "settings.json")
+			if util.FileExists(settingsPath) {
+				settingsFile = settingsPath
+			}
 
-		// Load session
-		sess, err := store.Get(name)
-		if err != nil {
-			return fmt.Errorf("session '%s' not found", name)
-		}
+			// Check for system prompt file
+			var systemPromptFile string
+			promptPath := filepath.Join(sessionDir, "system-prompt.md")
+			if util.FileExists(promptPath) {
+				systemPromptFile = promptPath
+			}
 
-		// Update lastAccessed timestamp
-		sess.UpdateLastAccessed()
-		if err := store.Update(sess); err != nil {
-			return fmt.Errorf("failed to update session: %w", err)
-		}
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Resuming session '%s' (%s)\n\n", name, sess.Metadata.SessionID)
 
-		sessionDir := config.GetSessionDir(clotildeRoot, name)
-
-		// Check for settings file
-		var settingsFile string
-		settingsPath := filepath.Join(sessionDir, "settings.json")
-		if util.FileExists(settingsPath) {
-			settingsFile = settingsPath
-		}
-
-		// Check for system prompt file
-		var systemPromptFile string
-		promptPath := filepath.Join(sessionDir, "system-prompt.md")
-		if util.FileExists(promptPath) {
-			systemPromptFile = promptPath
-		}
-
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Resuming session '%s' (%s)\n\n", name, sess.Metadata.SessionID)
-
-		// Invoke claude
-		return claude.Resume(clotildeRoot, sess, settingsFile, systemPromptFile, additionalArgs)
-	},
+			// Invoke claude
+			return claude.Resume(clotildeRoot, sess, settingsFile, systemPromptFile, additionalArgs)
+		},
 	}
 	registerShorthandFlags(cmd)
 	return cmd
