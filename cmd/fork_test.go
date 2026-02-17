@@ -9,6 +9,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/fgrehm/clotilde/cmd"
+	"github.com/fgrehm/clotilde/internal/claude"
 	"github.com/fgrehm/clotilde/internal/config"
 	"github.com/fgrehm/clotilde/internal/session"
 	"github.com/fgrehm/clotilde/internal/testutil"
@@ -54,10 +55,15 @@ var _ = Describe("Fork Command", func() {
 
 		clotildeRoot = filepath.Join(tempDir, config.ClotildeDir)
 		store = session.NewFileStore(clotildeRoot)
+
+		// Fake claude doesn't create transcripts, so pretend sessions are used
+		// to avoid empty session cleanup in most tests
+		claude.SessionUsedFunc = func(_ string, _ *session.Session) bool { return true }
 	})
 
 	AfterEach(func() {
-		// Restore PATH
+		// Restore SessionUsedFunc
+		claude.SessionUsedFunc = func(_ string, _ *session.Session) bool { return true }
 
 		// Restore working directory
 		_ = os.Chdir(originalWd)

@@ -15,6 +15,10 @@ import (
 // This is set by the cmd package.
 var VerboseFunc func() bool = func() bool { return false }
 
+// SessionUsedFunc checks if a Claude Code session was actually used (has a transcript).
+// Can be overridden in tests where the fake claude binary doesn't create transcripts.
+var SessionUsedFunc = defaultSessionUsed
+
 // InvokeOptions contains options for invoking claude CLI.
 type InvokeOptions struct {
 	SessionID        string
@@ -62,7 +66,9 @@ func Start(clotildeRoot string, sess *session.Session, settingsFile, systemPromp
 		return invokeWithCleanup(clotildeRoot, sess, args, env)
 	}
 
-	return invokeInteractive(args, env)
+	err := invokeInteractive(args, env)
+	cleanupEmptySession(clotildeRoot, sess)
+	return err
 }
 
 // Resume invokes claude CLI to resume an existing session.
@@ -142,7 +148,9 @@ func Fork(clotildeRoot string, parentSess *session.Session, forkName string, set
 		return invokeWithCleanup(clotildeRoot, forkSession, args, env)
 	}
 
-	return invokeInteractive(args, env)
+	err := invokeInteractive(args, env)
+	cleanupEmptySession(clotildeRoot, forkSession)
+	return err
 }
 
 // ClaudeBinaryPathFunc is a function that returns the path to the claude binary.
@@ -252,6 +260,43 @@ func cleanupIncognitoSession(clotildeRoot string, sess *session.Session) (*Delet
 	}
 
 	return deleted, nil
+}
+
+// defaultSessionUsed checks if a Claude Code session was actually used by looking
+// for a transcript file. Sessions with no ID (e.g., forks where the hook didn't run)
+// are considered unused.
+func defaultSessionUsed(clotildeRoot string, sess *session.Session) bool {
+	sessionID := sess.Metadata.SessionID
+	if sessionID == "" {
+		return false
+	}
+	homeDir, err := util.HomeDir()
+	if err != nil {
+		return true // assume used if we can't check
+	}
+	transcriptPath := TranscriptPath(homeDir, clotildeRoot, sessionID)
+	return util.FileExists(transcriptPath)
+}
+
+// cleanupEmptySession removes a session if Claude Code never created a transcript.
+// This handles the case where the user starts a session but exits without sending
+// any messages, leaving a ghost session in clotilde's store.
+func cleanupEmptySession(clotildeRoot string, sess *session.Session) {
+	// Reload session from disk (hook may have updated metadata)
+	store := session.NewFileStore(clotildeRoot)
+	current, err := store.Get(sess.Name)
+	if err != nil {
+		// Session doesn't exist (already cleaned up), nothing to do
+		return
+	}
+
+	if !SessionUsedFunc(clotildeRoot, current) {
+		if err := store.Delete(current.Name); err != nil {
+			fmt.Fprintln(os.Stderr, ui.Warning(fmt.Sprintf("Failed to cleanup empty session: %v", err)))
+			return
+		}
+		fmt.Fprintln(os.Stderr, ui.Info(fmt.Sprintf("Removed empty session '%s' (no messages were sent)", current.Name)))
+	}
 }
 
 // Invoke executes claude CLI with custom options (for advanced use cases).

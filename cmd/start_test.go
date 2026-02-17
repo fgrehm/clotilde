@@ -9,6 +9,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/fgrehm/clotilde/cmd"
+	"github.com/fgrehm/clotilde/internal/claude"
 	"github.com/fgrehm/clotilde/internal/config"
 	"github.com/fgrehm/clotilde/internal/session"
 	"github.com/fgrehm/clotilde/internal/testutil"
@@ -51,10 +52,15 @@ var _ = Describe("Start Command", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		clotildeRoot = filepath.Join(tempDir, config.ClotildeDir)
+
+		// Fake claude doesn't create transcripts, so pretend sessions are used
+		// to avoid empty session cleanup in most tests
+		claude.SessionUsedFunc = func(_ string, _ *session.Session) bool { return true }
 	})
 
 	AfterEach(func() {
-		// Restore PATH
+		// Restore SessionUsedFunc
+		claude.SessionUsedFunc = func(_ string, _ *session.Session) bool { return true }
 
 		// Restore working directory
 		_ = os.Chdir(originalWd)
@@ -223,5 +229,39 @@ var _ = Describe("Start Command", func() {
 		err = rootCmd2.Execute()
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring("already exists"))
+	})
+
+	It("should cleanup session when no messages were sent", func() {
+		// Simulate Claude Code not creating a transcript (user exited without typing)
+		claude.SessionUsedFunc = func(_ string, _ *session.Session) bool { return false }
+
+		rootCmd := cmd.NewRootCmd()
+		rootCmd.SetOut(io.Discard)
+		rootCmd.SetErr(io.Discard)
+		rootCmd.SetArgs([]string{"--claude-bin", filepath.Join(fakeClaudeDir, "claude"), "start", "empty-session"})
+
+		err := rootCmd.Execute()
+		Expect(err).NotTo(HaveOccurred())
+
+		// Verify session was cleaned up
+		store := session.NewFileStore(clotildeRoot)
+		Expect(store.Exists("empty-session")).To(BeFalse())
+	})
+
+	It("should keep session when messages were sent", func() {
+		// Simulate Claude Code creating a transcript (user sent messages)
+		claude.SessionUsedFunc = func(_ string, _ *session.Session) bool { return true }
+
+		rootCmd := cmd.NewRootCmd()
+		rootCmd.SetOut(io.Discard)
+		rootCmd.SetErr(io.Discard)
+		rootCmd.SetArgs([]string{"--claude-bin", filepath.Join(fakeClaudeDir, "claude"), "start", "used-session"})
+
+		err := rootCmd.Execute()
+		Expect(err).NotTo(HaveOccurred())
+
+		// Verify session still exists
+		store := session.NewFileStore(clotildeRoot)
+		Expect(store.Exists("used-session")).To(BeTrue())
 	})
 })

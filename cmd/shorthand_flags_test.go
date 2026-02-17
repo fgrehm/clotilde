@@ -10,6 +10,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/fgrehm/clotilde/cmd"
+	"github.com/fgrehm/clotilde/internal/claude"
 	"github.com/fgrehm/clotilde/internal/config"
 	"github.com/fgrehm/clotilde/internal/session"
 	"github.com/fgrehm/clotilde/internal/testutil"
@@ -47,9 +48,13 @@ var _ = Describe("Shorthand Flags", func() {
 
 		clotildeRoot = filepath.Join(tempDir, config.ClotildeDir)
 		store = session.NewFileStore(clotildeRoot)
+
+		// Fake claude doesn't create transcripts, so pretend sessions are used
+		claude.SessionUsedFunc = func(_ string, _ *session.Session) bool { return true }
 	})
 
 	AfterEach(func() {
+		claude.SessionUsedFunc = func(_ string, _ *session.Session) bool { return true }
 		_ = os.Chdir(originalWd)
 	})
 
