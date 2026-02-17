@@ -2,7 +2,7 @@
 
 Named session management for Claude Code.
 
-## Current Status: v0.3.0 (dev)
+## Current Status: v0.3.0
 
 Core functionality complete and tested. Working on quality-of-life improvements.
 
@@ -14,11 +14,13 @@ Core functionality complete and tested. Working on quality-of-life improvements.
 - **TUI**: Dashboard, session picker, confirmation dialogs, styled output
 - **Distribution**: Cross-platform binaries via goreleaser
 
-### Recent Changes (v0.3.0-dev)
+### v0.3.0 Highlights
 
 - **Permission mode shortcuts**: `--accept-edits`, `--yolo`, `--plan`, `--dont-ask` on all session commands
 - **`--fast` preset**: `--model haiku` + `--effort low` in a single flag
 - **Conflict detection**: Mutually exclusive shorthand flags produce clear error messages
+- **`start` resumes existing sessions**: Prompts to resume instead of failing on duplicate names
+- **Ghost session cleanup**: Empty sessions (no messages sent) are automatically removed
 
 ### Known Limitations
 
