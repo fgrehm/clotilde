@@ -1,12 +1,20 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
+	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 
 	"github.com/fgrehm/clotilde/internal/claude"
+	"github.com/fgrehm/clotilde/internal/config"
+	"github.com/fgrehm/clotilde/internal/session"
 	"github.com/fgrehm/clotilde/internal/ui"
+	"github.com/fgrehm/clotilde/internal/util"
 )
 
 func init() {
@@ -33,6 +41,14 @@ Pass additional flags to Claude Code after '--':
 			argsLenAtDash := cmd.Flags().ArgsLenAtDash()
 			if argsLenAtDash > 0 && len(args) > argsLenAtDash {
 				additionalArgs = args[argsLenAtDash:]
+			}
+
+			// Check if session already exists - offer to resume instead
+			if clotildeRoot, err := config.FindClotildeRoot(); err == nil {
+				store := session.NewFileStore(clotildeRoot)
+				if store.Exists(args[0]) {
+					return handleExistingSession(cmd, args[0], clotildeRoot, store, additionalArgs)
+				}
 			}
 
 			// Resolve shorthand flags
@@ -102,4 +118,69 @@ Pass additional flags to Claude Code after '--':
 	_ = cmd.RegisterFlagCompletionFunc("model", modelCompletion)
 	_ = cmd.RegisterFlagCompletionFunc("output-style", outputStyleCompletion)
 	return cmd
+}
+
+// handleExistingSession prompts the user to resume an existing session instead of
+// creating a duplicate. In non-TTY mode, returns an error suggesting the resume command.
+func handleExistingSession(cmd *cobra.Command, name, clotildeRoot string, store *session.FileStore, additionalArgs []string) error {
+	if !isatty.IsTerminal(os.Stdout.Fd()) {
+		return fmt.Errorf("session '%s' already exists, use 'clotilde resume %s' to resume it", name, name)
+	}
+
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s\n", ui.Warning(fmt.Sprintf("Session '%s' already exists.", name)))
+	_, _ = fmt.Fprint(cmd.OutOrStdout(), "Would you like to resume it? [Y/n]: ")
+
+	reader := bufio.NewReader(os.Stdin)
+	response, err := reader.ReadString('\n')
+	if err != nil {
+		return fmt.Errorf("failed to read input: %w", err)
+	}
+
+	response = strings.TrimSpace(strings.ToLower(response))
+	if response != "" && response != "y" && response != "yes" {
+		return nil
+	}
+
+	// Resolve shorthand flags for resume (pass as additional args, not baked into settings)
+	permMode, err := resolvePermissionMode(cmd)
+	if err != nil {
+		return err
+	}
+	if permMode != "" {
+		additionalArgs = append(additionalArgs, "--permission-mode", permMode)
+	}
+
+	fastEnabled, err := resolveFastMode(cmd)
+	if err != nil {
+		return err
+	}
+	if fastEnabled {
+		additionalArgs = append(additionalArgs, "--model", "haiku", "--effort", "low")
+	}
+
+	// Load and resume session
+	sess, err := store.Get(name)
+	if err != nil {
+		return fmt.Errorf("failed to load session: %w", err)
+	}
+
+	sess.UpdateLastAccessed()
+	if err := store.Update(sess); err != nil {
+		return fmt.Errorf("failed to update session: %w", err)
+	}
+
+	sessionDir := config.GetSessionDir(clotildeRoot, name)
+
+	var settingsFile string
+	if util.FileExists(filepath.Join(sessionDir, "settings.json")) {
+		settingsFile = filepath.Join(sessionDir, "settings.json")
+	}
+
+	var systemPromptFile string
+	if util.FileExists(filepath.Join(sessionDir, "system-prompt.md")) {
+		systemPromptFile = filepath.Join(sessionDir, "system-prompt.md")
+	}
+
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\nResuming session '%s' (%s)\n\n", sess.Name, sess.Metadata.SessionID)
+	return claude.Resume(clotildeRoot, sess, settingsFile, systemPromptFile, additionalArgs)
 }

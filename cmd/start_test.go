@@ -212,7 +212,7 @@ var _ = Describe("Start Command", func() {
 		Expect(err.Error()).To(ContainSubstring("invalid session name"))
 	})
 
-	It("should reject duplicate session names", func() {
+	It("should suggest resuming when session already exists (non-TTY)", func() {
 		// Create first session
 		rootCmd1 := cmd.NewRootCmd()
 		rootCmd1.SetOut(io.Discard)
@@ -221,7 +221,7 @@ var _ = Describe("Start Command", func() {
 		err := rootCmd1.Execute()
 		Expect(err).NotTo(HaveOccurred())
 
-		// Try to create again
+		// Try to create again - should suggest resume
 		rootCmd2 := cmd.NewRootCmd()
 		rootCmd2.SetOut(io.Discard)
 		rootCmd2.SetErr(io.Discard)
@@ -229,6 +229,7 @@ var _ = Describe("Start Command", func() {
 		err = rootCmd2.Execute()
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring("already exists"))
+		Expect(err.Error()).To(ContainSubstring("clotilde resume duplicate"))
 	})
 
 	It("should cleanup session when no messages were sent", func() {
