@@ -180,7 +180,7 @@ func (m DashboardModel) renderMenu() string {
 		}
 
 		line := fmt.Sprintf("%s  %s", item.Label, DimStyle.Render("- "+item.Description))
-		b.WriteString(fmt.Sprintf("%s %s\n", cursor, itemStyle.Render(line)))
+		fmt.Fprintf(&b, "%s %s\n", cursor, itemStyle.Render(line))
 	}
 
 	return b.String()
@@ -218,7 +218,7 @@ func (m DashboardModel) renderRecentSessions() string {
 			typeIndicator = typeStyle.Render(" [incognito]")
 		}
 
-		b.WriteString(fmt.Sprintf("  • %s%s\n", name, typeIndicator))
+		fmt.Fprintf(&b, "  • %s%s\n", name, typeIndicator)
 	}
 
 	if len(m.Sessions) > limit {

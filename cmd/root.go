@@ -332,7 +332,7 @@ func Execute() {
 }
 
 // resumeSession resumes a session (extracted from resume command)
-func resumeSession(clotildeRoot string, sess *session.Session, store session.Store) error {
+func resumeSession(clotildeRoot string, sess *session.Session, _ session.Store) error {
 	sessionDir := config.GetSessionDir(clotildeRoot, sess.Name)
 
 	// Check for settings file

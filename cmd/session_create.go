@@ -159,15 +159,16 @@ func createSession(params SessionCreateParams) (*SessionCreateResult, error) {
 		settings.OutputStyle = outputstyle.GetCustomStyleReference(params.Name)
 		hasCustomStyle = true
 	} else if params.OutputStyle != "" {
-		if outputstyle.IsBuiltIn(params.OutputStyle) {
+		switch {
+		case outputstyle.IsBuiltIn(params.OutputStyle):
 			// Use built-in style directly
 			settings.OutputStyle = params.OutputStyle
 			hasCustomStyle = false
-		} else if outputstyle.StyleExists(clotildeRoot, params.OutputStyle) {
+		case outputstyle.StyleExists(clotildeRoot, params.OutputStyle):
 			// Reference existing style by name (don't create new file)
 			settings.OutputStyle = params.OutputStyle
 			hasCustomStyle = false
-		} else {
+		default:
 			// Treat as custom inline content - create new session-specific style
 			if err := outputstyle.CreateCustomStyleFile(clotildeRoot, params.Name, params.OutputStyle); err != nil {
 				return nil, fmt.Errorf("failed to create custom style: %w", err)
@@ -207,18 +208,19 @@ func createSession(params SessionCreateParams) (*SessionCreateResult, error) {
 	}
 
 	// Save system prompt (handle both append and replace modes)
-	promptContent := ""
-	if params.SystemPrompt != "" {
+	var promptContent string
+	switch {
+	case params.SystemPrompt != "":
 		promptContent = params.SystemPrompt
-	} else if params.SystemPromptFile != "" {
+	case params.SystemPromptFile != "":
 		content, err := os.ReadFile(params.SystemPromptFile)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read system prompt file: %w", err)
 		}
 		promptContent = string(content)
-	} else if params.ReplaceSystemPrompt != "" {
+	case params.ReplaceSystemPrompt != "":
 		promptContent = params.ReplaceSystemPrompt
-	} else if params.ReplaceSystemPromptFile != "" {
+	case params.ReplaceSystemPromptFile != "":
 		content, err := os.ReadFile(params.ReplaceSystemPromptFile)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read system prompt file: %w", err)

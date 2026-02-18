@@ -16,7 +16,7 @@ import (
 )
 
 // executeHookWithInput executes a hook command with JSON input via stdin
-func executeHookWithInput(hookName string, input []byte) error {
+func executeHookWithInput(hookName string, input []byte) error { //nolint:unparam // test helper, hookName kept for clarity
 	oldStdin := os.Stdin
 	r, w, err := os.Pipe()
 	if err != nil {
@@ -62,7 +62,7 @@ var _ = Describe("Hook Commands", func() {
 
 		// Setup fake claude binary
 		fakeClaudeDir := filepath.Join(tempDir, "bin")
-		err = os.Mkdir(fakeClaudeDir, 0755)
+		err = os.Mkdir(fakeClaudeDir, 0o755)
 		Expect(err).NotTo(HaveOccurred())
 
 		_, _, err = testutil.CreateFakeClaude(fakeClaudeDir)
@@ -90,7 +90,7 @@ var _ = Describe("Hook Commands", func() {
 			It("should output contexts for new sessions", func() {
 				// Create global context
 				globalContext := filepath.Join(clotildeRoot, "context.md")
-				err := os.WriteFile(globalContext, []byte("Global context content"), 0644)
+				err := os.WriteFile(globalContext, []byte("Global context content"), 0o644)
 				Expect(err).NotTo(HaveOccurred())
 
 				// Create hook input
@@ -140,7 +140,7 @@ var _ = Describe("Hook Commands", func() {
 			It("should output global context if exists", func() {
 				// Create global context file
 				globalCtx := filepath.Join(clotildeRoot, config.GlobalContextFile)
-				err := os.WriteFile(globalCtx, []byte("Global context content"), 0644)
+				err := os.WriteFile(globalCtx, []byte("Global context content"), 0o644)
 				Expect(err).NotTo(HaveOccurred())
 
 				// Create hook input
@@ -271,7 +271,7 @@ var _ = Describe("Hook Commands", func() {
 			It("should output global context if exists", func() {
 				// Create global context file
 				globalCtx := filepath.Join(clotildeRoot, config.GlobalContextFile)
-				err := os.WriteFile(globalCtx, []byte("Global context for resume"), 0644)
+				err := os.WriteFile(globalCtx, []byte("Global context for resume"), 0o644)
 				Expect(err).NotTo(HaveOccurred())
 
 				// Create hook input

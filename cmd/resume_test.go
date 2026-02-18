@@ -39,7 +39,7 @@ var _ = Describe("Resume Command", func() {
 
 		// Setup fake claude binary
 		fakeClaudeDir = filepath.Join(tempDir, "bin")
-		err = os.Mkdir(fakeClaudeDir, 0755)
+		err = os.Mkdir(fakeClaudeDir, 0o755)
 		Expect(err).NotTo(HaveOccurred())
 
 		_, claudeArgsFile, err = testutil.CreateFakeClaude(fakeClaudeDir)

@@ -19,7 +19,7 @@ echo "$@" > %s
 exit 0
 `, argsFile)
 
-	if err := os.WriteFile(binaryPath, []byte(script), 0755); err != nil {
+	if err := os.WriteFile(binaryPath, []byte(script), 0o755); err != nil {
 		return "", "", err
 	}
 

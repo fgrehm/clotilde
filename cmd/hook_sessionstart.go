@@ -85,9 +85,7 @@ func handleStartup(clotildeRoot string, hookData hookInput, store session.Store)
 	}
 
 	// Output global context for new sessions
-	if err := outputContexts(clotildeRoot); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Warning: failed to output contexts: %v\n", err)
-	}
+	outputContexts(clotildeRoot)
 
 	return nil
 }
@@ -121,9 +119,7 @@ func handleResume(clotildeRoot string, hookData hookInput, store session.Store) 
 	}
 
 	// Output global context
-	if err := outputContexts(clotildeRoot); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Warning: failed to output contexts: %v\n", err)
-	}
+	outputContexts(clotildeRoot)
 
 	return nil
 }
@@ -168,9 +164,7 @@ func handleCompact(clotildeRoot string, hookData hookInput, store session.Store)
 	}
 
 	// Output global context
-	if err := outputContexts(clotildeRoot); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Warning: failed to output contexts: %v\n", err)
-	}
+	outputContexts(clotildeRoot)
 
 	return nil
 }
@@ -301,7 +295,7 @@ func writeSessionNameToEnv(sessionName string) error {
 	}
 
 	// Open file in append mode, create if doesn't exist
-	f, err := os.OpenFile(claudeEnvFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(claudeEnvFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return fmt.Errorf("failed to open CLAUDE_ENV_FILE: %w", err)
 	}
@@ -316,7 +310,7 @@ func writeSessionNameToEnv(sessionName string) error {
 }
 
 // outputContexts loads and outputs global context.
-func outputContexts(clotildeRoot string) error {
+func outputContexts(clotildeRoot string) {
 	// Output global context if exists
 	globalContext := filepath.Join(clotildeRoot, config.GlobalContextFile)
 	if util.FileExists(globalContext) {
@@ -325,8 +319,6 @@ func outputContexts(clotildeRoot string) error {
 			fmt.Printf("\nClotilde session context source\n\n--- Loaded from .claude/clotilde/context.md ---\n\n%s\n", string(content))
 		}
 	}
-
-	return nil
 }
 
 func init() {

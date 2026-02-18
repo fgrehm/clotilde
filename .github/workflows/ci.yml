@@ -22,10 +22,7 @@ jobs:
           cache: true
 
       - name: Install dependencies
-        run: |
-          go mod download
-          go install github.com/onsi/ginkgo/v2/ginkgo@latest
-          go install golang.org/x/tools/cmd/goimports@latest
+        run: go mod download
 
       - name: Check formatting
         run: |
@@ -33,10 +30,7 @@ jobs:
           git diff --exit-code || (echo "Code is not formatted. Run 'make fmt'" && exit 1)
 
       - name: Lint
-        uses: golangci/golangci-lint-action@v9
-        with:
-          version: latest
-          args: --timeout=5m
+        run: make lint
 
       - name: Run tests with coverage
         run: make coverage

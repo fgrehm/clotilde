@@ -14,7 +14,6 @@ var _ = Describe("Detect", func() {
 			// We can't easily mock exec.LookPath, so we just verify the function exists
 			// and returns an error or nil based on actual installation
 			err := claude.IsInstalled()
-
 			// Either it's installed (err == nil) or not installed (err != nil with helpful message)
 			if err != nil {
 				Expect(err.Error()).To(ContainSubstring("claude CLI not found"))

@@ -228,17 +228,18 @@ func (m TableModel) View() string {
 				Render(rowStr)
 		}
 
-		b.WriteString(fmt.Sprintf("%s %s\n", cursor, rowStr))
+		fmt.Fprintf(&b, "%s %s\n", cursor, rowStr)
 	}
 
 	// Help text
 	b.WriteString("\n")
 	helpStyle := DimStyle.Italic(true)
-	if m.FilterText != "" {
+	switch {
+	case m.FilterText != "":
 		b.WriteString(helpStyle.Render("(Esc to clear filter, / to edit, ↑/↓ to navigate, enter to select)"))
-	} else if m.sortingEnabled {
+	case m.sortingEnabled:
 		b.WriteString(helpStyle.Render("(↑/↓ or j/k to navigate, / to filter, 1-9 to sort, enter to select, q to quit)"))
-	} else {
+	default:
 		b.WriteString(helpStyle.Render("(↑/↓ or j/k to navigate, / to filter, enter to select, q to quit)"))
 	}
 
@@ -259,7 +260,7 @@ func (m TableModel) calculateColumnWidths() []int {
 
 		// Add sort indicator if this column is being sorted
 		if m.SortColumn == i {
-			headerText = headerText + " ↑" // Both ↑ and ↓ are same width
+			headerText += " ↑" // Both ↑ and ↓ are same width
 		}
 
 		// Add column number hint if sorting is enabled
@@ -372,7 +373,7 @@ func (m *TableModel) sortRows() {
 			}
 
 			// Compare and swap if needed
-			shouldSwap := false
+			var shouldSwap bool
 			if m.SortAscending {
 				shouldSwap = val1 > val2
 			} else {

@@ -65,7 +65,7 @@ func TestExtractLastModel(t *testing.T) {
 			tmpDir := t.TempDir()
 			transcriptPath := filepath.Join(tmpDir, "transcript.jsonl")
 
-			if err := os.WriteFile(transcriptPath, []byte(tt.transcriptData), 0644); err != nil {
+			if err := os.WriteFile(transcriptPath, []byte(tt.transcriptData), 0o644); err != nil {
 				t.Fatalf("Failed to write test transcript: %v", err)
 			}
 

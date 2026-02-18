@@ -33,7 +33,7 @@ var _ = Describe("EnsureDir", func() {
 
 	It("should not error if directory already exists", func() {
 		testPath := filepath.Join(tempDir, "existing")
-		err := os.Mkdir(testPath, 0755)
+		err := os.Mkdir(testPath, 0o755)
 		Expect(err).NotTo(HaveOccurred())
 
 		err = util.EnsureDir(testPath)
@@ -50,7 +50,7 @@ var _ = Describe("FileExists", func() {
 
 	It("should return true if file exists", func() {
 		testFile := filepath.Join(tempDir, "test.txt")
-		err := os.WriteFile(testFile, []byte("test"), 0644)
+		err := os.WriteFile(testFile, []byte("test"), 0o644)
 		Expect(err).NotTo(HaveOccurred())
 
 		Expect(util.FileExists(testFile)).To(BeTrue())
@@ -84,7 +84,7 @@ var _ = Describe("DirExists", func() {
 
 	It("should return false for files", func() {
 		testFile := filepath.Join(tempDir, "test.txt")
-		err := os.WriteFile(testFile, []byte("test"), 0644)
+		err := os.WriteFile(testFile, []byte("test"), 0o644)
 		Expect(err).NotTo(HaveOccurred())
 
 		Expect(util.DirExists(testFile)).To(BeFalse())
@@ -103,7 +103,7 @@ var _ = Describe("CopyFile", func() {
 		dstFile := filepath.Join(tempDir, "dest.txt")
 
 		content := []byte("test content")
-		err := os.WriteFile(srcFile, content, 0644)
+		err := os.WriteFile(srcFile, content, 0o644)
 		Expect(err).NotTo(HaveOccurred())
 
 		err = util.CopyFile(srcFile, dstFile)
@@ -118,7 +118,7 @@ var _ = Describe("CopyFile", func() {
 		srcFile := filepath.Join(tempDir, "source.txt")
 		dstFile := filepath.Join(tempDir, "nested", "dir", "dest.txt")
 
-		err := os.WriteFile(srcFile, []byte("test"), 0644)
+		err := os.WriteFile(srcFile, []byte("test"), 0o644)
 		Expect(err).NotTo(HaveOccurred())
 
 		err = util.CopyFile(srcFile, dstFile)
@@ -130,7 +130,7 @@ var _ = Describe("CopyFile", func() {
 		srcFile := filepath.Join(tempDir, "source.txt")
 		dstFile := filepath.Join(tempDir, "dest.txt")
 
-		err := os.WriteFile(srcFile, []byte("test"), 0600)
+		err := os.WriteFile(srcFile, []byte("test"), 0o600)
 		Expect(err).NotTo(HaveOccurred())
 
 		err = util.CopyFile(srcFile, dstFile)
@@ -202,7 +202,7 @@ var _ = Describe("CountLines", func() {
 	It("should count lines in a file", func() {
 		testFile := filepath.Join(tempDir, "test.txt")
 		content := "line1\nline2\nline3\n"
-		err := os.WriteFile(testFile, []byte(content), 0644)
+		err := os.WriteFile(testFile, []byte(content), 0o644)
 		Expect(err).NotTo(HaveOccurred())
 
 		count, err := util.CountLines(testFile)
@@ -212,7 +212,7 @@ var _ = Describe("CountLines", func() {
 
 	It("should return 0 for empty file", func() {
 		testFile := filepath.Join(tempDir, "empty.txt")
-		err := os.WriteFile(testFile, []byte(""), 0644)
+		err := os.WriteFile(testFile, []byte(""), 0o644)
 		Expect(err).NotTo(HaveOccurred())
 
 		count, err := util.CountLines(testFile)
@@ -223,7 +223,7 @@ var _ = Describe("CountLines", func() {
 	It("should count file without trailing newline", func() {
 		testFile := filepath.Join(tempDir, "test.txt")
 		content := "line1\nline2\nline3"
-		err := os.WriteFile(testFile, []byte(content), 0644)
+		err := os.WriteFile(testFile, []byte(content), 0o644)
 		Expect(err).NotTo(HaveOccurred())
 
 		count, err := util.CountLines(testFile)
@@ -303,11 +303,11 @@ var _ = Describe("CopyDir", func() {
 		dstDir := filepath.Join(tempDir, "dest")
 
 		// Create source structure
-		err := os.MkdirAll(filepath.Join(srcDir, "subdir"), 0755)
+		err := os.MkdirAll(filepath.Join(srcDir, "subdir"), 0o755)
 		Expect(err).NotTo(HaveOccurred())
-		err = os.WriteFile(filepath.Join(srcDir, "file1.txt"), []byte("content1"), 0644)
+		err = os.WriteFile(filepath.Join(srcDir, "file1.txt"), []byte("content1"), 0o644)
 		Expect(err).NotTo(HaveOccurred())
-		err = os.WriteFile(filepath.Join(srcDir, "subdir", "file2.txt"), []byte("content2"), 0644)
+		err = os.WriteFile(filepath.Join(srcDir, "subdir", "file2.txt"), []byte("content2"), 0o644)
 		Expect(err).NotTo(HaveOccurred())
 
 		// Copy directory
@@ -334,9 +334,9 @@ var _ = Describe("RemoveAll", func() {
 
 	It("should remove a directory and all contents", func() {
 		testDir := filepath.Join(tempDir, "toremove")
-		err := os.MkdirAll(filepath.Join(testDir, "subdir"), 0755)
+		err := os.MkdirAll(filepath.Join(testDir, "subdir"), 0o755)
 		Expect(err).NotTo(HaveOccurred())
-		err = os.WriteFile(filepath.Join(testDir, "file.txt"), []byte("test"), 0644)
+		err = os.WriteFile(filepath.Join(testDir, "file.txt"), []byte("test"), 0o644)
 		Expect(err).NotTo(HaveOccurred())
 
 		err = util.RemoveAll(testDir)
@@ -346,7 +346,7 @@ var _ = Describe("RemoveAll", func() {
 
 	It("should remove a single file", func() {
 		testFile := filepath.Join(tempDir, "file.txt")
-		err := os.WriteFile(testFile, []byte("test"), 0644)
+		err := os.WriteFile(testFile, []byte("test"), 0o644)
 		Expect(err).NotTo(HaveOccurred())
 
 		err = util.RemoveAll(testFile)

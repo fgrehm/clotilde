@@ -1,0 +1,39 @@
+version: "2"
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gocritic
+    - errorlint
+    - bodyclose
+    - nilerr
+    - copyloopvar
+    - whitespace
+    - unconvert
+    - unparam
+    - usestdlibvars
+    - wastedassign
+    - misspell
+  settings:
+    gocritic:
+      disabled-checks:
+        - singleCaseSwitch
+      enabled-checks:
+        - boolExprSimplify
+        - nilValReturn
+  exclusions:
+    paths:
+      - vendor
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+
+output:
+  sort-order:
+    - file

@@ -37,7 +37,7 @@ var _ = Describe("Shorthand Flags", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		fakeClaudeDir = filepath.Join(tempDir, "bin")
-		err = os.Mkdir(fakeClaudeDir, 0755)
+		err = os.Mkdir(fakeClaudeDir, 0o755)
 		Expect(err).NotTo(HaveOccurred())
 
 		_, claudeArgsFile, err = testutil.CreateFakeClaude(fakeClaudeDir)

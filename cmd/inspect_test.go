@@ -37,7 +37,7 @@ var _ = Describe("Inspect Command", func() {
 
 		// Setup fake claude binary
 		fakeClaudeDir := filepath.Join(tempDir, "bin")
-		err = os.Mkdir(fakeClaudeDir, 0755)
+		err = os.Mkdir(fakeClaudeDir, 0o755)
 		Expect(err).NotTo(HaveOccurred())
 
 		_, _, err = testutil.CreateFakeClaude(fakeClaudeDir)
@@ -139,7 +139,7 @@ var _ = Describe("Inspect Command", func() {
 
 		// Add global context
 		globalCtx := filepath.Join(clotildeRoot, config.GlobalContextFile)
-		err = os.WriteFile(globalCtx, []byte("Global context line 1\nGlobal context line 2\n"), 0644)
+		err = os.WriteFile(globalCtx, []byte("Global context line 1\nGlobal context line 2\n"), 0o644)
 		Expect(err).NotTo(HaveOccurred())
 
 		// Execute inspect command

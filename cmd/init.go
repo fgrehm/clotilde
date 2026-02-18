@@ -91,7 +91,7 @@ func setupHooks(projectRoot, clotildeBinary, settingsFile string) error {
 
 	// Ensure .claude directory exists
 	if !util.FileExists(claudeDir) {
-		if err := os.MkdirAll(claudeDir, 0755); err != nil {
+		if err := os.MkdirAll(claudeDir, 0o755); err != nil {
 			return fmt.Errorf("failed to create .claude directory: %w", err)
 		}
 	}

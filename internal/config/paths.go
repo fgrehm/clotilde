@@ -83,13 +83,13 @@ func EnsureClotildeStructure(projectRoot string) error {
 	clotildePath := filepath.Join(projectRoot, ClotildeDir)
 
 	// Create .claude/clotilde/ directory
-	if err := os.MkdirAll(clotildePath, 0755); err != nil {
+	if err := os.MkdirAll(clotildePath, 0o755); err != nil {
 		return err
 	}
 
 	// Create sessions/ subdirectory
 	sessionsPath := filepath.Join(clotildePath, SessionsDir)
-	if err := os.MkdirAll(sessionsPath, 0755); err != nil {
+	if err := os.MkdirAll(sessionsPath, 0o755); err != nil {
 		return err
 	}
 

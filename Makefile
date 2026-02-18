@@ -67,31 +67,12 @@ clean: ## Remove build artifacts
 
 lint: ## Run golangci-lint
 	@echo "Running linter..."
-	@if ! command -v golangci-lint >/dev/null 2>&1; then \
-		echo "⚠ golangci-lint not installed. Install with:"; \
-		echo "  curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b \$$(go env GOPATH)/bin"; \
-		exit 1; \
-	fi
-	@VERSION=$$(golangci-lint --version | grep -oP 'version \K[0-9]+\.[0-9]+' | head -1); \
-	MAJOR=$$(echo $$VERSION | cut -d. -f1); \
-	if [ "$$MAJOR" != "2" ]; then \
-		echo "⚠ Warning: golangci-lint v$$VERSION detected, but CI uses v2.x"; \
-		echo "  Your version may have different linting rules than CI."; \
-		echo "  To upgrade: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b \$$(go env GOPATH)/bin"; \
-		echo ""; \
-	fi
-	@golangci-lint run ./... && echo "✓ Lint passed"
+	@go tool golangci-lint run ./... && echo "✓ Lint passed"
 
-fmt: ## Format code with gofmt and goimports
+fmt: ## Format code with gofumpt and goimports
 	@echo "Formatting code..."
-	@gofmt -s -w .
-	@if command -v goimports >/dev/null 2>&1; then \
-		goimports -w .; \
-		echo "✓ Formatted with gofmt and goimports"; \
-	else \
-		echo "✓ Formatted with gofmt (goimports not installed)"; \
-		echo "  Install goimports with: go install golang.org/x/tools/cmd/goimports@latest"; \
-	fi
+	@go tool golangci-lint fmt ./...
+	@echo "✓ Formatted"
 
 coverage: ## Generate test coverage report
 	@echo "Generating coverage report..."

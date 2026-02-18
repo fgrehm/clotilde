@@ -23,7 +23,7 @@ var _ = Describe("Cleanup", func() {
 		projectDir = filepath.Join(tempDir, ".claude", "projects", "test-project")
 
 		// Create project directory
-		err := os.MkdirAll(projectDir, 0755)
+		err := os.MkdirAll(projectDir, 0o755)
 		Expect(err).NotTo(HaveOccurred())
 	})
 
@@ -31,7 +31,7 @@ var _ = Describe("Cleanup", func() {
 		It("should delete transcript using stored transcript path", func() {
 			// Create transcript file
 			transcriptPath := filepath.Join(projectDir, "session-uuid-123.jsonl")
-			err := os.WriteFile(transcriptPath, []byte("transcript content"), 0644)
+			err := os.WriteFile(transcriptPath, []byte("transcript content"), 0o644)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(transcriptPath).To(BeAnExistingFile())
 
@@ -48,18 +48,18 @@ var _ = Describe("Cleanup", func() {
 		It("should delete agent logs referencing the session", func() {
 			// Create transcript file
 			transcriptPath := filepath.Join(projectDir, "session-uuid-456.jsonl")
-			err := os.WriteFile(transcriptPath, []byte("transcript"), 0644)
+			err := os.WriteFile(transcriptPath, []byte("transcript"), 0o644)
 			Expect(err).NotTo(HaveOccurred())
 
 			// Create agent log that references the session
 			agentLogPath := filepath.Join(projectDir, "agent-test-123.jsonl")
 			agentLogContent := `{"type":"agent","sessionId":"session-uuid-456"}` + "\n"
-			err = os.WriteFile(agentLogPath, []byte(agentLogContent), 0644)
+			err = os.WriteFile(agentLogPath, []byte(agentLogContent), 0o644)
 			Expect(err).NotTo(HaveOccurred())
 
 			// Create another agent log that doesn't reference this session
 			otherAgentLog := filepath.Join(projectDir, "agent-other-456.jsonl")
-			err = os.WriteFile(otherAgentLog, []byte(`{"type":"agent","sessionId":"other-session"}`), 0644)
+			err = os.WriteFile(otherAgentLog, []byte(`{"type":"agent","sessionId":"other-session"}`), 0o644)
 			Expect(err).NotTo(HaveOccurred())
 
 			// Delete session data

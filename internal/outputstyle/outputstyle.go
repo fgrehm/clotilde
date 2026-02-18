@@ -72,7 +72,7 @@ func CreateCustomStyleFile(clotildeRoot, sessionName, content string) error {
 
 	// Create directory if needed
 	dir := filepath.Dir(stylePath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("failed to create output-styles directory: %w", err)
 	}
 
@@ -87,7 +87,7 @@ keep-coding-instructions: true
 `, GetCustomStyleReference(sessionName), sessionName, content)
 
 	// Write file
-	if err := os.WriteFile(stylePath, []byte(fileContent), 0644); err != nil {
+	if err := os.WriteFile(stylePath, []byte(fileContent), 0o644); err != nil {
 		return fmt.Errorf("failed to write output style file: %w", err)
 	}
 
@@ -138,11 +138,11 @@ keep-coding-instructions: true
 	// Write to output styles directory
 	stylePath := GetCustomStylePath(clotildeRoot, sessionName)
 	dir := filepath.Dir(stylePath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return fmt.Errorf("failed to create output-styles directory: %w", err)
 	}
 
-	if err := os.WriteFile(stylePath, []byte(updatedFrontmatter), 0644); err != nil {
+	if err := os.WriteFile(stylePath, []byte(updatedFrontmatter), 0o644); err != nil {
 		return fmt.Errorf("failed to write output style file: %w", err)
 	}
 

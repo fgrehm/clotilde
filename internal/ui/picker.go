@@ -213,7 +213,7 @@ func (m PickerModel) viewSimple() string {
 				Render(sessionLine)
 		}
 
-		b.WriteString(fmt.Sprintf("%s %s\n", cursor, sessionLine))
+		fmt.Fprintf(&b, "%s %s\n", cursor, sessionLine)
 	}
 
 	// Help text
@@ -322,7 +322,7 @@ func (m PickerModel) renderListPane(filtered []*session.Session) string {
 				Render(sessionLine)
 		}
 
-		b.WriteString(fmt.Sprintf("%s %s\n", cursor, sessionLine))
+		fmt.Fprintf(&b, "%s %s\n", cursor, sessionLine)
 	}
 
 	// Help text
@@ -428,10 +428,10 @@ func (m PickerModel) formatSessionLineWithTime(sess *session.Session) string {
 	// Add type indicator
 	if sess.Metadata.IsForkedSession {
 		typeStyle := lipgloss.NewStyle().Foreground(ForkColor)
-		name = name + typeStyle.Render(" [fork]")
+		name += typeStyle.Render(" [fork]")
 	} else if sess.Metadata.IsIncognito {
 		typeStyle := lipgloss.NewStyle().Foreground(IncognitoColor)
-		name = name + typeStyle.Render(" [inc]")
+		name += typeStyle.Render(" [inc]")
 	}
 
 	// Add time ago
@@ -444,19 +444,20 @@ func (m PickerModel) formatSessionLineWithTime(sess *session.Session) string {
 func formatTimeAgo(t time.Time) string {
 	duration := time.Since(t)
 
-	if duration.Seconds() < 60 {
+	switch {
+	case duration.Seconds() < 60:
 		return "just now"
-	} else if duration.Minutes() < 2 {
+	case duration.Minutes() < 2:
 		return "1 minute ago"
-	} else if duration.Minutes() < 60 {
+	case duration.Minutes() < 60:
 		return fmt.Sprintf("%d minutes ago", int(duration.Minutes()))
-	} else if duration.Hours() < 2 {
+	case duration.Hours() < 2:
 		return "1 hour ago"
-	} else if duration.Hours() < 24 {
+	case duration.Hours() < 24:
 		return fmt.Sprintf("%d hours ago", int(duration.Hours()))
-	} else if duration.Hours() < 48 {
+	case duration.Hours() < 48:
 		return "1 day ago"
-	} else {
+	default:
 		return fmt.Sprintf("%d days ago", int(duration.Hours()/24))
 	}
 }

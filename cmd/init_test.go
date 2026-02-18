@@ -36,7 +36,7 @@ var _ = Describe("Init Command", func() {
 
 		// Setup fake claude binary (for detection check)
 		fakeClaudeDir := filepath.Join(tempDir, "bin")
-		err = os.Mkdir(fakeClaudeDir, 0755)
+		err = os.Mkdir(fakeClaudeDir, 0o755)
 		Expect(err).NotTo(HaveOccurred())
 
 		_, _, err = testutil.CreateFakeClaude(fakeClaudeDir)
@@ -150,7 +150,7 @@ var _ = Describe("Init Command", func() {
 	It("should merge hooks into existing .claude/settings.json with --global", func() {
 		// Create existing .claude directory with settings
 		claudeDir := filepath.Join(tempDir, ".claude")
-		err := os.Mkdir(claudeDir, 0755)
+		err := os.Mkdir(claudeDir, 0o755)
 		Expect(err).NotTo(HaveOccurred())
 
 		existingSettings := map[string]interface{}{
@@ -162,7 +162,7 @@ var _ = Describe("Init Command", func() {
 		settingsPath := filepath.Join(claudeDir, "settings.json")
 		content, err := json.Marshal(existingSettings)
 		Expect(err).NotTo(HaveOccurred())
-		err = os.WriteFile(settingsPath, content, 0644)
+		err = os.WriteFile(settingsPath, content, 0o644)
 		Expect(err).NotTo(HaveOccurred())
 
 		// Execute init command with --global

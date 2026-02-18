@@ -104,7 +104,7 @@ var _ = Describe("OutputStyle", func() {
 
 		It("creates output style file with frontmatter", func() {
 			clotildeRoot := filepath.Join(tmpDir, ".claude", "clotilde")
-			err := os.MkdirAll(clotildeRoot, 0755)
+			err := os.MkdirAll(clotildeRoot, 0o755)
 			Expect(err).NotTo(HaveOccurred())
 
 			content := "Be concise and use bullet points"
@@ -139,7 +139,7 @@ var _ = Describe("OutputStyle", func() {
 
 		It("includes valid YAML frontmatter", func() {
 			clotildeRoot := filepath.Join(tmpDir, ".claude", "clotilde")
-			err := os.MkdirAll(clotildeRoot, 0755)
+			err := os.MkdirAll(clotildeRoot, 0o755)
 			Expect(err).NotTo(HaveOccurred())
 
 			err = outputstyle.CreateCustomStyleFile(clotildeRoot, "test", "content")
@@ -163,13 +163,13 @@ var _ = Describe("OutputStyle", func() {
 
 		It("creates custom style from file without frontmatter", func() {
 			clotildeRoot := filepath.Join(tmpDir, ".claude", "clotilde")
-			err := os.MkdirAll(clotildeRoot, 0755)
+			err := os.MkdirAll(clotildeRoot, 0o755)
 			Expect(err).NotTo(HaveOccurred())
 
 			// Create source file without frontmatter
 			sourceFile := filepath.Join(tmpDir, "source.md")
 			sourceContent := "Be concise and detailed"
-			err = os.WriteFile(sourceFile, []byte(sourceContent), 0644)
+			err = os.WriteFile(sourceFile, []byte(sourceContent), 0o644)
 			Expect(err).NotTo(HaveOccurred())
 
 			err = outputstyle.CreateCustomStyleFileFromFile(clotildeRoot, "from-file", sourceFile)
@@ -186,7 +186,7 @@ var _ = Describe("OutputStyle", func() {
 
 		It("creates custom style from file with valid frontmatter", func() {
 			clotildeRoot := filepath.Join(tmpDir, ".claude", "clotilde")
-			err := os.MkdirAll(clotildeRoot, 0755)
+			err := os.MkdirAll(clotildeRoot, 0o755)
 			Expect(err).NotTo(HaveOccurred())
 
 			// Create source file with valid frontmatter
@@ -199,7 +199,7 @@ keep-coding-instructions: false
 
 Be detailed and explanatory`
 
-			err = os.WriteFile(sourceFile, []byte(sourceContent), 0644)
+			err = os.WriteFile(sourceFile, []byte(sourceContent), 0o644)
 			Expect(err).NotTo(HaveOccurred())
 
 			err = outputstyle.CreateCustomStyleFileFromFile(clotildeRoot, "updated", sourceFile)
@@ -218,7 +218,7 @@ Be detailed and explanatory`
 
 		It("returns error for non-existent source file", func() {
 			clotildeRoot := filepath.Join(tmpDir, ".claude", "clotilde")
-			_ = os.MkdirAll(clotildeRoot, 0755)
+			_ = os.MkdirAll(clotildeRoot, 0o755)
 
 			err := outputstyle.CreateCustomStyleFileFromFile(clotildeRoot, "test", "/nonexistent/file.md")
 			Expect(err).To(HaveOccurred())
@@ -226,7 +226,7 @@ Be detailed and explanatory`
 
 		It("returns error for malformed frontmatter (unclosed)", func() {
 			clotildeRoot := filepath.Join(tmpDir, ".claude", "clotilde")
-			err := os.MkdirAll(clotildeRoot, 0755)
+			err := os.MkdirAll(clotildeRoot, 0o755)
 			Expect(err).NotTo(HaveOccurred())
 
 			// Create source file with unclosed frontmatter delimiter
@@ -235,7 +235,7 @@ Be detailed and explanatory`
 name: test
 description: test`
 
-			err = os.WriteFile(sourceFile, []byte(sourceContent), 0644)
+			err = os.WriteFile(sourceFile, []byte(sourceContent), 0o644)
 			Expect(err).NotTo(HaveOccurred())
 
 			err = outputstyle.CreateCustomStyleFileFromFile(clotildeRoot, "test", sourceFile)
@@ -244,7 +244,7 @@ description: test`
 
 		It("returns error when frontmatter missing required fields", func() {
 			clotildeRoot := filepath.Join(tmpDir, ".claude", "clotilde")
-			err := os.MkdirAll(clotildeRoot, 0755)
+			err := os.MkdirAll(clotildeRoot, 0o755)
 			Expect(err).NotTo(HaveOccurred())
 
 			// Create source file with incomplete frontmatter
@@ -255,7 +255,7 @@ name: test
 
 Content`
 
-			err = os.WriteFile(sourceFile, []byte(sourceContent), 0644)
+			err = os.WriteFile(sourceFile, []byte(sourceContent), 0o644)
 			Expect(err).NotTo(HaveOccurred())
 
 			err = outputstyle.CreateCustomStyleFileFromFile(clotildeRoot, "test", sourceFile)
@@ -273,7 +273,7 @@ Content`
 
 		It("deletes existing custom style file", func() {
 			clotildeRoot := filepath.Join(tmpDir, ".claude", "clotilde")
-			err := os.MkdirAll(clotildeRoot, 0755)
+			err := os.MkdirAll(clotildeRoot, 0o755)
 			Expect(err).NotTo(HaveOccurred())
 
 			// Create a file
@@ -307,7 +307,7 @@ Content`
 
 		It("returns true when custom style file exists", func() {
 			clotildeRoot := filepath.Join(tmpDir, ".claude", "clotilde")
-			err := os.MkdirAll(clotildeRoot, 0755)
+			err := os.MkdirAll(clotildeRoot, 0o755)
 			Expect(err).NotTo(HaveOccurred())
 
 			err = outputstyle.CreateCustomStyleFile(clotildeRoot, "existing", "content")

@@ -212,7 +212,7 @@ This will include a note about using Set-Alias to register the alias completion.
 }
 
 // generateCompletionBash generates bash completion with optional alias support
-func generateCompletionBash(cmd *cobra.Command, aliasName string) error {
+func generateCompletionBash(_ *cobra.Command, aliasName string) error {
 	var buf bytes.Buffer
 	if err := rootCmd.GenBashCompletionV2(&buf, false); err != nil {
 		return err
@@ -230,7 +230,7 @@ func generateCompletionBash(cmd *cobra.Command, aliasName string) error {
 }
 
 // generateCompletionZsh generates zsh completion with optional alias support
-func generateCompletionZsh(cmd *cobra.Command, aliasName string) error {
+func generateCompletionZsh(_ *cobra.Command, aliasName string) error {
 	var buf bytes.Buffer
 	if err := rootCmd.GenZshCompletion(&buf); err != nil {
 		return err
@@ -248,7 +248,7 @@ func generateCompletionZsh(cmd *cobra.Command, aliasName string) error {
 }
 
 // generateCompletionFish generates fish completion with optional alias support
-func generateCompletionFish(cmd *cobra.Command, aliasName string) error {
+func generateCompletionFish(_ *cobra.Command, aliasName string) error {
 	var buf bytes.Buffer
 	if err := rootCmd.GenFishCompletion(&buf, false); err != nil {
 		return err
@@ -266,7 +266,7 @@ func generateCompletionFish(cmd *cobra.Command, aliasName string) error {
 }
 
 // generateCompletionPowershell generates powershell completion with optional alias support
-func generateCompletionPowershell(cmd *cobra.Command, aliasName string) error {
+func generateCompletionPowershell(_ *cobra.Command, aliasName string) error {
 	var buf bytes.Buffer
 	if err := rootCmd.GenPowerShellCompletionWithDesc(&buf); err != nil {
 		return err

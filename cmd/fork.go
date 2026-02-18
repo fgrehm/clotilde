@@ -193,7 +193,7 @@ Pass additional flags to Claude Code after '--':
 									if err := json.Unmarshal(forkSettingsData, &forkSettings); err == nil {
 										forkSettings.OutputStyle = outputstyle.GetCustomStyleReference(forkName)
 										updatedData, _ := json.MarshalIndent(forkSettings, "", "  ")
-										_ = os.WriteFile(forkSettingsPath, updatedData, 0644)
+										_ = os.WriteFile(forkSettingsPath, updatedData, 0o644)
 									}
 
 									// Update fork metadata
