@@ -17,7 +17,7 @@ var VerboseFunc func() bool = func() bool { return false }
 
 // SessionUsedFunc checks if a Claude Code session was actually used (has a transcript).
 // Can be overridden in tests where the fake claude binary doesn't create transcripts.
-var SessionUsedFunc = defaultSessionUsed
+var SessionUsedFunc = DefaultSessionUsed
 
 // InvokeOptions contains options for invoking claude CLI.
 type InvokeOptions struct {
@@ -265,11 +265,18 @@ func cleanupIncognitoSession(clotildeRoot string, sess *session.Session) (*Delet
 // defaultSessionUsed checks if a Claude Code session was actually used by looking
 // for a transcript file. Sessions with no ID (e.g., forks where the hook didn't run)
 // are considered unused.
-func defaultSessionUsed(clotildeRoot string, sess *session.Session) bool {
+func DefaultSessionUsed(clotildeRoot string, sess *session.Session) bool {
 	sessionID := sess.Metadata.SessionID
 	if sessionID == "" {
 		return false
 	}
+
+	// Prefer the transcript path saved by the hook (accurate even with symlinks),
+	// fall back to computing it from the clotilde root.
+	if sess.Metadata.TranscriptPath != "" {
+		return util.FileExists(sess.Metadata.TranscriptPath)
+	}
+
 	homeDir, err := util.HomeDir()
 	if err != nil {
 		return true // assume used if we can't check

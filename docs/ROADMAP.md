@@ -2,7 +2,7 @@
 
 Named session management for Claude Code.
 
-## Current Status: v0.3.0
+## Current Status: v0.3.1
 
 Core functionality complete and tested. Working on quality-of-life improvements.
 
