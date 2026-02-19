@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Global config file**: New `.claude/clotilde/config.json` file to set project-wide defaults. Currently supports `model` setting to specify the default Claude model for new sessions (used when `--model` flag is not provided).
+- **Global config file**: New `.claude/clotilde/config.json` file to set project-wide defaults. Supports:
+  - `model` - Default Claude model for all sessions (haiku, sonnet, opus)
+  - `permissions` - Default permissions for all sessions (allow/deny/ask lists, additionalDirectories, defaultMode, disableBypassPermissionsMode). Command-line permission flags override config defaults.
 
 ### Fixed
 

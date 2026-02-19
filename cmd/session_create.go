@@ -189,13 +189,32 @@ func createSession(params SessionCreateParams) (*SessionCreateResult, error) {
 	// Update metadata
 	sess.Metadata.HasCustomOutputStyle = hasCustomStyle
 
-	// Build permissions if any flags provided
-	if params.PermissionMode != "" || len(params.AllowedTools) > 0 || len(params.DisallowedTools) > 0 || len(params.AdditionalDirs) > 0 {
+	// Build permissions from global config and command-line flags
+	// Start with global config permissions if they exist
+	if globalConfig.DefaultPermissions != nil {
 		settings.Permissions = session.Permissions{
-			DefaultMode:           params.PermissionMode,
-			Allow:                 params.AllowedTools,
-			Deny:                  params.DisallowedTools,
-			AdditionalDirectories: params.AdditionalDirs,
+			Allow:                        globalConfig.DefaultPermissions.Allow,
+			Ask:                          globalConfig.DefaultPermissions.Ask,
+			Deny:                         globalConfig.DefaultPermissions.Deny,
+			AdditionalDirectories:        globalConfig.DefaultPermissions.AdditionalDirectories,
+			DefaultMode:                  globalConfig.DefaultPermissions.DefaultMode,
+			DisableBypassPermissionsMode: globalConfig.DefaultPermissions.DisableBypassPermissionsMode,
+		}
+	}
+
+	// Override with command-line flags
+	if params.PermissionMode != "" || len(params.AllowedTools) > 0 || len(params.DisallowedTools) > 0 || len(params.AdditionalDirs) > 0 {
+		if params.PermissionMode != "" {
+			settings.Permissions.DefaultMode = params.PermissionMode
+		}
+		if len(params.AllowedTools) > 0 {
+			settings.Permissions.Allow = params.AllowedTools
+		}
+		if len(params.DisallowedTools) > 0 {
+			settings.Permissions.Deny = params.DisallowedTools
+		}
+		if len(params.AdditionalDirs) > 0 {
+			settings.Permissions.AdditionalDirectories = params.AdditionalDirs
 		}
 	}
 

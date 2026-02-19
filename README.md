@@ -196,12 +196,25 @@ You can configure project-wide defaults by creating `.claude/clotilde/config.jso
 
 ```json
 {
-  "model": "sonnet"
+  "model": "sonnet",
+  "permissions": {
+    "allow": ["Bash", "Read"],
+    "deny": ["Write"],
+    "defaultMode": "ask"
+  }
 }
 ```
 
 **Available settings:**
-- `model` - Default model for new sessions (haiku, sonnet, opus). Used when `clotilde start` or `clotilde incognito` is run without the `--model` flag. Command-line flags always take precedence.
+- `model` - Default model for new sessions (haiku, sonnet, opus). Used when `clotilde start` or `clotilde incognito` is run without the `--model` flag. Command-line `--model` flag always takes precedence.
+- `permissions` - Project-wide default permissions applied to all sessions. Supports all Claude Code permission fields:
+  - `allow` - Tools Claude can always use
+  - `deny` - Tools Claude cannot use
+  - `ask` - Tools that require approval
+  - `additionalDirectories` - Extra directories Claude can access
+  - `defaultMode` - Default action for tools not in allow/deny/ask (ask, allow, or deny)
+  - `disableBypassPermissionsMode` - Disable permission bypass (boolean)
+  - Command-line permission flags override config defaults
 
 ### `clotilde start <name> [options]`
 

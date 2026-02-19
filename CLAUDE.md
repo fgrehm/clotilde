@@ -82,11 +82,21 @@ Each session is a folder in `.claude/clotilde/sessions/<name>/`:
 **Global config format** (`config.json`):
 ```json
 {
-  "model": "sonnet"
+  "model": "sonnet",
+  "permissions": {
+    "allow": ["Bash", "Read"],
+    "deny": ["Write"],
+    "defaultMode": "ask",
+    "additionalDirectories": ["/tmp"]
+  }
 }
 ```
 
-**Config purpose**: Sets the default model for new sessions created with `clotilde start` and `clotilde incognito`. If specified, the model is used in session `settings.json` unless overridden with the `--model` flag on the command line. Command-line flags always take precedence over this global default.
+**Config purpose**: Sets project-wide defaults for all new sessions created with `clotilde start` and `clotilde incognito`.
+- `model` - Default Claude model (haiku, sonnet, opus). Used unless overridden with `--model` flag.
+- `permissions` - Default permissions for all sessions. All Claude Code permission fields are supported (allow, deny, ask, additionalDirectories, defaultMode, disableBypassPermissionsMode). Command-line permission flags override config defaults (don't merge).
+
+Command-line flags always take precedence over global config. For example, `--allowed-tools X,Y` replaces (not merges with) `permissions.allow` from config.
 
 **Settings format** (`settings.json`):
 ```json

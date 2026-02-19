@@ -311,4 +311,69 @@ var _ = Describe("Start Command", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(settings.Model).To(Equal("opus"))
 	})
+
+	It("should use default permissions from global config when not specified", func() {
+		// Set up global config with default permissions
+		cfg := &config.Config{
+			DefaultModel: "sonnet",
+			DefaultPermissions: &config.Permissions{
+				Allow:           []string{"Bash", "Read"},
+				Deny:            []string{"Write"},
+				DefaultMode:     "ask",
+				Ask:             []string{"Bash"},
+			},
+		}
+		err := config.Save(clotildeRoot, cfg)
+		Expect(err).NotTo(HaveOccurred())
+
+		rootCmd := cmd.NewRootCmd()
+		rootCmd.SetOut(io.Discard)
+		rootCmd.SetErr(io.Discard)
+		rootCmd.SetArgs([]string{"--claude-bin", filepath.Join(fakeClaudeDir, "claude"), "start", "perms-session"})
+
+		err = rootCmd.Execute()
+		Expect(err).NotTo(HaveOccurred())
+
+		// Verify settings.json contains the default permissions from config
+		store := session.NewFileStore(clotildeRoot)
+		settings, err := store.LoadSettings("perms-session")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(settings.Permissions.Allow).To(Equal([]string{"Bash", "Read"}))
+		Expect(settings.Permissions.Deny).To(Equal([]string{"Write"}))
+		Expect(settings.Permissions.DefaultMode).To(Equal("ask"))
+	})
+
+	It("should override global config permissions with command-line flags", func() {
+		// Set up global config with default permissions
+		cfg := &config.Config{
+			DefaultPermissions: &config.Permissions{
+				Allow:       []string{"Bash", "Read"},
+				Deny:        []string{"Write"},
+				DefaultMode: "ask",
+			},
+		}
+		err := config.Save(clotildeRoot, cfg)
+		Expect(err).NotTo(HaveOccurred())
+
+		rootCmd := cmd.NewRootCmd()
+		rootCmd.SetOut(io.Discard)
+		rootCmd.SetErr(io.Discard)
+		rootCmd.SetArgs([]string{
+			"--claude-bin", filepath.Join(fakeClaudeDir, "claude"),
+			"start", "override-perms-session",
+			"--allowed-tools", "Bash,Read,Write",
+		})
+
+		err = rootCmd.Execute()
+		Expect(err).NotTo(HaveOccurred())
+
+		// Verify settings.json contains the overridden permissions
+		store := session.NewFileStore(clotildeRoot)
+		settings, err := store.LoadSettings("override-perms-session")
+		Expect(err).NotTo(HaveOccurred())
+		// Command-line flags replace config defaults
+		Expect(settings.Permissions.Allow).To(Equal([]string{"Bash", "Read", "Write"}))
+		// Deny should still come from config since no --disallowed-tools flag
+		Expect(settings.Permissions.Deny).To(Equal([]string{"Write"}))
+	})
 })
