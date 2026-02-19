@@ -2,6 +2,8 @@
 
 A CLI for managing named Claude Code sessions, with support for forking.
 
+> **Documentation**: For the latest stable release, see [Clotilde on the `stable` branch](https://github.com/fgrehm/clotilde/tree/stable). This `main` branch contains development changes and may include features not yet released.
+
 ## About the Name
 
 A traditional Brazilian name - sometimes considered old-fashioned or humorous - which adds a light, unpretentious personality to the tool. Pronounced more or less like **KLOH-teel-dee** (Portuguese-ish).
@@ -244,6 +246,91 @@ clotilde incognito --profile quick
 ```
 
 **Precedence:** Profile values are applied first, then CLI flags override individual fields. For example, `--profile quick --model opus` uses the quick profile's settings but replaces its model with opus.
+
+## Workflow: Teaching Claude Your Development Process
+
+Teach Claude about your development workflow by documenting it in `.claude/clotilde/context.md`. Claude reads this at session start and can make suggestions aligned with your team's practices.
+
+### Setup
+
+Create `.claude/clotilde/context.md` with your development guidelines:
+
+```markdown
+# Development Process
+
+## Repository Structure
+- **main**: Development branch (where new code is integrated)
+- **stable**: Released/production-ready code
+
+## Development Workflow
+1. Create a branch from main for your work
+2. Make focused, logical commits
+3. Ensure tests pass before requesting review: `make test`
+4. Address review feedback in new commits
+5. Merge to main when approved
+6. Periodic releases: tag and update stable branch
+
+## Testing & Quality
+- Run tests: `make test`
+- Coverage report: `make coverage`
+- Linting: `make lint`
+- All tests must pass before merge
+
+## Code Review Guidelines
+- Keep PRs focused and reasonably sized
+- Provide context for why changes are needed
+- Reference issues when relevant
+```
+
+Claude reads this context and understands your practices, allowing better-aligned suggestions throughout development.
+
+### Session Naming
+
+Use session names that reflect what you're working on:
+
+```bash
+clotilde start auth-oauth           # Main feature work
+clotilde start code-review          # Reviewing others' code
+clotilde start refactoring-session  # Refactoring task
+clotilde incognito quick-test       # Quick experiment
+```
+
+This keeps your session list organized and helps you quickly recall what each session is for.
+
+### Example Workflow
+
+```bash
+# Start work on a feature
+git checkout main && git pull origin main
+git checkout -b my-feature
+clotilde start my-feature
+# Claude understands your workflow from context.md and makes relevant suggestions
+
+# Work on the feature, pause and resume as needed
+clotilde resume my-feature
+
+# Push and open a PR
+git push origin my-feature
+# (Open PR targeting main on GitHub)
+
+# Code review session (create a separate session to focus on review)
+clotilde start code-review
+
+# Address feedback
+clotilde resume my-feature
+
+# Merge to main
+git checkout main && git pull
+git merge --squash my-feature
+git push origin main
+```
+
+### Tips
+
+- **Keep context.md current**: When your workflow changes, update it so Claude stays informed
+- **Use incognito for experiments**: Quick throwaway work that auto-deletes on exit
+- **Fork for tangents**: Explore alternative approaches without losing your main work using `clotilde fork`
+- **Separate sessions by phase**: Use different sessions for implementation, review, and refactoring
 
 ### `clotilde start <name> [options]`
 

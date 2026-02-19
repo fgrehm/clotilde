@@ -111,6 +111,39 @@ Each session is a folder in `.claude/clotilde/sessions/<name>/`:
 
 **Precedence**: Profile values → CLI flags (CLI flags always override profile values). For example, `--profile quick --model opus` uses the quick profile but overrides its model with opus.
 
+### Workflow Integration
+
+Use global context to teach Claude your team's development process:
+
+**Context as workflow documentation**: Store your development guidelines in `.claude/clotilde/context.md`. Include:
+- Repository branch structure (main, stable, release process)
+- Development workflow and PR process
+- Testing and code review requirements
+- Development tools and commands
+
+When Claude reads this context at session start, it understands your workflow and makes suggestions aligned with your team's practices. For example, if context.md specifies "all tests must pass before merge," Claude will suggest testing approaches early in development.
+
+**Session naming for organization**: Use session names that reflect what you're working on:
+```
+Main feature work    → clotilde start my-feature
+Code review session  → clotilde start code-review
+Refactoring         → clotilde start refactoring-session
+Quick experiment    → clotilde incognito experiment
+```
+
+This keeps your session list organized and meaningful.
+
+**Example workflow**:
+1. Create branch from main: `git checkout -b my-feature`
+2. Start session: `clotilde start my-feature`
+3. Claude knows your workflow from context.md and makes relevant suggestions
+4. Pause/resume as needed: `clotilde resume my-feature`
+5. Push and open PR
+6. For code review: `clotilde start code-review` (separate focused session)
+7. Merge to main when ready
+
+See README.md "Workflow: Teaching Claude Your Development Process" for detailed examples and setup instructions.
+
 **Settings format** (`settings.json`):
 ```json
 {
