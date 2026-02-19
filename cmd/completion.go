@@ -41,6 +41,29 @@ func modelCompletion(cmd *cobra.Command, args []string, toComplete string) ([]st
 	return []string{"haiku", "sonnet", "opus"}, cobra.ShellCompDirectiveNoFileComp
 }
 
+// profileNameCompletion provides dynamic completion for profile names
+func profileNameCompletion(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	// Find clotilde root
+	clotildeRoot, err := config.FindClotildeRoot()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	// Load config
+	cfg, err := config.LoadOrDefault(clotildeRoot)
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	// Extract profile names
+	var names []string
+	for name := range cfg.Profiles {
+		names = append(names, name)
+	}
+
+	return names, cobra.ShellCompDirectiveNoFileComp
+}
+
 // outputStyleCompletion provides completion for --output-style flag
 func outputStyleCompletion(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	return []string{

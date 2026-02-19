@@ -51,7 +51,7 @@ Each session is a folder in `.claude/clotilde/sessions/<name>/`:
 
 ```
 .claude/clotilde/
-  config.json             # Global config (model default, etc - optional)
+  config.json             # Global config (profiles, etc - optional)
   context.md              # Global context for all sessions (optional)
   sessions/
     my-session/
@@ -82,21 +82,34 @@ Each session is a folder in `.claude/clotilde/sessions/<name>/`:
 **Global config format** (`config.json`):
 ```json
 {
-  "model": "sonnet",
-  "permissions": {
-    "allow": ["Bash", "Read"],
-    "deny": ["Write"],
-    "defaultMode": "ask",
-    "additionalDirectories": ["/tmp"]
+  "profiles": {
+    "quick": {
+      "model": "haiku",
+      "permissionMode": "bypassPermissions"
+    },
+    "strict": {
+      "permissions": {
+        "deny": ["Bash", "Write"],
+        "defaultMode": "ask"
+      }
+    },
+    "research": {
+      "model": "sonnet",
+      "outputStyle": "Explanatory"
+    }
   }
 }
 ```
 
-**Config purpose**: Sets project-wide defaults for all new sessions created with `clotilde start` and `clotilde incognito`.
-- `model` - Default Claude model (haiku, sonnet, opus). Used unless overridden with `--model` flag.
-- `permissions` - Default permissions for all sessions. All Claude Code permission fields are supported (allow, deny, ask, additionalDirectories, defaultMode, disableBypassPermissionsMode). Command-line permission flags override config defaults (don't merge).
+**Config purpose**: Define named session presets (profiles) for common configurations. Use `clotilde start <name> --profile <profile>` to apply a profile.
 
-Command-line flags always take precedence over global config. For example, `--allowed-tools X,Y` replaces (not merges with) `permissions.allow` from config.
+**Profile fields**:
+- `model` - Claude model (haiku, sonnet, opus)
+- `permissionMode` - Permission mode (acceptEdits, bypassPermissions, default, dontAsk, plan)
+- `permissions` - Granular permissions: allow/deny/ask lists, additionalDirectories, defaultMode, disableBypassPermissionsMode
+- `outputStyle` - Output style (built-in or custom name)
+
+**Precedence**: Profile values → CLI flags (CLI flags always override profile values). For example, `--profile quick --model opus` uses the quick profile but overrides its model with opus.
 
 **Settings format** (`settings.json`):
 ```json

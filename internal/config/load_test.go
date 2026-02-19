@@ -23,7 +23,11 @@ var _ = Describe("Load and Save", func() {
 
 	It("should save and load config", func() {
 		cfg := &config.Config{
-			DefaultModel: "sonnet",
+			Profiles: map[string]config.Profile{
+				"quick": {
+					Model: "haiku",
+				},
+			},
 		}
 
 		err := config.Save(clotildeRoot, cfg)
@@ -31,7 +35,7 @@ var _ = Describe("Load and Save", func() {
 
 		loaded, err := config.Load(clotildeRoot)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(loaded.DefaultModel).To(Equal("sonnet"))
+		Expect(loaded.Profiles["quick"].Model).To(Equal("haiku"))
 	})
 
 	It("should return error if config file doesn't exist", func() {
@@ -41,14 +45,14 @@ var _ = Describe("Load and Save", func() {
 
 	It("should preserve empty fields", func() {
 		cfg := config.NewConfig()
-		// DefaultModel is empty
+		// Profiles is empty map
 
 		err := config.Save(clotildeRoot, cfg)
 		Expect(err).NotTo(HaveOccurred())
 
 		loaded, err := config.Load(clotildeRoot)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(loaded.DefaultModel).To(Equal(""))
+		Expect(loaded.Profiles).To(BeEmpty())
 	})
 })
 
@@ -65,21 +69,25 @@ var _ = Describe("LoadOrDefault", func() {
 
 	It("should load existing config", func() {
 		cfg := &config.Config{
-			DefaultModel: "opus",
+			Profiles: map[string]config.Profile{
+				"research": {
+					Model: "opus",
+				},
+			},
 		}
 		err := config.Save(clotildeRoot, cfg)
 		Expect(err).NotTo(HaveOccurred())
 
 		loaded, err := config.LoadOrDefault(clotildeRoot)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(loaded.DefaultModel).To(Equal("opus"))
+		Expect(loaded.Profiles["research"].Model).To(Equal("opus"))
 	})
 
 	It("should return default config if file doesn't exist", func() {
 		loaded, err := config.LoadOrDefault(clotildeRoot)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(loaded).NotTo(BeNil())
-		Expect(loaded.DefaultModel).To(Equal(""))
+		Expect(loaded.Profiles).To(BeEmpty())
 	})
 })
 
@@ -87,6 +95,6 @@ var _ = Describe("NewConfig", func() {
 	It("should create config with defaults", func() {
 		cfg := config.NewConfig()
 		Expect(cfg).NotTo(BeNil())
-		Expect(cfg.DefaultModel).To(Equal(""))
+		Expect(cfg.Profiles).To(BeEmpty())
 	})
 })

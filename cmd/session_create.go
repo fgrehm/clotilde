@@ -42,6 +42,7 @@ func buildCommonParams(cmd *cobra.Command, name string) SessionCreateParams {
 	systemPromptFile, _ := cmd.Flags().GetString("append-system-prompt-file")
 	replaceSystemPrompt, _ := cmd.Flags().GetString("replace-system-prompt")
 	replaceSystemPromptFile, _ := cmd.Flags().GetString("replace-system-prompt-file")
+	profile, _ := cmd.Flags().GetString("profile")
 	permissionMode, _ := cmd.Flags().GetString("permission-mode")
 	allowedTools, _ := cmd.Flags().GetStringSlice("allowed-tools")
 	disallowedTools, _ := cmd.Flags().GetStringSlice("disallowed-tools")
@@ -56,6 +57,7 @@ func buildCommonParams(cmd *cobra.Command, name string) SessionCreateParams {
 		SystemPromptFile:        systemPromptFile,
 		ReplaceSystemPrompt:     replaceSystemPrompt,
 		ReplaceSystemPromptFile: replaceSystemPromptFile,
+		Profile:                 profile,
 		PermissionMode:          permissionMode,
 		AllowedTools:            allowedTools,
 		DisallowedTools:         disallowedTools,
@@ -73,6 +75,7 @@ type SessionCreateParams struct {
 	SystemPromptFile        string // path to read from (append mode)
 	ReplaceSystemPrompt     string // inline content (replace mode)
 	ReplaceSystemPromptFile string // path to read from (replace mode)
+	Profile                 string // named profile from config
 	PermissionMode          string
 	AllowedTools            []string
 	DisallowedTools         []string
@@ -143,7 +146,7 @@ func createSession(params SessionCreateParams) (*SessionCreateResult, error) {
 
 	sessionDir := config.GetSessionDir(clotildeRoot, params.Name)
 
-	// Load global config for defaults
+	// Load global config
 	globalConfig, err := config.LoadOrDefault(clotildeRoot)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config: %w", err)
@@ -151,13 +154,42 @@ func createSession(params SessionCreateParams) (*SessionCreateResult, error) {
 
 	// Save settings (always create settings.json, even if empty)
 	settings := &session.Settings{}
-	if params.Model != "" {
-		settings.Model = params.Model
-	} else if globalConfig.DefaultModel != "" {
-		settings.Model = globalConfig.DefaultModel
+
+	// Apply profile if specified
+	if params.Profile != "" {
+		profile, ok := globalConfig.Profiles[params.Profile]
+		if !ok {
+			return nil, fmt.Errorf("profile '%s' not found in config", params.Profile)
+		}
+
+		// Apply profile as baseline
+		if profile.Model != "" {
+			settings.Model = profile.Model
+		}
+		if profile.PermissionMode != "" {
+			settings.Permissions.DefaultMode = profile.PermissionMode
+		}
+		if profile.Permissions != nil {
+			settings.Permissions = session.Permissions{
+				Allow:                        profile.Permissions.Allow,
+				Ask:                          profile.Permissions.Ask,
+				Deny:                         profile.Permissions.Deny,
+				AdditionalDirectories:        profile.Permissions.AdditionalDirectories,
+				DefaultMode:                  profile.Permissions.DefaultMode,
+				DisableBypassPermissionsMode: profile.Permissions.DisableBypassPermissionsMode,
+			}
+		}
+		if profile.OutputStyle != "" {
+			settings.OutputStyle = profile.OutputStyle
+		}
 	}
 
-	// Handle output style
+	// CLI flags override profile values
+	if params.Model != "" {
+		settings.Model = params.Model
+	}
+
+	// Handle output style (CLI flags override profile)
 	var hasCustomStyle bool
 	if params.OutputStyleFile != "" {
 		// Create custom style from file (validates/injects frontmatter)
@@ -189,33 +221,18 @@ func createSession(params SessionCreateParams) (*SessionCreateResult, error) {
 	// Update metadata
 	sess.Metadata.HasCustomOutputStyle = hasCustomStyle
 
-	// Build permissions from global config and command-line flags
-	// Start with global config permissions if they exist
-	if globalConfig.DefaultPermissions != nil {
-		settings.Permissions = session.Permissions{
-			Allow:                        globalConfig.DefaultPermissions.Allow,
-			Ask:                          globalConfig.DefaultPermissions.Ask,
-			Deny:                         globalConfig.DefaultPermissions.Deny,
-			AdditionalDirectories:        globalConfig.DefaultPermissions.AdditionalDirectories,
-			DefaultMode:                  globalConfig.DefaultPermissions.DefaultMode,
-			DisableBypassPermissionsMode: globalConfig.DefaultPermissions.DisableBypassPermissionsMode,
-		}
+	// CLI permission flags override profile values (replace, don't merge)
+	if params.PermissionMode != "" {
+		settings.Permissions.DefaultMode = params.PermissionMode
 	}
-
-	// Override with command-line flags
-	if params.PermissionMode != "" || len(params.AllowedTools) > 0 || len(params.DisallowedTools) > 0 || len(params.AdditionalDirs) > 0 {
-		if params.PermissionMode != "" {
-			settings.Permissions.DefaultMode = params.PermissionMode
-		}
-		if len(params.AllowedTools) > 0 {
-			settings.Permissions.Allow = params.AllowedTools
-		}
-		if len(params.DisallowedTools) > 0 {
-			settings.Permissions.Deny = params.DisallowedTools
-		}
-		if len(params.AdditionalDirs) > 0 {
-			settings.Permissions.AdditionalDirectories = params.AdditionalDirs
-		}
+	if len(params.AllowedTools) > 0 {
+		settings.Permissions.Allow = params.AllowedTools
+	}
+	if len(params.DisallowedTools) > 0 {
+		settings.Permissions.Deny = params.DisallowedTools
+	}
+	if len(params.AdditionalDirs) > 0 {
+		settings.Permissions.AdditionalDirectories = params.AdditionalDirs
 	}
 
 	if err := store.SaveSettings(params.Name, settings); err != nil {

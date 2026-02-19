@@ -9,17 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Global config file**: New `.claude/clotilde/config.json` file to set project-wide defaults. Supports:
-  - `model` - Default Claude model for all sessions (haiku, sonnet, opus)
-  - `permissions` - Default permissions for all sessions (allow/deny/ask lists, additionalDirectories, defaultMode, disableBypassPermissionsMode). Command-line permission flags override config defaults.
+- **Session profiles**: New named presets in `.claude/clotilde/config.json` for grouping model, permissions, and output style settings. Use `--profile <name>` when creating sessions. CLI flags override profile values.
+  - Example: `clotilde start my-session --profile quick` applies the "quick" profile, then allows CLI flags to override individual settings
+  - Profiles can contain: `model`, `permissionMode`, `permissions` (allow/deny/ask/additionalDirectories/defaultMode), and `outputStyle`
 
-### Fixed
+### Removed
 
-- **Global config not applied to sessions**: The `model` setting in `.claude/clotilde/config.json` was not being read when creating new sessions. Now `clotilde start` and `clotilde incognito` properly use the configured default model as a fallback when `--model` flag is not specified.
+- **Implicit global defaults**: Removed `model` and `permissions` from top-level config. Use profiles instead for explicit, named presets.
 
 ### Changed
 
-- **JSON struct tag for config**: Fixed `Config.DefaultModel` struct tag from `"defaultModel"` to `"model"` to match expected config file format.
+- **Config structure**: `Config` now has `profiles` (map of Profile) instead of `DefaultModel`/`DefaultPermissions` fields
 
 ## [0.3.1] - 2026-02-18
 

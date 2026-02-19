@@ -38,7 +38,7 @@ Clotilde wraps Claude Code session UUIDs with human-friendly names:
 
 - Sessions stored as folders in `.claude/clotilde/sessions/<name>/`
 - Each session has metadata, optional settings, system prompt, and context files
-- Global config file (`.claude/clotilde/config.json`) - Set default model and other project-wide settings
+- Global config file (`.claude/clotilde/config.json`) - Define named profiles for quick session presets
 - Global context file (`.claude/clotilde/context.md`) - What you're working on (ticket info, task goal)
 - SessionStart hooks automatically register forked sessions and load context
 - Works alongside Claude Code without patching or modifying it
@@ -190,31 +190,60 @@ clotilde init --global
 
 **Note:** The `.claude/clotilde/` directory (containing session metadata, transcripts paths, and context) should be gitignored. This is intentional - sessions are ephemeral, per-user state that shouldn't be committed to the repository. Each developer maintains their own independent session list.
 
-### Project Configuration
+### Session Profiles
 
-You can configure project-wide defaults by creating `.claude/clotilde/config.json`:
+Define named presets in `.claude/clotilde/config.json` for common session configurations. Use `--profile <name>` when creating sessions to apply a profile's settings.
 
 ```json
 {
-  "model": "sonnet",
-  "permissions": {
-    "allow": ["Bash", "Read"],
-    "deny": ["Write"],
-    "defaultMode": "ask"
+  "profiles": {
+    "quick": {
+      "model": "haiku",
+      "permissionMode": "bypassPermissions"
+    },
+    "strict": {
+      "permissions": {
+        "deny": ["Bash", "Write"],
+        "defaultMode": "ask"
+      }
+    },
+    "research": {
+      "model": "sonnet",
+      "outputStyle": "Explanatory"
+    }
   }
 }
 ```
 
-**Available settings:**
-- `model` - Default model for new sessions (haiku, sonnet, opus). Used when `clotilde start` or `clotilde incognito` is run without the `--model` flag. Command-line `--model` flag always takes precedence.
-- `permissions` - Project-wide default permissions applied to all sessions. Supports all Claude Code permission fields:
+**Profile fields:**
+- `model` - Claude model (haiku, sonnet, opus)
+- `permissionMode` - Permission mode (acceptEdits, bypassPermissions, default, dontAsk, plan)
+- `permissions` - Granular permissions:
   - `allow` - Tools Claude can always use
   - `deny` - Tools Claude cannot use
   - `ask` - Tools that require approval
   - `additionalDirectories` - Extra directories Claude can access
   - `defaultMode` - Default action for tools not in allow/deny/ask (ask, allow, or deny)
   - `disableBypassPermissionsMode` - Disable permission bypass (boolean)
-  - Command-line permission flags override config defaults
+- `outputStyle` - Output style (built-in or custom name)
+
+**Usage examples:**
+
+```bash
+# Apply "quick" profile (haiku + bypass permissions)
+clotilde start spike --profile quick
+
+# Apply "strict" profile (deny Bash/Write, ask mode)
+clotilde start sandboxed --profile strict
+
+# Combine profiles with CLI flags (CLI flags win)
+clotilde start research --profile quick --model sonnet
+
+# Use profile on incognito sessions
+clotilde incognito --profile quick
+```
+
+**Precedence:** Profile values are applied first, then CLI flags override individual fields. For example, `--profile quick --model opus` uses the quick profile's settings but replaces its model with opus.
 
 ### `clotilde start <name> [options]`
 
@@ -224,8 +253,15 @@ Start a new named session.
 # Basic usage
 clotilde start my-session
 
+# With profile
+clotilde start spike --profile quick
+clotilde start sandboxed --profile strict
+
 # With custom model
 clotilde start bugfix --model haiku
+
+# Profile + CLI flag override
+clotilde start research --profile quick --model sonnet
 
 # With custom system prompt (append to default)
 clotilde start refactoring --append-system-prompt-file prompts/architect.md
@@ -249,7 +285,8 @@ clotilde start research --model haiku --append-system-prompt "Focus on explorati
 ```
 
 **Options:**
-- `--model <model>` - Model to use (haiku, sonnet, opus), defaults to the model in `.claude/clotilde/config.json` if set, otherwise Claude Code's default
+- `--profile <name>` - Named profile from config (applies model, permissions, and output style as baseline)
+- `--model <model>` - Model to use (haiku, sonnet, opus). CLI flag overrides profile.
 - `--fast` - Use haiku model with low effort for quick tasks
 - `--append-system-prompt <text>` - Add system prompt text (appends to Claude's default)
 - `--append-system-prompt-file <path>` - Add system prompt from file (appends to Claude's default)
@@ -260,12 +297,12 @@ clotilde start research --model haiku --append-system-prompt "Focus on explorati
 - `--yolo` - Shorthand for `--permission-mode bypassPermissions`
 - `--plan` - Shorthand for `--permission-mode plan`
 - `--dont-ask` - Shorthand for `--permission-mode dontAsk`
-- `--permission-mode <mode>` - Permission mode (acceptEdits, bypassPermissions, default, dontAsk, plan)
-- `--allowed-tools <tools>` - Comma-separated list of allowed tools (e.g. `Bash(npm:*),Read`)
-- `--disallowed-tools <tools>` - Comma-separated list of disallowed tools (e.g. `Write,Bash(git:*)`)
-- `--add-dir <directories>` - Additional directories to allow tool access to
-- `--output-style <style>` - Output style: `default`, `Explanatory`, `Learning`, existing style name, or custom content
-- `--output-style-file <path>` - Path to custom output style file
+- `--permission-mode <mode>` - Permission mode (acceptEdits, bypassPermissions, default, dontAsk, plan). CLI flag overrides profile.
+- `--allowed-tools <tools>` - Comma-separated list of allowed tools (e.g. `Bash(npm:*),Read`). CLI flag overrides profile.
+- `--disallowed-tools <tools>` - Comma-separated list of disallowed tools (e.g. `Write,Bash(git:*)`). CLI flag overrides profile.
+- `--add-dir <directories>` - Additional directories to allow tool access to. CLI flag overrides profile.
+- `--output-style <style>` - Output style: `default`, `Explanatory`, `Learning`, existing style name, or custom content. CLI flag overrides profile.
+- `--output-style-file <path>` - Path to custom output style file. CLI flag overrides profile.
 
 ### Output Styles
 

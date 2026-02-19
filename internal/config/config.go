@@ -2,10 +2,16 @@ package config
 
 // Config represents the clotilde configuration.
 type Config struct {
-	// DefaultModel is the default Claude model to use (e.g., "sonnet", "opus", "haiku")
-	DefaultModel string `json:"model,omitempty"`
-	// DefaultPermissions are the project-wide default permissions for all sessions
-	DefaultPermissions *Permissions `json:"permissions,omitempty"`
+	// Profiles is a map of named session profiles
+	Profiles map[string]Profile `json:"profiles,omitempty"`
+}
+
+// Profile represents a named preset of session settings.
+type Profile struct {
+	Model          string       `json:"model,omitempty"`
+	PermissionMode string       `json:"permissionMode,omitempty"`
+	Permissions    *Permissions `json:"permissions,omitempty"`
+	OutputStyle    string       `json:"outputStyle,omitempty"`
 }
 
 // Permissions represents the permissions configuration for sessions.
@@ -22,7 +28,6 @@ type Permissions struct {
 // NewConfig creates a new Config with sensible defaults.
 func NewConfig() *Config {
 	return &Config{
-		// Leave DefaultModel empty - will use Claude Code's default
-		DefaultModel: "",
+		Profiles: make(map[string]Profile),
 	}
 }

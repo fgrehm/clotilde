@@ -266,10 +266,14 @@ var _ = Describe("Start Command", func() {
 		Expect(store.Exists("used-session")).To(BeTrue())
 	})
 
-	It("should use default model from global config when not specified", func() {
-		// Set up global config with default model
+	It("should use profile model when specified", func() {
+		// Set up global config with profiles
 		cfg := &config.Config{
-			DefaultModel: "sonnet",
+			Profiles: map[string]config.Profile{
+				"quick": {
+					Model: "haiku",
+				},
+			},
 		}
 		err := config.Save(clotildeRoot, cfg)
 		Expect(err).NotTo(HaveOccurred())
@@ -277,22 +281,26 @@ var _ = Describe("Start Command", func() {
 		rootCmd := cmd.NewRootCmd()
 		rootCmd.SetOut(io.Discard)
 		rootCmd.SetErr(io.Discard)
-		rootCmd.SetArgs([]string{"--claude-bin", filepath.Join(fakeClaudeDir, "claude"), "start", "config-session"})
+		rootCmd.SetArgs([]string{"--claude-bin", filepath.Join(fakeClaudeDir, "claude"), "start", "profile-session", "--profile", "quick"})
 
 		err = rootCmd.Execute()
 		Expect(err).NotTo(HaveOccurred())
 
-		// Verify settings.json contains the default model from config
+		// Verify settings.json contains the model from the profile
 		store := session.NewFileStore(clotildeRoot)
-		settings, err := store.LoadSettings("config-session")
+		settings, err := store.LoadSettings("profile-session")
 		Expect(err).NotTo(HaveOccurred())
-		Expect(settings.Model).To(Equal("sonnet"))
+		Expect(settings.Model).To(Equal("haiku"))
 	})
 
-	It("should override global config model with command-line flag", func() {
-		// Set up global config with default model
+	It("should override profile model with command-line flag", func() {
+		// Set up global config with profiles
 		cfg := &config.Config{
-			DefaultModel: "haiku",
+			Profiles: map[string]config.Profile{
+				"quick": {
+					Model: "haiku",
+				},
+			},
 		}
 		err := config.Save(clotildeRoot, cfg)
 		Expect(err).NotTo(HaveOccurred())
@@ -300,27 +308,28 @@ var _ = Describe("Start Command", func() {
 		rootCmd := cmd.NewRootCmd()
 		rootCmd.SetOut(io.Discard)
 		rootCmd.SetErr(io.Discard)
-		rootCmd.SetArgs([]string{"--claude-bin", filepath.Join(fakeClaudeDir, "claude"), "start", "override-session", "--model", "opus"})
+		rootCmd.SetArgs([]string{"--claude-bin", filepath.Join(fakeClaudeDir, "claude"), "start", "override-session", "--profile", "quick", "--model", "opus"})
 
 		err = rootCmd.Execute()
 		Expect(err).NotTo(HaveOccurred())
 
-		// Verify settings.json contains the overridden model
+		// Verify settings.json contains the overridden model, not the profile model
 		store := session.NewFileStore(clotildeRoot)
 		settings, err := store.LoadSettings("override-session")
 		Expect(err).NotTo(HaveOccurred())
 		Expect(settings.Model).To(Equal("opus"))
 	})
 
-	It("should use default permissions from global config when not specified", func() {
-		// Set up global config with default permissions
+	It("should use profile permissions when specified", func() {
+		// Set up global config with profiles
 		cfg := &config.Config{
-			DefaultModel: "sonnet",
-			DefaultPermissions: &config.Permissions{
-				Allow:           []string{"Bash", "Read"},
-				Deny:            []string{"Write"},
-				DefaultMode:     "ask",
-				Ask:             []string{"Bash"},
+			Profiles: map[string]config.Profile{
+				"strict": {
+					Permissions: &config.Permissions{
+						Deny:        []string{"Bash", "Write"},
+						DefaultMode: "ask",
+					},
+				},
 			},
 		}
 		err := config.Save(clotildeRoot, cfg)
@@ -329,28 +338,22 @@ var _ = Describe("Start Command", func() {
 		rootCmd := cmd.NewRootCmd()
 		rootCmd.SetOut(io.Discard)
 		rootCmd.SetErr(io.Discard)
-		rootCmd.SetArgs([]string{"--claude-bin", filepath.Join(fakeClaudeDir, "claude"), "start", "perms-session"})
+		rootCmd.SetArgs([]string{"--claude-bin", filepath.Join(fakeClaudeDir, "claude"), "start", "strict-session", "--profile", "strict"})
 
 		err = rootCmd.Execute()
 		Expect(err).NotTo(HaveOccurred())
 
-		// Verify settings.json contains the default permissions from config
+		// Verify settings.json contains the permissions from the profile
 		store := session.NewFileStore(clotildeRoot)
-		settings, err := store.LoadSettings("perms-session")
+		settings, err := store.LoadSettings("strict-session")
 		Expect(err).NotTo(HaveOccurred())
-		Expect(settings.Permissions.Allow).To(Equal([]string{"Bash", "Read"}))
-		Expect(settings.Permissions.Deny).To(Equal([]string{"Write"}))
+		Expect(settings.Permissions.Deny).To(Equal([]string{"Bash", "Write"}))
 		Expect(settings.Permissions.DefaultMode).To(Equal("ask"))
 	})
 
-	It("should override global config permissions with command-line flags", func() {
-		// Set up global config with default permissions
+	It("should error when profile not found", func() {
 		cfg := &config.Config{
-			DefaultPermissions: &config.Permissions{
-				Allow:       []string{"Bash", "Read"},
-				Deny:        []string{"Write"},
-				DefaultMode: "ask",
-			},
+			Profiles: map[string]config.Profile{},
 		}
 		err := config.Save(clotildeRoot, cfg)
 		Expect(err).NotTo(HaveOccurred())
@@ -358,22 +361,10 @@ var _ = Describe("Start Command", func() {
 		rootCmd := cmd.NewRootCmd()
 		rootCmd.SetOut(io.Discard)
 		rootCmd.SetErr(io.Discard)
-		rootCmd.SetArgs([]string{
-			"--claude-bin", filepath.Join(fakeClaudeDir, "claude"),
-			"start", "override-perms-session",
-			"--allowed-tools", "Bash,Read,Write",
-		})
+		rootCmd.SetArgs([]string{"--claude-bin", filepath.Join(fakeClaudeDir, "claude"), "start", "bad-session", "--profile", "nonexistent"})
 
 		err = rootCmd.Execute()
-		Expect(err).NotTo(HaveOccurred())
-
-		// Verify settings.json contains the overridden permissions
-		store := session.NewFileStore(clotildeRoot)
-		settings, err := store.LoadSettings("override-perms-session")
-		Expect(err).NotTo(HaveOccurred())
-		// Command-line flags replace config defaults
-		Expect(settings.Permissions.Allow).To(Equal([]string{"Bash", "Read", "Write"}))
-		// Deny should still come from config since no --disallowed-tools flag
-		Expect(settings.Permissions.Deny).To(Equal([]string{"Write"}))
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("profile 'nonexistent' not found"))
 	})
 })

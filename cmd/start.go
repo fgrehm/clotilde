@@ -100,6 +100,7 @@ Pass additional flags to Claude Code after '--':
 	cmd.Flags().String("replace-system-prompt", "", "System prompt text to replace default (use instead of append)")
 	cmd.Flags().String("replace-system-prompt-file", "", "Path to system prompt file to replace default (use instead of append)")
 	cmd.Flags().Bool("incognito", false, "Create incognito session (auto-deletes on exit)")
+	cmd.Flags().String("profile", "", "Named profile from config (model, permissions, output style)")
 
 	// Permission flags
 	cmd.Flags().String("permission-mode", "", "Permission mode (acceptEdits, bypassPermissions, default, dontAsk, plan)")
@@ -116,6 +117,7 @@ Pass additional flags to Claude Code after '--':
 
 	// Register flag completions
 	_ = cmd.RegisterFlagCompletionFunc("model", modelCompletion)
+	_ = cmd.RegisterFlagCompletionFunc("profile", profileNameCompletion)
 	_ = cmd.RegisterFlagCompletionFunc("output-style", outputStyleCompletion)
 	return cmd
 }
