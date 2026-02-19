@@ -18,8 +18,8 @@ import (
 
 var rootCmd = &cobra.Command{
 	Use:     "clotilde",
-	Short:   "Named session management for Claude Code",
-	Long:    `Clotilde wraps Claude Code with human-friendly session names, enabling easy switching between multiple parallel conversations.`,
+	Short:   "Named sessions, profiles, and context management for Claude Code",
+	Long:    `Clotilde wraps Claude Code with human-friendly session names, profiles, and context management, enabling easy switching between multiple parallel conversations.`,
 	Version: version,
 	Run:     runDashboard,
 }
