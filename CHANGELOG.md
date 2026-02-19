@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Global config file**: New `.claude/clotilde/config.json` file to set project-wide defaults. Currently supports `model` setting to specify the default Claude model for new sessions (used when `--model` flag is not provided).
+
+### Fixed
+
+- **Global config not applied to sessions**: The `model` setting in `.claude/clotilde/config.json` was not being read when creating new sessions. Now `clotilde start` and `clotilde incognito` properly use the configured default model as a fallback when `--model` flag is not specified.
+
+### Changed
+
+- **JSON struct tag for config**: Fixed `Config.DefaultModel` struct tag from `"defaultModel"` to `"model"` to match expected config file format.
+
 ## [0.3.1] - 2026-02-18
 
 ### Fixed

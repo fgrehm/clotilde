@@ -38,6 +38,7 @@ Clotilde wraps Claude Code session UUIDs with human-friendly names:
 
 - Sessions stored as folders in `.claude/clotilde/sessions/<name>/`
 - Each session has metadata, optional settings, system prompt, and context files
+- Global config file (`.claude/clotilde/config.json`) - Set default model and other project-wide settings
 - Global context file (`.claude/clotilde/context.md`) - What you're working on (ticket info, task goal)
 - SessionStart hooks automatically register forked sessions and load context
 - Works alongside Claude Code without patching or modifying it
@@ -189,6 +190,19 @@ clotilde init --global
 
 **Note:** The `.claude/clotilde/` directory (containing session metadata, transcripts paths, and context) should be gitignored. This is intentional - sessions are ephemeral, per-user state that shouldn't be committed to the repository. Each developer maintains their own independent session list.
 
+### Project Configuration
+
+You can configure project-wide defaults by creating `.claude/clotilde/config.json`:
+
+```json
+{
+  "model": "sonnet"
+}
+```
+
+**Available settings:**
+- `model` - Default model for new sessions (haiku, sonnet, opus). Used when `clotilde start` or `clotilde incognito` is run without the `--model` flag. Command-line flags always take precedence.
+
 ### `clotilde start <name> [options]`
 
 Start a new named session.
@@ -222,7 +236,7 @@ clotilde start research --model haiku --append-system-prompt "Focus on explorati
 ```
 
 **Options:**
-- `--model <model>` - Model to use (haiku, sonnet, opus), defaults to whatever is specified on your project configs (`.claude/settings.json`) or globally (`~/.claude/settings.json`)
+- `--model <model>` - Model to use (haiku, sonnet, opus), defaults to the model in `.claude/clotilde/config.json` if set, otherwise Claude Code's default
 - `--fast` - Use haiku model with low effort for quick tasks
 - `--append-system-prompt <text>` - Add system prompt text (appends to Claude's default)
 - `--append-system-prompt-file <path>` - Add system prompt from file (appends to Claude's default)

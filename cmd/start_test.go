@@ -265,4 +265,50 @@ var _ = Describe("Start Command", func() {
 		store := session.NewFileStore(clotildeRoot)
 		Expect(store.Exists("used-session")).To(BeTrue())
 	})
+
+	It("should use default model from global config when not specified", func() {
+		// Set up global config with default model
+		cfg := &config.Config{
+			DefaultModel: "sonnet",
+		}
+		err := config.Save(clotildeRoot, cfg)
+		Expect(err).NotTo(HaveOccurred())
+
+		rootCmd := cmd.NewRootCmd()
+		rootCmd.SetOut(io.Discard)
+		rootCmd.SetErr(io.Discard)
+		rootCmd.SetArgs([]string{"--claude-bin", filepath.Join(fakeClaudeDir, "claude"), "start", "config-session"})
+
+		err = rootCmd.Execute()
+		Expect(err).NotTo(HaveOccurred())
+
+		// Verify settings.json contains the default model from config
+		store := session.NewFileStore(clotildeRoot)
+		settings, err := store.LoadSettings("config-session")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(settings.Model).To(Equal("sonnet"))
+	})
+
+	It("should override global config model with command-line flag", func() {
+		// Set up global config with default model
+		cfg := &config.Config{
+			DefaultModel: "haiku",
+		}
+		err := config.Save(clotildeRoot, cfg)
+		Expect(err).NotTo(HaveOccurred())
+
+		rootCmd := cmd.NewRootCmd()
+		rootCmd.SetOut(io.Discard)
+		rootCmd.SetErr(io.Discard)
+		rootCmd.SetArgs([]string{"--claude-bin", filepath.Join(fakeClaudeDir, "claude"), "start", "override-session", "--model", "opus"})
+
+		err = rootCmd.Execute()
+		Expect(err).NotTo(HaveOccurred())
+
+		// Verify settings.json contains the overridden model
+		store := session.NewFileStore(clotildeRoot)
+		settings, err := store.LoadSettings("override-session")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(settings.Model).To(Equal("opus"))
+	})
 })

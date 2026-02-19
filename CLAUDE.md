@@ -51,6 +51,7 @@ Each session is a folder in `.claude/clotilde/sessions/<name>/`:
 
 ```
 .claude/clotilde/
+  config.json             # Global config (model default, etc - optional)
   context.md              # Global context for all sessions (optional)
   sessions/
     my-session/
@@ -77,6 +78,15 @@ Each session is a folder in `.claude/clotilde/sessions/<name>/`:
 **`previousSessionIds`**: Array of UUIDs from `/clear` operations. When Claude Code clears a session, it creates a new UUID. Clotilde tracks the old UUIDs here for complete cleanup on deletion. Note: `/compact` does NOT currently create a new UUID (only `/clear` does), but we handle it defensively in the code.
 
 **`isIncognito`**: Boolean flag. If true, session auto-deletes on exit (via defer-based cleanup in `invoke.go`). Incognito sessions are useful for quick queries, experiments, or sensitive work. Cleanup runs on normal exit and Ctrl+C, but not on SIGKILL or crashes.
+
+**Global config format** (`config.json`):
+```json
+{
+  "model": "sonnet"
+}
+```
+
+**Config purpose**: Sets the default model for new sessions created with `clotilde start` and `clotilde incognito`. If specified, the model is used in session `settings.json` unless overridden with the `--model` flag on the command line. Command-line flags always take precedence over this global default.
 
 **Settings format** (`settings.json`):
 ```json

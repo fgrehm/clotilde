@@ -143,10 +143,18 @@ func createSession(params SessionCreateParams) (*SessionCreateResult, error) {
 
 	sessionDir := config.GetSessionDir(clotildeRoot, params.Name)
 
+	// Load global config for defaults
+	globalConfig, err := config.LoadOrDefault(clotildeRoot)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load config: %w", err)
+	}
+
 	// Save settings (always create settings.json, even if empty)
 	settings := &session.Settings{}
 	if params.Model != "" {
 		settings.Model = params.Model
+	} else if globalConfig.DefaultModel != "" {
+		settings.Model = globalConfig.DefaultModel
 	}
 
 	// Handle output style

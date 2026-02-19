@@ -83,3 +83,31 @@ func FormatRelativeTime(t time.Time) string {
 		return t.Format("2006-01-02")
 	}
 }
+
+// FormatDuration formats a duration as a compact human-readable string.
+// Examples: "0s", "15s", "2m 8s", "1h", "2h 5m"
+func FormatDuration(d time.Duration) string {
+	if d <= 0 {
+		return "0s"
+	}
+
+	h := int(d.Hours())
+	m := int(d.Minutes()) % 60
+	s := int(d.Seconds()) % 60
+
+	if h > 0 {
+		if m > 0 {
+			return fmt.Sprintf("%dh %dm", h, m)
+		}
+		return fmt.Sprintf("%dh", h)
+	}
+
+	if m > 0 {
+		if s > 0 {
+			return fmt.Sprintf("%dm %ds", m, s)
+		}
+		return fmt.Sprintf("%dm", m)
+	}
+
+	return fmt.Sprintf("%ds", s)
+}
