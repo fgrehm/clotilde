@@ -109,6 +109,12 @@ Pass additional flags to Claude Code after '--':
 				return fmt.Errorf("session '%s' not found", name)
 			}
 
+			// Update context if --context flag provided
+			contextFlag, _ := cmd.Flags().GetString("context")
+			if contextFlag != "" {
+				sess.Metadata.Context = contextFlag
+			}
+
 			// Update lastAccessed timestamp
 			sess.UpdateLastAccessed()
 			if err := store.Update(sess); err != nil {
@@ -137,6 +143,7 @@ Pass additional flags to Claude Code after '--':
 			return claude.Resume(clotildeRoot, sess, settingsFile, systemPromptFile, additionalArgs)
 		},
 	}
+	cmd.Flags().String("context", "", "Session context (e.g. \"working on ticket GH-123\")")
 	registerShorthandFlags(cmd)
 	return cmd
 }

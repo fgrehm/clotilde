@@ -49,6 +49,7 @@ func buildCommonParams(cmd *cobra.Command, name string) SessionCreateParams {
 	additionalDirs, _ := cmd.Flags().GetStringSlice("add-dir")
 	outputStyle, _ := cmd.Flags().GetString("output-style")
 	outputStyleFile, _ := cmd.Flags().GetString("output-style-file")
+	context, _ := cmd.Flags().GetString("context")
 
 	return SessionCreateParams{
 		Name:                    name,
@@ -64,6 +65,7 @@ func buildCommonParams(cmd *cobra.Command, name string) SessionCreateParams {
 		AdditionalDirs:          additionalDirs,
 		OutputStyle:             outputStyle,
 		OutputStyleFile:         outputStyleFile,
+		Context:                 context,
 	}
 }
 
@@ -82,6 +84,7 @@ type SessionCreateParams struct {
 	AdditionalDirs          []string
 	OutputStyle             string // built-in style, custom style name, or inline content
 	OutputStyleFile         string // path to custom style file
+	Context                 string // session context (e.g. "working on ticket GH-123")
 	Incognito               bool
 }
 
@@ -138,6 +141,11 @@ func createSession(params SessionCreateParams) (*SessionCreateResult, error) {
 		sess.Metadata.SystemPromptMode = "replace"
 	} else {
 		sess.Metadata.SystemPromptMode = "append"
+	}
+
+	// Set context
+	if params.Context != "" {
+		sess.Metadata.Context = params.Context
 	}
 
 	if err := store.Create(sess); err != nil {

@@ -134,18 +134,20 @@ files present, settings, context sources, and Claude Code data status.`,
 		// Show context sources
 		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Context:")
 
+		if sess.Metadata.Context != "" {
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  %s\n", sess.Metadata.Context)
+		} else {
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "  not set")
+		}
+
 		globalContext := filepath.Join(clotildeRoot, config.GlobalContextFile)
 		if util.FileExists(globalContext) {
 			content, err := os.ReadFile(globalContext)
 			if err == nil && len(content) > 0 {
 				lines, _ := util.CountLines(globalContext)
 				excerpt := util.TruncateText(string(content), 200)
-				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  (%d lines): %s\n", lines, excerpt)
-			} else {
-				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "  empty")
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  Global context (deprecated): (%d lines): %s\n", lines, excerpt)
 			}
-		} else {
-			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "  not set")
 		}
 
 		_, _ = fmt.Fprintln(cmd.OutOrStdout())

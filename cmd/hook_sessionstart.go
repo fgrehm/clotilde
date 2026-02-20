@@ -84,8 +84,8 @@ func handleStartup(clotildeRoot string, hookData hookInput, store session.Store)
 		}
 	}
 
-	// Output global context for new sessions
-	outputContexts(clotildeRoot)
+	// Output session name, context, and global context
+	outputContexts(clotildeRoot, store, sessionName)
 
 	return nil
 }
@@ -118,8 +118,8 @@ func handleResume(clotildeRoot string, hookData hookInput, store session.Store) 
 		}
 	}
 
-	// Output global context
-	outputContexts(clotildeRoot)
+	// Output session name, context, and global context
+	outputContexts(clotildeRoot, store, sessionName)
 
 	return nil
 }
@@ -163,8 +163,8 @@ func handleCompact(clotildeRoot string, hookData hookInput, store session.Store)
 		_, _ = fmt.Fprintf(os.Stderr, "Warning: failed to write session name to env: %v\n", err)
 	}
 
-	// Output global context
-	outputContexts(clotildeRoot)
+	// Output session name, context, and global context
+	outputContexts(clotildeRoot, store, sessionName)
 
 	return nil
 }
@@ -309,14 +309,34 @@ func writeSessionNameToEnv(sessionName string) error {
 	return nil
 }
 
-// outputContexts loads and outputs global context.
-func outputContexts(clotildeRoot string) {
-	// Output global context if exists
+// outputContexts loads and outputs session name, session context, and global context.
+func outputContexts(clotildeRoot string, store session.Store, sessionName string) {
+	var hasOutput bool
+
+	// Output session name
+	if sessionName != "" {
+		fmt.Printf("\nSession name: %s\n", sessionName)
+		hasOutput = true
+	}
+
+	// Output session context from metadata
+	if sessionName != "" {
+		sess, err := store.Get(sessionName)
+		if err == nil && sess.Metadata.Context != "" {
+			fmt.Printf("Context: %s\n", sess.Metadata.Context)
+			hasOutput = true
+		}
+	}
+
+	// Output global context if exists (deprecated)
 	globalContext := filepath.Join(clotildeRoot, config.GlobalContextFile)
 	if util.FileExists(globalContext) {
 		content, err := os.ReadFile(globalContext)
 		if err == nil {
-			fmt.Printf("\nClotilde session context source\n\n--- Loaded from .claude/clotilde/context.md ---\n\n%s\n", string(content))
+			if !hasOutput {
+				fmt.Println()
+			}
+			fmt.Printf("\n--- Loaded from .claude/clotilde/context.md (deprecated, will be removed in 1.0) ---\n\n%s\n", string(content))
 		}
 	}
 }

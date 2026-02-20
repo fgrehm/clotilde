@@ -177,6 +177,32 @@ var _ = Describe("Hook Commands", func() {
 				Expect(err).NotTo(HaveOccurred())
 			})
 
+			It("should not error when session has context set", func() {
+				// Create session with context
+				sess := session.NewSession("session-with-context", "test-uuid-ctx")
+				sess.Metadata.Context = "working on GH-123"
+				err := store.Create(sess)
+				Expect(err).NotTo(HaveOccurred())
+
+				// Set environment variable with session name
+				_ = os.Setenv("CLOTILDE_SESSION_NAME", "session-with-context")
+				defer func() { _ = os.Unsetenv("CLOTILDE_SESSION_NAME") }()
+
+				// Create hook input
+				hookInput := map[string]string{
+					"session_id": "test-uuid-ctx",
+					"source":     "startup",
+				}
+				inputJSON, err := json.Marshal(hookInput)
+				Expect(err).NotTo(HaveOccurred())
+
+				// Execute hook sessionstart
+				err = executeHookWithInput("sessionstart", inputJSON)
+				Expect(err).NotTo(HaveOccurred())
+				// Note: Output includes "Session name: session-with-context" and "Context: working on GH-123"
+				// but we can't easily capture stdout in tests
+			})
+
 			It("should save transcript path from hook input", func() {
 				// Create session
 				sess := session.NewSession("session-with-transcript", "test-uuid-123")

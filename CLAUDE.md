@@ -52,7 +52,7 @@ Each session is a folder in `.claude/clotilde/sessions/<name>/`:
 ```
 .claude/clotilde/
   config.json             # Global config (profiles, etc - optional)
-  context.md              # Global context for all sessions (optional)
+  context.md              # Global context for all sessions (deprecated, use --context flag)
   sessions/
     my-session/
       metadata.json       # Session metadata (name, sessionId, timestamps, parent info)
@@ -71,13 +71,16 @@ Each session is a folder in `.claude/clotilde/sessions/<name>/`:
   "parentSession": "original-session",
   "isForkedSession": true,
   "isIncognito": false,
-  "previousSessionIds": ["old-uuid-1", "old-uuid-2"]
+  "previousSessionIds": ["old-uuid-1", "old-uuid-2"],
+  "context": "working on ticket GH-123"
 }
 ```
 
 **`previousSessionIds`**: Array of UUIDs from `/clear` operations. When Claude Code clears a session, it creates a new UUID. Clotilde tracks the old UUIDs here for complete cleanup on deletion. Note: `/compact` does NOT currently create a new UUID (only `/clear` does), but we handle it defensively in the code.
 
 **`isIncognito`**: Boolean flag. If true, session auto-deletes on exit (via defer-based cleanup in `invoke.go`). Incognito sessions are useful for quick queries, experiments, or sensitive work. Cleanup runs on normal exit and Ctrl+C, but not on SIGKILL or crashes.
+
+**`context`**: Optional free-text field set via `--context` flag on `start`, `incognito`, `fork`, and `resume` commands. Injected into Claude via the SessionStart hook alongside the session name. Forked sessions inherit context from the parent unless overridden. Context can be updated on resume (e.g. `clotilde resume my-session --context "now on GH-456"`).
 
 **Global config format** (`config.json`):
 ```json
@@ -128,9 +131,10 @@ Each session is a folder in `.claude/clotilde/sessions/<name>/`:
 
 **Settings scope**: Only session-specific settings (model, permissions). Not global stuff like hooks, MCP servers, status line. Settings file is ALWAYS created (empty object if no model/permissions specified).
 
-**Context loading**: Global context loaded at session start via SessionStart hooks:
-- **Global** (`.claude/clotilde/context.md`): What you're working on (ticket info, task goal, relevant specs)
-- Hook outputs context with a header indicating the source file so Claude knows where to make updates if needed
+**Context loading**: Context is injected at session start via SessionStart hooks:
+- **Session name**: Always output if available
+- **Session context**: From metadata `context` field (set via `--context` flag)
+- **Global** (`.claude/clotilde/context.md`): Deprecated, will be removed in 1.0. Use `--context` flag instead.
 
 ### Claude Code Integration Patterns
 
@@ -204,8 +208,9 @@ No matcher field - the single hook handles all sources (startup, resume, compact
 
 **Context loading:**
 - Hook outputs context to stdout which gets automatically injected by Claude Code
-- Global context (`.claude/clotilde/context.md`): What you're working on (ticket/issue info, task goal)
-- Hook outputs a header ("Clotilde session context source / --- Loaded from .claude/clotilde/context.md ---") so Claude knows where to make updates if needed
+- Session name is always output if available (e.g. "Session name: my-feature")
+- Session context from metadata is output if set (e.g. "Context: working on GH-123")
+- Global context (`.claude/clotilde/context.md`): Deprecated, will be removed in 1.0. Use `--context` flag instead.
 - Hooks use os.Stdin piping to read JSON input from Claude Code
 
 ### Claude Code Path Conversion

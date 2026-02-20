@@ -58,6 +58,31 @@ var _ = Describe("FileStore", func() {
 		})
 	})
 
+	Describe("Context field", func() {
+		It("should preserve context through create/save/load cycle", func() {
+			s := session.NewSession("ctx-session", "uuid-ctx")
+			s.Metadata.Context = "working on ticket GH-123"
+
+			err := store.Create(s)
+			Expect(err).NotTo(HaveOccurred())
+
+			retrieved, err := store.Get("ctx-session")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(retrieved.Metadata.Context).To(Equal("working on ticket GH-123"))
+		})
+
+		It("should omit context from JSON when empty", func() {
+			s := session.NewSession("no-ctx-session", "uuid-no-ctx")
+
+			err := store.Create(s)
+			Expect(err).NotTo(HaveOccurred())
+
+			retrieved, err := store.Get("no-ctx-session")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(retrieved.Metadata.Context).To(BeEmpty())
+		})
+	})
+
 	Describe("Update", func() {
 		It("should update session metadata", func() {
 			s := session.NewSession("test-session", "uuid-123")

@@ -21,6 +21,7 @@ type Metadata struct {
 	IsForkedSession      bool      `json:"isForkedSession"`
 	IsIncognito          bool      `json:"isIncognito"`
 	PreviousSessionIDs   []string  `json:"previousSessionIds,omitempty"`
+	Context              string    `json:"context,omitempty"`
 	SystemPromptMode     string    `json:"systemPromptMode,omitempty"` // "append" (default) or "replace"
 	HasCustomOutputStyle bool      `json:"hasCustomOutputStyle,omitempty"`
 }

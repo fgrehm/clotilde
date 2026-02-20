@@ -131,6 +131,14 @@ Pass additional flags to Claude Code after '--':
 			fork.Metadata.ParentSession = parentName
 			fork.Metadata.SystemPromptMode = parentSess.Metadata.SystemPromptMode // Inherit from parent
 
+			// Set context: use --context flag if provided, otherwise inherit from parent
+			forkContext, _ := cmd.Flags().GetString("context")
+			if forkContext != "" {
+				fork.Metadata.Context = forkContext
+			} else if parentSess.Metadata.Context != "" {
+				fork.Metadata.Context = parentSess.Metadata.Context
+			}
+
 			if err := store.Create(fork); err != nil {
 				return fmt.Errorf("failed to create fork: %w", err)
 			}
@@ -228,6 +236,7 @@ Pass additional flags to Claude Code after '--':
 		},
 	}
 	cmd.Flags().Bool("incognito", false, "Create fork as incognito session (auto-deletes on exit)")
+	cmd.Flags().String("context", "", "Session context (e.g. \"working on ticket GH-123\")")
 	registerShorthandFlags(cmd)
 	return cmd
 }
