@@ -11,12 +11,18 @@ Current status, known limitations, and future ideas.
 ### [Claude Settings Behavior](claude-settings-behavior.md)
 
 Analysis of how Claude Code's settings system works, including:
-- Multi-layer settings resolution (Global → Project → Local → CLI)
+- Multi-layer settings resolution (Global -> Project -> Local -> CLI)
 - Model selection precedence
 - Permission merging rules
 - The critical finding that approvals always save to `.claude/settings.local.json`
 
 **Why this matters for Clotilde:** Understanding these behaviors is essential for designing session isolation, permission handling, and the overall session management strategy.
+
+## Specs
+
+Design specs for planned features live in `specs/`:
+
+- **[Slash Fork Handling](specs/slash-fork-handling.md)** - Auto-detecting and registering forks created via Claude Code's `/fork` command
 
 ---
 

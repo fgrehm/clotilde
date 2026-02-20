@@ -16,10 +16,11 @@ Claude Code is great for single conversations, but as you start juggling multipl
 - **The resume picker doesn't scale**: Fine for 2-3 sessions, but with more it shows unhelpful text like "This session is being continued from a previous conversation that ran out of context..." Which one was your auth work again?
 - **No per-session configuration**: Want to use Haiku for a quick question and Opus for deep feature work? You have to change settings globally or pass flags every time.
 - **No persistent context injection**: There's no built-in way to feed the same background context (ticket info, project conventions, task goals) into every session automatically.
+- **Forking is low-level**: `--fork-session` and `/fork` exist but require knowing UUIDs, have no named fork tracking, and don't record parent/child relationships. There's no way to fork by name.
 
 ## What Clotilde does
 
-Clotilde is a thin wrapper around Claude Code that adds three things: named sessions, profiles, and context management.
+Clotilde is a thin wrapper around Claude Code that adds named sessions, profiles, context management, and user-friendly forking.
 
 ```bash
 # Named sessions you can instantly switch between

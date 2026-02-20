@@ -1,18 +1,24 @@
 # Clotilde Roadmap
 
-Named session management for Claude Code.
+Named sessions, profiles, and context management for Claude Code.
 
-## Current Status: v0.3.1
+## Current Status: v0.4.0 (unreleased)
 
-Core functionality complete and tested. Working on quality-of-life improvements.
+Core functionality complete and tested. Recent work focused on session profiles and output styles.
 
 ### What's Working
 
-- **Commands**: init, start, resume, list, inspect, fork, delete, incognito
-- **Features**: Named sessions, forking, incognito mode, system prompts, permissions, global context system
+- **Commands**: init, start, resume, list, inspect, fork, delete, incognito, completion
+- **Features**: Named sessions, forking, incognito mode, system prompts, permissions, global context, session profiles, output styles
 - **Shorthand flags**: `--accept-edits`, `--yolo`, `--plan`, `--dont-ask`, `--fast`
 - **TUI**: Dashboard, session picker, confirmation dialogs, styled output
 - **Distribution**: Cross-platform binaries via goreleaser
+
+### v0.4.0 Highlights
+
+- **Session profiles**: Named presets in `config.json` for model, permissions, and output style. Apply with `--profile <name>`.
+- **Output styles**: Per-session output style via `--output-style` and `--output-style-file`. Supports built-in styles, project/user styles, and custom inline content.
+- **Global config**: Expanded to support project-wide permissions defaults
 
 ### v0.3.0 Highlights
 
@@ -26,10 +32,12 @@ Core functionality complete and tested. Working on quality-of-life improvements.
 
 - Incognito cleanup only runs on normal exit (not SIGKILL/crashes)
 - `/compact` UUID tracking is defensive (Claude Code doesn't currently create new UUIDs for it)
+- `/fork` slash command inside a Clotilde session creates an untracked fork (see [slash-fork-handling spec](specs/slash-fork-handling.md))
 
 ## Future Ideas
 
-- **Profiles**: Save session configs as reusable templates
+- **`/fork` slash command support**: Auto-detect and register forks created via Claude Code's `/fork` command ([spec](specs/slash-fork-handling.md))
+- **`adopt` command**: Register existing Claude Code sessions into Clotilde
 - **Session search**: Full-text search across transcripts
 - **Session export**: Export conversations to markdown
 - **Context templates**: Dynamic context (git branch, ticket info)
