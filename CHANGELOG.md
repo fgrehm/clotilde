@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`--context` flag**: Attach context to sessions (e.g. `--context "working on ticket GH-123"`). Available on `start`, `incognito`, `fork`, and `resume` commands. Context is stored in session metadata and automatically injected into Claude at session start alongside the session name. Forked sessions inherit context from the parent unless overridden.
+- **Session name injection**: The session name is now automatically output to Claude at session start via the SessionStart hook.
+
+### Deprecated
+
+- **`context.md` file**: Global context file (`.claude/clotilde/context.md`) is deprecated in favor of the `--context` flag. It will be removed in 1.0.
+
 ## [0.4.0] - 2026-02-20
 
 ### Added

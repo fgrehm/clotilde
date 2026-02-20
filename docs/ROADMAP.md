@@ -9,7 +9,7 @@ Core functionality complete and tested. Recent work focused on session profiles 
 ### What's Working
 
 - **Commands**: init, start, resume, list, inspect, fork, delete, incognito, completion
-- **Features**: Named sessions, forking, incognito mode, system prompts, permissions, global context, session profiles, output styles
+- **Features**: Named sessions, forking, incognito mode, system prompts, permissions, session context, session profiles, output styles
 - **Shorthand flags**: `--accept-edits`, `--yolo`, `--plan`, `--dont-ask`, `--fast`
 - **TUI**: Dashboard, session picker, confirmation dialogs, styled output
 - **Distribution**: Cross-platform binaries via goreleaser

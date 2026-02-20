@@ -105,6 +105,26 @@ Incognito sessions automatically delete themselves when you exit. See [`clotilde
 - Cannot fork FROM incognito sessions (they'll auto-delete when you exit)
 - CAN fork TO incognito sessions (create an incognito fork of a regular session)
 
+## Session Context
+
+Attach context to a session so Claude knows what you're working on:
+
+```bash
+# Set context when starting a session
+clotilde start auth-feature --context "working on ticket GH-123"
+
+# Works with incognito and fork too
+clotilde incognito --fast --context "quick spike on caching"
+clotilde fork auth-feature experiment --context "trying JWT instead of sessions"
+
+# Update context when resuming
+clotilde resume auth-feature --context "now on GH-456"
+```
+
+Context is stored in session metadata and automatically injected into Claude at session start (alongside the session name). Forked sessions inherit context from the parent unless overridden with `--context`.
+
+Use `clotilde inspect <name>` to see a session's current context.
+
 ## Shorthand Flags
 
 Common permission modes and presets have short, memorable flags available on all session commands (`start`, `incognito`, `resume`, `fork`):
@@ -310,6 +330,7 @@ clotilde start research --model haiku --append-system-prompt "Focus on explorati
 - `--append-system-prompt-file <path>` - Add system prompt from file (appends to Claude's default)
 - `--replace-system-prompt <text>` - Replace Claude's default system prompt entirely with custom text
 - `--replace-system-prompt-file <path>` - Replace Claude's default system prompt entirely with file contents
+- `--context <text>` - Session context (e.g. "working on ticket GH-123"). Injected into Claude at session start.
 - `--incognito` - Create incognito session (auto-deletes on exit)
 - `--accept-edits` - Shorthand for `--permission-mode acceptEdits`
 - `--yolo` - Shorthand for `--permission-mode bypassPermissions`
@@ -337,7 +358,7 @@ clotilde incognito quick-test
 clotilde incognito --model haiku
 ```
 
-**Options:** Same as `clotilde start` (except `--incognito` is implicit)
+**Options:** Same as `clotilde start` (except `--incognito` is implicit), including `--context`
 
 ### `clotilde resume [name] [options]`
 
@@ -347,9 +368,12 @@ Resume a session by name. Shorthand flags are passed directly to Claude Code for
 clotilde resume auth-feature
 clotilde resume auth-feature --fast
 clotilde resume auth-feature --accept-edits
+clotilde resume auth-feature --context "now on GH-456"
 ```
 
-**Options:** `--accept-edits`, `--yolo`, `--plan`, `--dont-ask`, `--fast` (see [Shorthand Flags](#shorthand-flags))
+**Options:**
+- `--context <text>` - Update session context (e.g. "now working on GH-456")
+- `--accept-edits`, `--yolo`, `--plan`, `--dont-ask`, `--fast` (see [Shorthand Flags](#shorthand-flags))
 
 ### `clotilde list`
 
@@ -380,6 +404,7 @@ clotilde fork auth-feature --incognito
 ```
 
 **Options:**
+- `--context <text>` - Override context for the fork (inherits from parent if not specified)
 - `--incognito` - Create fork as incognito session (auto-deletes on exit)
 - `--accept-edits`, `--yolo`, `--plan`, `--dont-ask`, `--fast` - Shorthand flags (see [Shorthand Flags](#shorthand-flags))
 
