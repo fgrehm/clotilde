@@ -51,7 +51,7 @@ Each session is a folder in `.claude/clotilde/sessions/<name>/`:
 
 ```
 .claude/clotilde/
-  config.json             # Global config (profiles, etc - optional)
+  config.json             # Project config (profiles, etc - optional)
   context.md              # Global context for all sessions (deprecated, use --context flag)
   sessions/
     my-session/
@@ -82,7 +82,7 @@ Each session is a folder in `.claude/clotilde/sessions/<name>/`:
 
 **`context`**: Optional free-text field set via `--context` flag on `start`, `incognito`, `fork`, and `resume` commands. Injected into Claude via the SessionStart hook alongside the session name. Forked sessions inherit context from the parent unless overridden. Context can be updated on resume (e.g. `clotilde resume my-session --context "now on GH-456"`).
 
-**Global config format** (`config.json`):
+**Project config format** (`.claude/clotilde/config.json`):
 ```json
 {
   "profiles": {
@@ -104,6 +104,10 @@ Each session is a folder in `.claude/clotilde/sessions/<name>/`:
 }
 ```
 
+**Global config format** (`~/.config/clotilde/config.json`):
+
+Same structure as the project config. Respects `$XDG_CONFIG_HOME` if set, otherwise defaults to `~/.config/clotilde/config.json`. Profiles defined here are available in all projects.
+
 **Config purpose**: Define named session presets (profiles) for common configurations. Use `clotilde start <name> --profile <profile>` to apply a profile.
 
 **Profile fields**:
@@ -112,7 +116,7 @@ Each session is a folder in `.claude/clotilde/sessions/<name>/`:
 - `permissions` - Granular permissions: allow/deny/ask lists, additionalDirectories, defaultMode, disableBypassPermissionsMode
 - `outputStyle` - Output style (built-in or custom name)
 
-**Precedence**: Profile values → CLI flags (CLI flags always override profile values). For example, `--profile quick --model opus` uses the quick profile but overrides its model with opus.
+**Precedence**: Global profile → project profile → CLI flags (each layer overrides the previous). For example, if both global and project configs define a `"quick"` profile, the project version wins. CLI flags always override profile values.
 
 **Settings format** (`settings.json`):
 ```json

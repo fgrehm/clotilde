@@ -49,15 +49,15 @@ func profileNameCompletion(cmd *cobra.Command, args []string, toComplete string)
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
-	// Load config
-	cfg, err := config.LoadOrDefault(clotildeRoot)
+	// Load merged profiles (global + project)
+	profiles, err := config.MergedProfiles(clotildeRoot)
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 
 	// Extract profile names
 	var names []string
-	for name := range cfg.Profiles {
+	for name := range profiles {
 		names = append(names, name)
 	}
 

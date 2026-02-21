@@ -154,8 +154,8 @@ func createSession(params SessionCreateParams) (*SessionCreateResult, error) {
 
 	sessionDir := config.GetSessionDir(clotildeRoot, params.Name)
 
-	// Load global config
-	globalConfig, err := config.LoadOrDefault(clotildeRoot)
+	// Load merged profiles (global + project, project takes precedence)
+	profiles, err := config.MergedProfiles(clotildeRoot)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
@@ -165,7 +165,7 @@ func createSession(params SessionCreateParams) (*SessionCreateResult, error) {
 
 	// Apply profile if specified
 	if params.Profile != "" {
-		profile, ok := globalConfig.Profiles[params.Profile]
+		profile, ok := profiles[params.Profile]
 		if !ok {
 			return nil, fmt.Errorf("profile '%s' not found in config", params.Profile)
 		}

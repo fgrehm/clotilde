@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Global profiles**: Profiles can now be defined in `~/.config/clotilde/config.json` (respects `$XDG_CONFIG_HOME`). Global profiles are available in all projects. Project-level profiles take precedence over global ones when names collide. CLI flags still override both.
 - **`--context` flag**: Attach context to sessions (e.g. `--context "working on ticket GH-123"`). Available on `start`, `incognito`, `fork`, and `resume` commands. Context is stored in session metadata and automatically injected into Claude at session start alongside the session name. Forked sessions inherit context from the parent unless overridden.
 - **Session name injection**: The session name is now automatically output to Claude at session start via the SessionStart hook.
 

@@ -77,6 +77,17 @@ func GetGlobalContextPath(clotildeRoot string) string {
 	return filepath.Join(clotildeRoot, GlobalContextFile)
 }
 
+// GlobalConfigPath returns the path to the global config file.
+// Respects $XDG_CONFIG_HOME if set, otherwise uses ~/.config/clotilde/config.json.
+func GlobalConfigPath() string {
+	configHome := os.Getenv("XDG_CONFIG_HOME")
+	if configHome == "" {
+		home, _ := os.UserHomeDir()
+		configHome = filepath.Join(home, ".config")
+	}
+	return filepath.Join(configHome, "clotilde", ConfigFile)
+}
+
 // EnsureClotildeStructure creates the .claude/clotilde directory structure
 // at the given path if it doesn't exist.
 func EnsureClotildeStructure(projectRoot string) error {

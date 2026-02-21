@@ -176,7 +176,14 @@ clotilde incognito test -- --debug --permission-mode plan
 
 ## Session Profiles
 
-Define named presets in `.claude/clotilde/config.json` for common session configurations. Use `--profile <name>` when creating sessions to apply a profile's settings.
+Define named presets for common session configurations. Use `--profile <name>` when creating sessions to apply a profile's settings.
+
+Profiles can be defined in two locations:
+
+- **Global**: `~/.config/clotilde/config.json` (respects `$XDG_CONFIG_HOME`) - available in all projects
+- **Project**: `.claude/clotilde/config.json` - scoped to a single project
+
+When both define a profile with the same name, the project version wins.
 
 ```json
 {
@@ -227,7 +234,7 @@ clotilde start research --profile quick --model sonnet
 clotilde incognito --profile quick
 ```
 
-**Precedence:** Profile values are applied first, then CLI flags override individual fields. For example, `--profile quick --model opus` uses the quick profile's settings but replaces its model with opus.
+**Precedence:** Global profile → project profile → CLI flags (each layer overrides the previous). For example, `--profile quick --model opus` uses the quick profile's settings but replaces its model with opus.
 
 ## Output Styles
 

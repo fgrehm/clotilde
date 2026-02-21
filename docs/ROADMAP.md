@@ -9,7 +9,7 @@ Core functionality complete and tested. Recent work focused on session profiles 
 ### What's Working
 
 - **Commands**: init, start, resume, list, inspect, fork, delete, incognito, completion
-- **Features**: Named sessions, forking, incognito mode, system prompts, permissions, session context, session profiles, output styles
+- **Features**: Named sessions, forking, incognito mode, system prompts, permissions, session context, session profiles (global + project), output styles
 - **Shorthand flags**: `--accept-edits`, `--yolo`, `--plan`, `--dont-ask`, `--fast`
 - **TUI**: Dashboard, session picker, confirmation dialogs, styled output
 - **Distribution**: Cross-platform binaries via goreleaser
@@ -17,8 +17,8 @@ Core functionality complete and tested. Recent work focused on session profiles 
 ### v0.4.0 Highlights
 
 - **Session profiles**: Named presets in `config.json` for model, permissions, and output style. Apply with `--profile <name>`.
+- **Global profiles**: Profiles defined in `~/.config/clotilde/config.json` are available in all projects. Project-level profiles take precedence on name collisions.
 - **Output styles**: Per-session output style via `--output-style` and `--output-style-file`. Supports built-in styles, project/user styles, and custom inline content.
-- **Global config**: Expanded to support project-wide permissions defaults
 
 ### v0.3.0 Highlights
 
