@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-02-23
+
 ### Added
 
 - **Global profiles**: Profiles can now be defined in `~/.config/clotilde/config.json` (respects `$XDG_CONFIG_HOME`). Global profiles are available in all projects. Project-level profiles take precedence over global ones when names collide. CLI flags still override both.
