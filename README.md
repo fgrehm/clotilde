@@ -57,6 +57,11 @@ Clotilde never patches or modifies Claude Code.
 
 Download the latest release for your platform from [GitHub Releases](https://github.com/fgrehm/clotilde/releases).
 
+**mise:**
+```bash
+mise use github:fgrehm/clotilde
+```
+
 **Go install:**
 ```bash
 go install github.com/fgrehm/clotilde@latest
@@ -502,3 +507,7 @@ make install
 ## License
 
 MIT
+
+---
+
+Built with [Claude Code](https://claude.ai/code) (Opus 4.5+, Sonnet 4.5+, Haiku 4.5).
