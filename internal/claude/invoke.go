@@ -31,37 +31,33 @@ type InvokeOptions struct {
 	Env              map[string]string
 }
 
-// Start invokes claude CLI to start a new session.
-func Start(clotildeRoot string, sess *session.Session, settingsFile, systemPromptFile string, additionalArgs []string) error {
-	args := []string{
-		"--session-id", sess.Metadata.SessionID,
-	}
-
-	// Add settings file if it exists
+// appendCommonArgs adds settings and system prompt flags to the arg list.
+func appendCommonArgs(args []string, settingsFile, systemPromptFile, systemPromptMode string) []string {
 	if settingsFile != "" && util.FileExists(settingsFile) {
 		args = append(args, "--settings", settingsFile)
 	}
 
-	// Add system prompt file if it exists (use correct flag based on mode)
 	if systemPromptFile != "" && util.FileExists(systemPromptFile) {
-		mode := sess.Metadata.GetSystemPromptMode()
-		if mode == "replace" {
+		if systemPromptMode == "replace" {
 			args = append(args, "--system-prompt-file", systemPromptFile)
 		} else {
-			// Default to append if mode not explicitly set
 			args = append(args, "--append-system-prompt-file", systemPromptFile)
 		}
 	}
 
-	// Add additional args (pass-through flags)
+	return args
+}
+
+// Start invokes claude CLI to start a new session.
+func Start(clotildeRoot string, sess *session.Session, settingsFile, systemPromptFile string, additionalArgs []string) error {
+	args := []string{"--session-id", sess.Metadata.SessionID}
+	args = appendCommonArgs(args, settingsFile, systemPromptFile, sess.Metadata.GetSystemPromptMode())
 	args = append(args, additionalArgs...)
 
-	// Set environment variable for the hook
 	env := map[string]string{
 		"CLOTILDE_SESSION_NAME": sess.Name,
 	}
 
-	// Use cleanup wrapper for incognito sessions
 	if sess.Metadata.IsIncognito {
 		return invokeWithCleanup(clotildeRoot, sess, args, env)
 	}
@@ -73,35 +69,14 @@ func Start(clotildeRoot string, sess *session.Session, settingsFile, systemPromp
 
 // Resume invokes claude CLI to resume an existing session.
 func Resume(clotildeRoot string, sess *session.Session, settingsFile, systemPromptFile string, additionalArgs []string) error {
-	args := []string{
-		"--resume", sess.Metadata.SessionID,
-	}
-
-	// Add settings file if it exists
-	if settingsFile != "" && util.FileExists(settingsFile) {
-		args = append(args, "--settings", settingsFile)
-	}
-
-	// Add system prompt file if it exists (use correct flag based on mode)
-	if systemPromptFile != "" && util.FileExists(systemPromptFile) {
-		mode := sess.Metadata.GetSystemPromptMode()
-		if mode == "replace" {
-			args = append(args, "--system-prompt-file", systemPromptFile)
-		} else {
-			// Default to append if mode not explicitly set
-			args = append(args, "--append-system-prompt-file", systemPromptFile)
-		}
-	}
-
-	// Add additional args (pass-through flags)
+	args := []string{"--resume", sess.Metadata.SessionID}
+	args = appendCommonArgs(args, settingsFile, systemPromptFile, sess.Metadata.GetSystemPromptMode())
 	args = append(args, additionalArgs...)
 
-	// Set environment variable for the hook
 	env := map[string]string{
 		"CLOTILDE_SESSION_NAME": sess.Name,
 	}
 
-	// Use cleanup wrapper for incognito sessions
 	if sess.Metadata.IsIncognito {
 		return invokeWithCleanup(clotildeRoot, sess, args, env)
 	}
@@ -111,39 +86,18 @@ func Resume(clotildeRoot string, sess *session.Session, settingsFile, systemProm
 
 // Fork invokes claude CLI to fork an existing session.
 // The parent session will be resumed with --fork-session flag.
-// Environment variables should include CLOTILDE_FORK_NAME and CLOTILDE_PARENT_SESSION.
 // For ephemeral forks, cleanup will happen when Claude exits.
 func Fork(clotildeRoot string, parentSess *session.Session, forkName string, settingsFile, systemPromptFile string, additionalArgs []string, forkSession *session.Session) error {
-	args := []string{
-		"--resume", parentSess.Metadata.SessionID,
-		"--fork-session",
-	}
-
-	// Add settings file if it exists
-	if settingsFile != "" && util.FileExists(settingsFile) {
-		args = append(args, "--settings", settingsFile)
-	}
-
-	// Add system prompt file if it exists (use correct flag based on fork's mode)
-	if systemPromptFile != "" && util.FileExists(systemPromptFile) {
-		if forkSession.Metadata.GetSystemPromptMode() == "replace" {
-			args = append(args, "--system-prompt-file", systemPromptFile)
-		} else {
-			args = append(args, "--append-system-prompt-file", systemPromptFile)
-		}
-	}
-
-	// Add additional args (pass-through flags)
+	args := []string{"--resume", parentSess.Metadata.SessionID, "--fork-session"}
+	args = appendCommonArgs(args, settingsFile, systemPromptFile, forkSession.Metadata.GetSystemPromptMode())
 	args = append(args, additionalArgs...)
 
-	// Set environment variables for the hook
 	env := map[string]string{
 		"CLOTILDE_SESSION_NAME":   forkName,
 		"CLOTILDE_FORK_NAME":      forkName,
 		"CLOTILDE_PARENT_SESSION": parentSess.Name,
 	}
 
-	// For incognito forks, use cleanup wrapper
 	if forkSession.Metadata.IsIncognito {
 		return invokeWithCleanup(clotildeRoot, forkSession, args, env)
 	}
