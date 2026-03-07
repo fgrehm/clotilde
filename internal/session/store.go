@@ -1,7 +1,6 @@
 package session
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +9,9 @@ import (
 	"github.com/fgrehm/clotilde/internal/config"
 	"github.com/fgrehm/clotilde/internal/util"
 )
+
+// Compile-time check that FileStore implements Store.
+var _ Store = (*FileStore)(nil)
 
 const (
 	metadataFile     = "metadata.json"
@@ -254,5 +256,3 @@ func (fs *FileStore) SaveSystemPrompt(name string, content string) error {
 
 	return util.WriteFile(promptPath, []byte(content))
 }
-
-var _ = errors.New // Import marker to ensure errors is imported
