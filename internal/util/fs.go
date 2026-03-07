@@ -70,7 +70,7 @@ func CopyFile(src, dst string) error {
 
 // ReadJSON reads a JSON file and unmarshals it into the provided interface.
 // Returns an error if reading or unmarshaling fails.
-func ReadJSON(path string, v interface{}) error {
+func ReadJSON(path string, v any) error {
 	data, err := ReadFile(path)
 	if err != nil {
 		return err
@@ -82,7 +82,7 @@ func ReadJSON(path string, v interface{}) error {
 // Creates parent directories if they don't exist.
 // Uses indented formatting for readability.
 // Returns an error if marshaling or writing fails.
-func WriteJSON(path string, v interface{}) error {
+func WriteJSON(path string, v any) error {
 	data, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
 		return err
