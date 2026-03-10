@@ -9,14 +9,11 @@ import (
 
 var _ = Describe("Hooks", func() {
 	Describe("GenerateHookConfig", func() {
-		It("should generate hook configuration with binary path", func() {
+		It("should generate SessionStart hook with sessionstart command", func() {
 			binaryPath := "/usr/local/bin/clotilde"
 			config := claude.GenerateHookConfig(binaryPath)
 
-			// Verify SessionStart structure has unified hook (no matcher)
 			Expect(config.SessionStart).To(HaveLen(1))
-
-			// Verify unified hook has no matcher field
 			Expect(config.SessionStart[0].Matcher).To(BeEmpty())
 			Expect(config.SessionStart[0].Hooks).To(HaveLen(1))
 			Expect(config.SessionStart[0].Hooks[0].Type).To(Equal("command"))
@@ -29,6 +26,46 @@ var _ = Describe("Hooks", func() {
 
 			Expect(config.SessionStart[0].Hooks[0].Command).To(Equal("./clotilde hook sessionstart"))
 		})
+
+		It("should include Stop hook with notify command", func() {
+			config := claude.GenerateHookConfig("/usr/local/bin/clotilde")
+
+			Expect(config.Stop).To(HaveLen(1))
+			Expect(config.Stop[0].Matcher).To(BeEmpty())
+			Expect(config.Stop[0].Hooks[0].Command).To(Equal("/usr/local/bin/clotilde hook notify"))
+		})
+
+		It("should include Notification hook with notify command", func() {
+			config := claude.GenerateHookConfig("/usr/local/bin/clotilde")
+
+			Expect(config.Notification).To(HaveLen(1))
+			Expect(config.Notification[0].Matcher).To(BeEmpty())
+			Expect(config.Notification[0].Hooks[0].Command).To(Equal("/usr/local/bin/clotilde hook notify"))
+		})
+
+		It("should include PreToolUse hook with matcher '.*'", func() {
+			config := claude.GenerateHookConfig("/usr/local/bin/clotilde")
+
+			Expect(config.PreToolUse).To(HaveLen(1))
+			Expect(config.PreToolUse[0].Matcher).To(Equal(".*"))
+			Expect(config.PreToolUse[0].Hooks[0].Command).To(Equal("/usr/local/bin/clotilde hook notify"))
+		})
+
+		It("should include PostToolUse hook with matcher '.*'", func() {
+			config := claude.GenerateHookConfig("/usr/local/bin/clotilde")
+
+			Expect(config.PostToolUse).To(HaveLen(1))
+			Expect(config.PostToolUse[0].Matcher).To(Equal(".*"))
+			Expect(config.PostToolUse[0].Hooks[0].Command).To(Equal("/usr/local/bin/clotilde hook notify"))
+		})
+
+		It("should include SessionEnd hook with notify command", func() {
+			config := claude.GenerateHookConfig("/usr/local/bin/clotilde")
+
+			Expect(config.SessionEnd).To(HaveLen(1))
+			Expect(config.SessionEnd[0].Matcher).To(BeEmpty())
+			Expect(config.SessionEnd[0].Hooks[0].Command).To(Equal("/usr/local/bin/clotilde hook notify"))
+		})
 	})
 
 	Describe("HookConfigString", func() {
@@ -38,10 +75,13 @@ var _ = Describe("Hooks", func() {
 			str := claude.HookConfigString(config)
 			Expect(str).To(ContainSubstring(`"hooks":`))
 			Expect(str).To(ContainSubstring(`"SessionStart"`))
-			Expect(str).To(ContainSubstring(`"type": "command"`))
-			Expect(str).To(ContainSubstring("/usr/local/bin/clotilde hook sessionstart"))
-			// Unified hook should NOT have matcher fields
-			Expect(str).NotTo(ContainSubstring(`"matcher"`))
+			Expect(str).To(ContainSubstring(`"Stop"`))
+			Expect(str).To(ContainSubstring(`"Notification"`))
+			Expect(str).To(ContainSubstring(`"PreToolUse"`))
+			Expect(str).To(ContainSubstring(`"PostToolUse"`))
+			Expect(str).To(ContainSubstring(`"SessionEnd"`))
+			Expect(str).To(ContainSubstring("hook sessionstart"))
+			Expect(str).To(ContainSubstring("hook notify"))
 		})
 	})
 })

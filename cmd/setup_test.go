@@ -57,7 +57,7 @@ var _ = Describe("Setup Command", func() {
 		_ = os.Chdir(originalWd)
 	})
 
-	It("should create ~/.claude/settings.json with hooks", func() {
+	It("should create ~/.claude/settings.json with all hook events", func() {
 		rootCmd := cmd.NewRootCmd()
 		rootCmd.SetArgs([]string{"setup"})
 
@@ -76,6 +76,11 @@ var _ = Describe("Setup Command", func() {
 		Expect(settings).To(HaveKey("hooks"))
 		hooks := settings["hooks"].(map[string]interface{})
 		Expect(hooks).To(HaveKey("SessionStart"))
+		Expect(hooks).To(HaveKey("Stop"))
+		Expect(hooks).To(HaveKey("Notification"))
+		Expect(hooks).To(HaveKey("PreToolUse"))
+		Expect(hooks).To(HaveKey("PostToolUse"))
+		Expect(hooks).To(HaveKey("SessionEnd"))
 
 		sessionStart := hooks["SessionStart"].([]interface{})
 		Expect(sessionStart).To(HaveLen(1))
@@ -125,7 +130,7 @@ var _ = Describe("Setup Command", func() {
 	})
 
 	It("should merge with existing settings", func() {
-		// Create existing ~/.claude/settings.json
+		// Create existing ~/.claude/settings.json with a user-defined hook
 		claudeDir := filepath.Join(fakeHome, ".claude")
 		err := os.MkdirAll(claudeDir, 0o755)
 		Expect(err).NotTo(HaveOccurred())
@@ -133,7 +138,7 @@ var _ = Describe("Setup Command", func() {
 		existingSettings := map[string]interface{}{
 			"model": "opus",
 			"hooks": map[string]interface{}{
-				"PreToolUse": []interface{}{"echo existing"},
+				"UserPromptSubmit": []interface{}{"echo existing"},
 			},
 		}
 		settingsPath := filepath.Join(claudeDir, "settings.json")
@@ -158,9 +163,10 @@ var _ = Describe("Setup Command", func() {
 		// Original settings preserved
 		Expect(settings["model"]).To(Equal("opus"))
 
-		// Both hooks present
+		// User hook preserved alongside clotilde hooks
 		hooks := settings["hooks"].(map[string]interface{})
-		Expect(hooks).To(HaveKey("PreToolUse"))
+		Expect(hooks).To(HaveKey("UserPromptSubmit"))
 		Expect(hooks).To(HaveKey("SessionStart"))
+		Expect(hooks).To(HaveKey("Stop"))
 	})
 })

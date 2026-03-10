@@ -11,6 +11,7 @@ import (
 
 	"github.com/fgrehm/clotilde/cmd"
 	"github.com/fgrehm/clotilde/internal/config"
+	"github.com/fgrehm/clotilde/internal/notify"
 	"github.com/fgrehm/clotilde/internal/session"
 	"github.com/fgrehm/clotilde/internal/testutil"
 )
@@ -321,6 +322,75 @@ var _ = Describe("Hook Commands", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(updatedSess.Metadata.TranscriptPath).To(Equal("/home/user/.claude/projects/test-project/test-uuid-456.jsonl"))
 			})
+		})
+	})
+
+	Describe("hook notify", func() {
+		var (
+			originalLogDir string
+			notifyLogDir   string
+		)
+
+		BeforeEach(func() {
+			originalLogDir = notify.LogDir
+			notifyLogDir = filepath.Join(tempDir, "notify-logs")
+			notify.LogDir = notifyLogDir
+		})
+
+		AfterEach(func() {
+			notify.LogDir = originalLogDir
+		})
+
+		It("should exit without error on valid JSON input", func() {
+			hookInput := map[string]string{
+				"session_id": "test-notify-uuid",
+			}
+			inputJSON, err := json.Marshal(hookInput)
+			Expect(err).NotTo(HaveOccurred())
+
+			err = executeHookWithInput("notify", inputJSON)
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		It("should log event to JSONL file", func() {
+			hookInput := map[string]string{
+				"session_id":      "abc",
+				"hook_event_name": "Stop",
+			}
+			inputJSON, err := json.Marshal(hookInput)
+			Expect(err).NotTo(HaveOccurred())
+
+			err = executeHookWithInput("notify", inputJSON)
+			Expect(err).NotTo(HaveOccurred())
+
+			logFile := filepath.Join(notifyLogDir, "abc.events.jsonl")
+			Expect(logFile).To(BeAnExistingFile())
+
+			content, err := os.ReadFile(logFile)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(string(content)).To(ContainSubstring("abc"))
+			Expect(string(content)).To(ContainSubstring("Stop"))
+		})
+
+		It("should handle invalid JSON gracefully", func() {
+			err := executeHookWithInput("notify", []byte("not json"))
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("parse"))
+		})
+
+		It("should handle missing session_id gracefully", func() {
+			hookInput := map[string]string{
+				"hook_event_name": "Stop",
+			}
+			inputJSON, err := json.Marshal(hookInput)
+			Expect(err).NotTo(HaveOccurred())
+
+			err = executeHookWithInput("notify", inputJSON)
+			Expect(err).NotTo(HaveOccurred())
+
+			// No log file should be created (empty session_id)
+			_, err = os.Stat(notifyLogDir)
+			Expect(os.IsNotExist(err)).To(BeTrue())
 		})
 	})
 })

@@ -87,9 +87,8 @@ Use --global to install hooks in .claude/settings.json instead (shared with team
 }
 
 // mergeHooksIntoSettings reads a Claude settings file, merges clotilde's
-// SessionStart hook, and writes it back. Returns the merged hooks map for
-// display purposes. The caller is responsible for ensuring the parent
-// directory exists.
+// hooks, and writes it back. Returns the merged hooks map for display purposes.
+// The caller is responsible for ensuring the parent directory exists.
 func mergeHooksIntoSettings(settingsPath, clotildeBinary string) (map[string]interface{}, error) {
 	// Read existing settings if they exist
 	var settings map[string]interface{}
@@ -113,6 +112,11 @@ func mergeHooksIntoSettings(settingsPath, clotildeBinary string) (map[string]int
 	}
 
 	hooks["SessionStart"] = hookConfig.SessionStart
+	hooks["Stop"] = hookConfig.Stop
+	hooks["Notification"] = hookConfig.Notification
+	hooks["PreToolUse"] = hookConfig.PreToolUse
+	hooks["PostToolUse"] = hookConfig.PostToolUse
+	hooks["SessionEnd"] = hookConfig.SessionEnd
 	settings["hooks"] = hooks
 
 	if err := util.WriteJSON(settingsPath, settings); err != nil {

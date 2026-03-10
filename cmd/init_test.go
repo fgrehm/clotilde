@@ -104,6 +104,11 @@ var _ = Describe("Init Command", func() {
 		Expect(settings).To(HaveKey("hooks"))
 		hooks := settings["hooks"].(map[string]interface{})
 		Expect(hooks).To(HaveKey("SessionStart"))
+		Expect(hooks).To(HaveKey("Stop"))
+		Expect(hooks).To(HaveKey("Notification"))
+		Expect(hooks).To(HaveKey("PreToolUse"))
+		Expect(hooks).To(HaveKey("PostToolUse"))
+		Expect(hooks).To(HaveKey("SessionEnd"))
 
 		// Verify SessionStart structure (unified hook without matchers)
 		sessionStart := hooks["SessionStart"].([]interface{})
@@ -184,8 +189,10 @@ var _ = Describe("Init Command", func() {
 		hooks := settings["hooks"].(map[string]interface{})
 		Expect(hooks).To(HaveKey("ExistingHook"))
 		Expect(hooks).To(HaveKey("SessionStart"))
+		Expect(hooks).To(HaveKey("Stop"))
+		Expect(hooks).To(HaveKey("Notification"))
 
-		// Verify SessionStart has both matchers
+		// Verify SessionStart has unified hook
 		sessionStart := hooks["SessionStart"].([]interface{})
 		Expect(sessionStart).To(HaveLen(1)) // Now using unified hook
 	})

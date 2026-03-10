@@ -1,6 +1,7 @@
 package claude
 
 import (
+	"encoding/json"
 	"fmt"
 )
 
@@ -19,12 +20,28 @@ type HookMatcher struct {
 // HookConfig represents the hook configuration for Claude Code settings.
 type HookConfig struct {
 	SessionStart []HookMatcher `json:"SessionStart,omitempty"`
+	Stop         []HookMatcher `json:"Stop,omitempty"`
+	Notification []HookMatcher `json:"Notification,omitempty"`
+	PreToolUse   []HookMatcher `json:"PreToolUse,omitempty"`
+	PostToolUse  []HookMatcher `json:"PostToolUse,omitempty"`
+	SessionEnd   []HookMatcher `json:"SessionEnd,omitempty"`
 }
 
 // GenerateHookConfig generates the hook configuration for clotilde.
 // Returns a HookConfig that should be merged into .claude/settings.json
 func GenerateHookConfig(clotildeBinaryPath string) HookConfig {
 	sessionStartCommand := fmt.Sprintf("%s hook sessionstart", clotildeBinaryPath)
+	notifyCommand := fmt.Sprintf("%s hook notify", clotildeBinaryPath)
+
+	notifyHook := func(matcher string) HookMatcher {
+		m := HookMatcher{
+			Hooks: []Hook{{Type: "command", Command: notifyCommand}},
+		}
+		if matcher != "" {
+			m.Matcher = matcher
+		}
+		return m
+	}
 
 	return HookConfig{
 		SessionStart: []HookMatcher{
@@ -38,23 +55,23 @@ func GenerateHookConfig(clotildeBinaryPath string) HookConfig {
 				},
 			},
 		},
+		Stop:         []HookMatcher{notifyHook("")},
+		Notification: []HookMatcher{notifyHook("")},
+		PreToolUse:   []HookMatcher{notifyHook(".*")},
+		PostToolUse:  []HookMatcher{notifyHook(".*")},
+		SessionEnd:   []HookMatcher{notifyHook("")},
 	}
 }
 
 // HookConfigString returns the hooks as a formatted string for display.
 func HookConfigString(config HookConfig) string {
-	return fmt.Sprintf(`{
-  "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "%s"
-          }
-        ]
-      }
-    ]
-  }
-}`, config.SessionStart[0].Hooks[0].Command)
+	wrapper := struct {
+		Hooks HookConfig `json:"hooks"`
+	}{Hooks: config}
+
+	data, err := json.MarshalIndent(wrapper, "", "  ")
+	if err != nil {
+		return fmt.Sprintf("{error: %v}", err)
+	}
+	return string(data)
 }
