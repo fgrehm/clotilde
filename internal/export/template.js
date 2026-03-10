@@ -24,6 +24,19 @@
       var src = typeof text === "object" ? text.raw || text.text || "" : text;
       return escapeHtml(src);
     };
+    // Only allow safe URL schemes in links and images
+    renderer.link = function (token) {
+      var href = (typeof token === "object" ? token.href : token) || "";
+      var text = (typeof token === "object" ? token.text : arguments[1]) || href;
+      if (!isSafeUrl(href)) return escapeHtml(text);
+      return '<a href="' + escapeHtml(href) + '">' + escapeHtml(text) + "</a>";
+    };
+    renderer.image = function (token) {
+      var src = (typeof token === "object" ? token.href : token) || "";
+      var alt = (typeof token === "object" ? token.text : arguments[1]) || "";
+      if (!isSafeUrl(src)) return escapeHtml(alt);
+      return '<img src="' + escapeHtml(src) + '" alt="' + escapeHtml(alt) + '">';
+    };
     marked.setOptions({
       breaks: true,
       gfm: true,
@@ -357,7 +370,7 @@
     outputDiv.className = "tool-output";
 
     var content = extractResultContent(result);
-    if (!content) return;
+    if (content == null) return;
 
     var lines = content.split("\n");
     var previewLines = 5;
@@ -548,6 +561,16 @@
     var div = document.createElement("div");
     div.textContent = text;
     return div.innerHTML;
+  }
+
+  function isSafeUrl(url) {
+    if (!url) return false;
+    var lower = url.trim().toLowerCase();
+    return lower.startsWith("http://") ||
+      lower.startsWith("https://") ||
+      lower.startsWith("mailto:") ||
+      lower.startsWith("#") ||
+      lower.startsWith("/");
   }
 
   function guessLanguage(filePath) {

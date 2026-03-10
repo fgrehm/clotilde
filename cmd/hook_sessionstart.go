@@ -26,8 +26,10 @@ var sessionStartCmd = &cobra.Command{
 	Long: `Called by Claude Code's SessionStart hook for all sources (startup, resume, compact, clear).
 Handles fork registration, session ID updates, and context injection.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// Guard against double execution (global + per-project hooks)
-		if os.Getenv("CLOTILDE_HOOK_EXECUTED") != "" {
+		// Guard against double execution (global + per-project hooks).
+		// Check both the env var (set by Claude Code after sourcing CLAUDE_ENV_FILE)
+		// and the file contents directly (in case Claude Code hasn't re-sourced yet).
+		if os.Getenv("CLOTILDE_HOOK_EXECUTED") != "" || checkHookExecutedInEnvFile() {
 			return nil
 		}
 
@@ -290,6 +292,28 @@ func saveTranscriptPath(store session.Store, sessionName, transcriptPath string)
 	}
 
 	return nil
+}
+
+// checkHookExecutedInEnvFile reads CLAUDE_ENV_FILE directly to check if the
+// hook has already been marked as executed. This handles the case where Claude
+// Code hasn't re-sourced the env file between running multiple hooks.
+func checkHookExecutedInEnvFile() bool {
+	claudeEnvFile := os.Getenv("CLAUDE_ENV_FILE")
+	if claudeEnvFile == "" {
+		return false
+	}
+
+	content, err := os.ReadFile(claudeEnvFile)
+	if err != nil {
+		return false
+	}
+
+	for _, line := range strings.Split(string(content), "\n") {
+		if strings.TrimSpace(line) == "CLOTILDE_HOOK_EXECUTED=1" {
+			return true
+		}
+	}
+	return false
 }
 
 // markHookExecuted writes CLOTILDE_HOOK_EXECUTED=1 to CLAUDE_ENV_FILE so that

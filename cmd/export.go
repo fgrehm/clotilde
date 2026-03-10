@@ -38,15 +38,12 @@ func newExportCmd() *cobra.Command {
 			transcriptPath := sess.Metadata.TranscriptPath
 			if transcriptPath == "" {
 				homeDir, err := util.HomeDir()
-				if err == nil {
-					projectDir := claude.ProjectDir(clotildeRoot)
-					claudeProjectDir := filepath.Join(homeDir, ".claude", "projects", projectDir)
-					transcriptPath = filepath.Join(claudeProjectDir, sess.Metadata.SessionID+".jsonl")
+				if err != nil {
+					return fmt.Errorf("could not determine transcript path for session '%s': %w", name, err)
 				}
-			}
-
-			if transcriptPath == "" {
-				return fmt.Errorf("could not determine transcript path for session '%s'", name)
+				projectDir := claude.ProjectDir(clotildeRoot)
+				claudeProjectDir := filepath.Join(homeDir, ".claude", "projects", projectDir)
+				transcriptPath = filepath.Join(claudeProjectDir, sess.Metadata.SessionID+".jsonl")
 			}
 
 			toStdout, _ := cmd.Flags().GetBool("stdout")
