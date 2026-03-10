@@ -210,25 +210,7 @@ func getSessionName(source string, hookData hookInput, store session.Store) (str
 
 // readSessionNameFromEnvFile reads the session name from CLAUDE_ENV_FILE.
 func readSessionNameFromEnvFile() string {
-	claudeEnvFile := os.Getenv("CLAUDE_ENV_FILE")
-	if claudeEnvFile == "" {
-		return ""
-	}
-
-	content, err := os.ReadFile(claudeEnvFile)
-	if err != nil {
-		return ""
-	}
-
-	// Parse for CLOTILDE_SESSION=value
-	for _, line := range strings.Split(string(content), "\n") {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "CLOTILDE_SESSION=") {
-			return strings.TrimPrefix(line, "CLOTILDE_SESSION=")
-		}
-	}
-
-	return ""
+	return readLastEnvFileValue("CLOTILDE_SESSION")
 }
 
 // findSessionByUUID searches for a session with the given UUID.
@@ -304,68 +286,63 @@ func isHookExecuted(marker string) bool {
 	if os.Getenv("CLOTILDE_HOOK_EXECUTED") == marker {
 		return true
 	}
-
-	claudeEnvFile := os.Getenv("CLAUDE_ENV_FILE")
-	if claudeEnvFile == "" {
-		return false
-	}
-
-	content, err := os.ReadFile(claudeEnvFile)
-	if err != nil {
-		return false
-	}
-
-	// Check if the last CLOTILDE_HOOK_EXECUTED assignment matches this marker.
-	// Using last-wins semantics (like shell sourcing) so older markers don't
-	// block new events.
-	var lastValue string
-	for _, line := range strings.Split(string(content), "\n") {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "CLOTILDE_HOOK_EXECUTED=") {
-			lastValue = strings.TrimPrefix(line, "CLOTILDE_HOOK_EXECUTED=")
-		}
-	}
-	return lastValue == marker
+	return readLastEnvFileValue("CLOTILDE_HOOK_EXECUTED") == marker
 }
 
 // markHookExecuted writes CLOTILDE_HOOK_EXECUTED=<marker> to CLAUDE_ENV_FILE
 // so that a second hook invocation (from global + project hooks) for the same
 // event is skipped.
 func markHookExecuted(marker string) {
-	claudeEnvFile := os.Getenv("CLAUDE_ENV_FILE")
-	if claudeEnvFile == "" {
-		return
-	}
-
-	f, err := os.OpenFile(claudeEnvFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		return
-	}
-	defer func() { _ = f.Close() }()
-
-	_, _ = fmt.Fprintf(f, "CLOTILDE_HOOK_EXECUTED=%s\n", marker)
+	_ = appendToEnvFile("CLOTILDE_HOOK_EXECUTED", marker)
 }
 
 // writeSessionNameToEnv writes the session name to Claude's env file for statusline use.
 func writeSessionNameToEnv(sessionName string) error {
+	return appendToEnvFile("CLOTILDE_SESSION", sessionName)
+}
+
+// readLastEnvFileValue reads CLAUDE_ENV_FILE and returns the last value
+// assigned to the given key (KEY=value lines). Returns "" if not found.
+// Uses last-wins semantics to match shell sourcing behavior.
+func readLastEnvFileValue(key string) string {
 	claudeEnvFile := os.Getenv("CLAUDE_ENV_FILE")
 	if claudeEnvFile == "" {
-		// CLAUDE_ENV_FILE not available (only available in SessionStart hooks)
+		return ""
+	}
+
+	content, err := os.ReadFile(claudeEnvFile)
+	if err != nil {
+		return ""
+	}
+
+	prefix := key + "="
+	var lastValue string
+	for _, line := range strings.Split(string(content), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, prefix) {
+			lastValue = strings.TrimPrefix(line, prefix)
+		}
+	}
+	return lastValue
+}
+
+// appendToEnvFile appends a KEY=value line to CLAUDE_ENV_FILE.
+// Returns nil if CLAUDE_ENV_FILE is not set.
+func appendToEnvFile(key, value string) error {
+	claudeEnvFile := os.Getenv("CLAUDE_ENV_FILE")
+	if claudeEnvFile == "" {
 		return nil
 	}
 
-	// Open file in append mode, create if doesn't exist
 	f, err := os.OpenFile(claudeEnvFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return fmt.Errorf("failed to open CLAUDE_ENV_FILE: %w", err)
 	}
 	defer func() { _ = f.Close() }()
 
-	// Write session name as environment variable
-	if _, err := fmt.Fprintf(f, "CLOTILDE_SESSION=%s\n", sessionName); err != nil {
+	if _, err := fmt.Fprintf(f, "%s=%s\n", key, value); err != nil {
 		return fmt.Errorf("failed to write to CLAUDE_ENV_FILE: %w", err)
 	}
-
 	return nil
 }
 
