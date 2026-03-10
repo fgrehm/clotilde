@@ -106,6 +106,13 @@ var _ = Describe("BuildHTML", func() {
 		Expect(html).To(ContainSubstring("<title>Session: my-feature</title>"))
 	})
 
+	It("escapes HTML metacharacters in session name", func() {
+		html, err := export.BuildHTML(`<script>alert("xss")</script>`, nil)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(html).NotTo(ContainSubstring(`<script>alert("xss")</script>`))
+		Expect(html).To(ContainSubstring("&lt;script&gt;alert(&#34;xss&#34;)&lt;/script&gt;"))
+	})
+
 	It("has no external resource references", func() {
 		html, err := export.BuildHTML("test", nil)
 		Expect(err).NotTo(HaveOccurred())

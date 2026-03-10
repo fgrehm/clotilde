@@ -127,10 +127,8 @@ func setupHooks(projectRoot, clotildeBinary, settingsFile string) error {
 	settingsPath := filepath.Join(claudeDir, settingsFile)
 
 	// Ensure .claude directory exists
-	if !util.FileExists(claudeDir) {
-		if err := os.MkdirAll(claudeDir, 0o755); err != nil {
-			return fmt.Errorf("failed to create .claude directory: %w", err)
-		}
+	if err := util.EnsureDir(claudeDir); err != nil {
+		return fmt.Errorf("failed to create .claude directory: %w", err)
 	}
 
 	hooks, err := mergeHooksIntoSettings(settingsPath, clotildeBinary)

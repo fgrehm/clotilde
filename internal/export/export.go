@@ -106,26 +106,27 @@ func BuildHTML(sessionName string, entries []json.RawMessage) (string, error) {
 		return "", fmt.Errorf("reading highlight.min.js: %w", err)
 	}
 
-	// Replace placeholders
-	result := string(htmlTemplate)
-	result = strings.Replace(result, "{{TITLE}}", html.EscapeString(sessionName), 1)
-	result = strings.Replace(result, "{{CSS}}", string(css), 1)
-	result = strings.Replace(result, "{{SESSION_DATA}}", b64, 1)
-	result = strings.Replace(result, "{{MARKED_JS}}", string(markedJS), 1)
-	result = strings.Replace(result, "{{HIGHLIGHT_JS}}", string(highlightJS), 1)
-	result = strings.Replace(result, "{{JS}}", string(js), 1)
+	// Replace placeholders (single pass)
+	r := strings.NewReplacer(
+		"{{TITLE}}", html.EscapeString(sessionName),
+		"{{CSS}}", string(css),
+		"{{SESSION_DATA}}", b64,
+		"{{MARKED_JS}}", string(markedJS),
+		"{{HIGHLIGHT_JS}}", string(highlightJS),
+		"{{JS}}", string(js),
+	)
 
-	return result, nil
+	return r.Replace(string(htmlTemplate)), nil
 }
 
 // Export reads a transcript JSONL file, filters it, and writes a self-contained HTML file.
 func Export(transcriptPath, sessionName, outputPath string) error {
-	html, err := buildFromFile(transcriptPath, sessionName)
+	out, err := buildFromFile(transcriptPath, sessionName)
 	if err != nil {
 		return err
 	}
 
-	if err := os.WriteFile(outputPath, []byte(html), 0o644); err != nil {
+	if err := os.WriteFile(outputPath, []byte(out), 0o644); err != nil {
 		return fmt.Errorf("writing output file: %w", err)
 	}
 
@@ -134,12 +135,12 @@ func Export(transcriptPath, sessionName, outputPath string) error {
 
 // ExportToWriter reads a transcript JSONL file, filters it, and writes HTML to w.
 func ExportToWriter(transcriptPath, sessionName string, w io.Writer) error {
-	html, err := buildFromFile(transcriptPath, sessionName)
+	out, err := buildFromFile(transcriptPath, sessionName)
 	if err != nil {
 		return err
 	}
 
-	if _, err := io.WriteString(w, html); err != nil {
+	if _, err := io.WriteString(w, out); err != nil {
 		return fmt.Errorf("writing HTML: %w", err)
 	}
 
