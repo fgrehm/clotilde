@@ -274,35 +274,7 @@ func init() {
 
 // initRootCmd initializes the global rootCmd with all subcommands
 func initRootCmd() {
-	// Create fresh init command with flag
-	freshInitCmd := &cobra.Command{
-		Use:   initCmd.Use,
-		Short: initCmd.Short,
-		Long:  initCmd.Long,
-		RunE:  initCmd.RunE,
-	}
-	freshInitCmd.Flags().Bool("global", false, "Install hooks in .claude/settings.json (project-wide) instead of settings.local.json (local)")
-
-	// Add all subcommands
-	rootCmd.AddCommand(freshInitCmd)
-	rootCmd.AddCommand(newSetupCmd())
-	rootCmd.AddCommand(newStartCmd())
-	rootCmd.AddCommand(newIncognitoCmd())
-	rootCmd.AddCommand(newResumeCmd())
-	rootCmd.AddCommand(listCmd)
-	rootCmd.AddCommand(inspectCmd)
-	rootCmd.AddCommand(statsCmd)
-	rootCmd.AddCommand(newForkCmd())
-	rootCmd.AddCommand(deleteCmd)
-	rootCmd.AddCommand(newExportCmd())
-	rootCmd.AddCommand(hookCmd)
-	rootCmd.AddCommand(versionCmd)
-	rootCmd.AddCommand(newCompletionCmd())
-
-	// Add global flags
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
-	rootCmd.PersistentFlags().StringVar(&claudeBinaryPath, "claude-bin", "", "Path to claude binary (hidden, for testing)")
-	_ = rootCmd.PersistentFlags().MarkHidden("claude-bin")
+	registerSubcommands(rootCmd)
 }
 
 // claudeBinaryPath is set via the --claude-bin flag (hidden, for testing)
@@ -311,21 +283,22 @@ var claudeBinaryPath string
 // verbose is set via the --verbose/-v flag
 var verbose bool
 
-// NewRootCmd returns a new root command instance (useful for testing)
-// This creates a fresh command tree to avoid flag pollution between tests
+// NewRootCmd returns a new root command instance (useful for testing).
+// Creates a fresh command tree to avoid flag pollution between tests.
 func NewRootCmd() *cobra.Command {
-	// Create new root with same config
 	root := &cobra.Command{
 		Use:     rootCmd.Use,
 		Short:   rootCmd.Short,
 		Long:    rootCmd.Long,
 		Version: rootCmd.Version,
 	}
-
-	// Disable Cobra's auto-generated completion command so we can use our custom one
 	root.CompletionOptions.DisableDefaultCmd = true
+	registerSubcommands(root)
+	return root
+}
 
-	// Create fresh init command with flag
+// registerSubcommands adds all subcommands and global flags to the given root command.
+func registerSubcommands(root *cobra.Command) {
 	freshInitCmd := &cobra.Command{
 		Use:   initCmd.Use,
 		Short: initCmd.Short,
@@ -334,7 +307,6 @@ func NewRootCmd() *cobra.Command {
 	}
 	freshInitCmd.Flags().Bool("global", false, "Install hooks in .claude/settings.json (project-wide) instead of settings.local.json (local)")
 
-	// Add all subcommands (use factory functions to avoid flag pollution)
 	root.AddCommand(freshInitCmd)
 	root.AddCommand(newSetupCmd())
 	root.AddCommand(newStartCmd())
@@ -350,12 +322,9 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(versionCmd)
 	root.AddCommand(newCompletionCmd())
 
-	// Add global flags
 	root.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
 	root.PersistentFlags().StringVar(&claudeBinaryPath, "claude-bin", "", "Path to claude binary (hidden, for testing)")
 	_ = root.PersistentFlags().MarkHidden("claude-bin")
-
-	return root
 }
 
 // GetClaudeBinaryPath returns the path to the claude binary.
