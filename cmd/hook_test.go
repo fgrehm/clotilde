@@ -431,7 +431,6 @@ var _ = Describe("Hook Commands", func() {
 				cmd.NotifyTabRenamer = originalRenamer
 				_ = os.Unsetenv("ZELLIJ")
 				_ = os.Unsetenv("CLOTILDE_SESSION_NAME")
-				_ = os.Unsetenv("CLOTILDE_NO_TAB_STATUS")
 			})
 
 			It("should not rename tab when ZELLIJ is not set", func() {
@@ -440,24 +439,6 @@ var _ = Describe("Hook Commands", func() {
 
 				hookInput := map[string]interface{}{
 					"session_id":      "zellij-test-uuid",
-					"hook_event_name": "Stop",
-				}
-				inputJSON, err := json.Marshal(hookInput)
-				Expect(err).NotTo(HaveOccurred())
-
-				err = executeHookWithInput("notify", inputJSON)
-				Expect(err).NotTo(HaveOccurred())
-
-				Expect(fakeRenamer.calls).To(BeEmpty())
-			})
-
-			It("should not rename tab when CLOTILDE_NO_TAB_STATUS is set", func() {
-				_ = os.Setenv("ZELLIJ", "0")
-				_ = os.Setenv("CLOTILDE_SESSION_NAME", "my-session")
-				_ = os.Setenv("CLOTILDE_NO_TAB_STATUS", "1")
-
-				hookInput := map[string]interface{}{
-					"session_id":      "disabled-test-uuid",
 					"hook_event_name": "Stop",
 				}
 				inputJSON, err := json.Marshal(hookInput)

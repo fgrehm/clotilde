@@ -19,9 +19,9 @@ func (f *fakeTabRenamer) RenameTab(name string) error {
 
 var _ notify.TabRenamer = (*fakeTabRenamer)(nil)
 
-var _ = Describe("ZellijPipeRenamer", func() {
+var _ = Describe("ZellijTabRenamer", func() {
 	It("should implement TabRenamer interface", func() {
-		var _ notify.TabRenamer = &notify.ZellijPipeRenamer{}
+		var _ notify.TabRenamer = &notify.ZellijTabRenamer{}
 	})
 })
 

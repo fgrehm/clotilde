@@ -15,7 +15,7 @@ import (
 
 // NotifyTabRenamer is the TabRenamer used by the notify hook.
 // Overridable in tests.
-var NotifyTabRenamer notify.TabRenamer = &notify.ZellijPipeRenamer{}
+var NotifyTabRenamer notify.TabRenamer = &notify.ZellijTabRenamer{}
 
 var notifyCmd = &cobra.Command{
 	Use:   "notify",
@@ -40,8 +40,8 @@ Always appends the raw hook payload to /tmp/clotilde/<session-id>.events.jsonl f
 			_, _ = fmt.Fprintf(os.Stderr, "Warning: failed to log event: %v\n", err)
 		}
 
-		// Tab renaming: only when running inside Zellij with tab status enabled
-		if os.Getenv("ZELLIJ") == "" || os.Getenv("CLOTILDE_NO_TAB_STATUS") == "1" {
+		// Tab renaming: only when running inside Zellij
+		if os.Getenv("ZELLIJ") == "" {
 			return nil
 		}
 
