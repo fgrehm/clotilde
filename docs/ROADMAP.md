@@ -1,48 +1,48 @@
 # Clotilde Roadmap
 
-Named sessions, profiles, and context management for Claude Code.
+A power-user companion for Claude Code.
 
-## Current Status: v0.4.0 (unreleased)
-
-Core functionality complete and tested. Recent work focused on global installation mode.
+## Current Status: v0.7.0
 
 ### What's Working
 
-- **Commands**: setup, start, resume, list, inspect, fork, delete, incognito, completion
-- **Features**: Named sessions, forking, incognito mode, system prompts, permissions, session context, session profiles (global + project), output styles
+- **Commands**: setup, start, resume, list, inspect, fork, delete, incognito, export, completion
+- **Features**: Named sessions, forking, incognito mode, system prompts, permissions, session context, session profiles (global + project), output styles, session export (HTML)
 - **Shorthand flags**: `--accept-edits`, `--yolo`, `--plan`, `--dont-ask`, `--fast`
-- **TUI**: Dashboard, session picker, confirmation dialogs, styled output
+- **TUI**: Dashboard (with start/fork actions), session picker, confirmation dialogs, styled output
+- **Debugging**: `hook notify` subcommand logs hook events to JSONL (opt-in)
 - **Distribution**: Cross-platform binaries via goreleaser
 
-### v0.4.0 Highlights
+### v0.7.0 Highlights
 
-- **Global installation**: New `clotilde setup` command registers hooks in `~/.claude/settings.json`. No more per-project `init` required. Session directories are created automatically on first use.
+- **Global installation**: `clotilde setup` registers hooks in `~/.claude/settings.json`. No more per-project `init` required. Session directories are created automatically on first use.
 - **`init` deprecated**: Still works but prints a deprecation notice directing to `setup`.
-- **Removed `context.md`**: The deprecated global context file has been removed. Use the `--context` flag instead.
-- **Session profiles**: Named presets in `config.json` for model, permissions, and output style. Apply with `--profile <name>`.
-- **Global profiles**: Profiles defined in `~/.config/clotilde/config.json` are available in all projects. Project-level profiles take precedence on name collisions.
-- **Output styles**: Per-session output style via `--output-style` and `--output-style-file`. Supports built-in styles, project/user styles, and custom inline content.
+- **`export` command**: `clotilde export <name>` renders a session transcript into a self-contained HTML file with dark theme, syntax highlighting, collapsible thinking blocks, and keyboard shortcuts.
+- **Dashboard actions**: Start and fork actions now work end-to-end from the dashboard TUI.
+- **Hook event logging**: `clotilde hook notify` logs Claude Code events to `/tmp/clotilde/<session-id>.events.jsonl` for debugging. Opt-in, not registered by default setup.
 
-### v0.3.0 Highlights
+### Previous Releases
 
-- **Permission mode shortcuts**: `--accept-edits`, `--yolo`, `--plan`, `--dont-ask` on all session commands
-- **`--fast` preset**: `--model haiku` + `--effort low` in a single flag
-- **Conflict detection**: Mutually exclusive shorthand flags produce clear error messages
-- **`start` resumes existing sessions**: Prompts to resume instead of failing on duplicate names
-- **Ghost session cleanup**: Empty sessions (no messages sent) are automatically removed
+- **v0.6.0**: Auto-generated session names (`YYYY-MM-DD-adjective-noun` format)
+- **v0.5.0**: Global profiles, `--context` flag, session name injection via hooks
+- **v0.4.0**: Session profiles, removed implicit global defaults
+- **v0.3.0**: Permission mode shortcuts, `--fast` preset, ghost session cleanup
+- **v0.2.0**: Simplified context system, goreleaser fixes
+- **v0.1.0**: Initial release
 
 ### Known Limitations
 
 - Incognito cleanup only runs on normal exit (not SIGKILL/crashes)
 - `/compact` UUID tracking is defensive (Claude Code doesn't currently create new UUIDs for it)
 - `/fork` slash command inside a Clotilde session creates an untracked fork (see [slash-fork-handling spec](specs/slash-fork-handling.md))
+- Zellij tab status integration blocked by Zellij limitations (see [investigation notes](zellij-tab-status.md))
 
 ## Future Ideas
 
+- **Zellij tab status**: Rename tab with emoji status during sessions. Blocked by `rename-tab` targeting focused tab and plugin off-by-one bug. Revisit when Zellij adds `--tab-index` support ([investigation](zellij-tab-status.md))
 - **`/fork` slash command support**: Auto-detect and register forks created via Claude Code's `/fork` command ([spec](specs/slash-fork-handling.md))
 - **`adopt` command**: Register existing Claude Code sessions into Clotilde
 - **Session search**: Full-text search across transcripts
-- **Session export**: Export conversations to self-contained HTML ([spec](specs/session-export.md))
 - **Context templates**: Dynamic context (git branch, ticket info)
 - **Session tags**: Organize with labels
 - **Bulk operations**: Multi-select for batch delete
