@@ -7,12 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-03-11
+
 ### Added
 
 - **`setup` command**: `clotilde setup` registers SessionStart hooks in `~/.claude/settings.json` (global). Run once after installing. Supports `--local` flag for `~/.claude/settings.local.json`. Idempotent and merges with existing settings.
 - **Lazy session directory creation**: `clotilde start` (and other session-creating commands) automatically create `.claude/clotilde/sessions/` on first use. No `init` required.
 - **Double-hook execution guard**: Prevents duplicate context output when both global and per-project hooks exist (migration safety).
 - **`export` command**: `clotilde export <name>` renders a session transcript into a self-contained HTML file. Dark theme, markdown rendering, syntax highlighting, per-tool formatting, collapsible thinking blocks, expandable tool outputs, and keyboard shortcuts (Ctrl+T, Ctrl+O). Supports `-o` for custom output path and `--stdout` for piping.
+- **`hook notify` subcommand**: Logs Claude Code hook events (Stop, Notification, PreToolUse, PostToolUse, SessionEnd) to `/tmp/clotilde/<session-id>.events.jsonl` for debugging. Opt-in only, not registered by default setup.
 
 ### Changed
 
