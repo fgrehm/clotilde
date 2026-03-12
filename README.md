@@ -1,8 +1,6 @@
 # Clotilde
 
-Named sessions, profiles, and context management for Claude Code.
-
-> **Documentation**: For the latest stable release, see [Clotilde on the `stable` branch](https://github.com/fgrehm/clotilde/tree/stable). This `main` branch contains development changes and may include features not yet released.
+A power-user companion for Claude Code.
 
 ## About the Name
 
@@ -20,7 +18,7 @@ Claude Code is great for single conversations, but as you start juggling multipl
 
 ## What Clotilde does
 
-Clotilde is a thin wrapper around Claude Code that adds named sessions, profiles, context management, and user-friendly forking.
+Clotilde wraps Claude Code with named sessions, profiles, context injection, session export, and more.
 
 ```bash
 # Start a session (auto-generates a name if omitted)
@@ -45,7 +43,7 @@ clotilde start spike --profile quick       # use Haiku, bypass permissions
 clotilde export auth-feature
 ```
 
-Session names are stored as external name-to-UUID mappings, so they work reliably regardless of Claude Code's internal naming behavior. Profiles let you define reusable presets (model, permissions, output style) in a single config file. Context files are automatically injected at session start via hooks.
+Session names are stored as external name-to-UUID mappings, so they work reliably regardless of Claude Code's internal naming behavior. Profiles let you define reusable presets (model, permissions, output style) in a config file. Context is automatically injected at session start via hooks.
 
 ## How It Works
 
@@ -510,7 +508,7 @@ Clotilde is different because:
 
 - Non-invasive (doesn't patch or modify Claude Code)
 - Native Go binary (no runtime dependencies)
-- Goes beyond naming: profiles, context injection, incognito sessions, forking
+- Goes beyond naming: profiles, context injection, incognito sessions, forking, session export
 - Built-in cleanup (deletes sessions + associated Claude Code data)
 
 ## Development
@@ -569,4 +567,4 @@ MIT
 
 ---
 
-Built with [Claude Code](https://claude.ai/code) (Opus 4.5+, Sonnet 4.5+, Haiku 4.5).
+Built with [Claude Code](https://claude.ai/code).
