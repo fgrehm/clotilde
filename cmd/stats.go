@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"path/filepath"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -37,22 +36,17 @@ var statsCmd = &cobra.Command{
 			return fmt.Errorf("session '%s' not found", name)
 		}
 
-		// Determine transcript path
-		transcriptPath := sess.Metadata.TranscriptPath
-		if transcriptPath == "" {
-			// Fall back to computing the path
-			homeDir, err := util.HomeDir()
-			if err == nil {
-				projectDir := claude.ProjectDir(clotildeRoot)
-				claudeProjectDir := filepath.Join(homeDir, ".claude", "projects", projectDir)
-				transcriptPath = filepath.Join(claudeProjectDir, sess.Metadata.SessionID+".jsonl")
-			}
-		}
+		// Collect stats across all transcripts (previous + current)
+		homeDir, _ := util.HomeDir()
+		paths := allTranscriptPaths(sess, clotildeRoot, homeDir)
 
-		// Parse transcript stats
 		var stats *claude.TranscriptStats
-		if transcriptPath != "" {
-			stats, _ = claude.ParseTranscriptStats(transcriptPath)
+		for _, path := range paths {
+			s, err := claude.ParseTranscriptStats(path)
+			if err != nil {
+				continue // transcript missing or unreadable — skip
+			}
+			stats = mergeTranscriptStats(stats, s)
 		}
 
 		// Print header
@@ -90,6 +84,36 @@ var statsCmd = &cobra.Command{
 
 		return nil
 	},
+}
+
+// mergeTranscriptStats merges b into a, accumulating turns/times across multiple transcripts.
+// Either argument may be nil (treated as empty). Returns a new merged value.
+func mergeTranscriptStats(a, b *claude.TranscriptStats) *claude.TranscriptStats {
+	merged := &claude.TranscriptStats{}
+
+	for _, s := range []*claude.TranscriptStats{a, b} {
+		if s == nil {
+			continue
+		}
+		merged.Turns += s.Turns
+		merged.ActiveTime += s.ActiveTime
+
+		if !s.FirstMessage.IsZero() && (merged.FirstMessage.IsZero() || s.FirstMessage.Before(merged.FirstMessage)) {
+			merged.FirstMessage = s.FirstMessage
+		}
+		if s.LastMessage.After(merged.LastMessage) {
+			merged.LastMessage = s.LastMessage
+		}
+	}
+
+	if !merged.FirstMessage.IsZero() && !merged.LastMessage.IsZero() {
+		merged.TotalTime = merged.LastMessage.Sub(merged.FirstMessage)
+	}
+	if merged.Turns > 0 {
+		merged.AvgResponseTime = merged.ActiveTime / time.Duration(merged.Turns)
+	}
+
+	return merged
 }
 
 // formatSessionDate formats a time as "Month Day, Year HH:MM"

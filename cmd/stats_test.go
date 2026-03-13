@@ -9,6 +9,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/fgrehm/clotilde/cmd"
+	"github.com/fgrehm/clotilde/internal/claude"
 	"github.com/fgrehm/clotilde/internal/config"
 	"github.com/fgrehm/clotilde/internal/session"
 	"github.com/fgrehm/clotilde/internal/testutil"
@@ -130,6 +131,59 @@ var _ = Describe("Stats Command", func() {
 		Expect(output).To(ContainSubstring("Started"))
 		Expect(output).To(ContainSubstring("Last active"))
 		Expect(output).To(ContainSubstring("(approx)"))
+	})
+
+	It("sums turns across previous and current transcripts", func() {
+		homeDir, err := os.UserHomeDir()
+		Expect(err).NotTo(HaveOccurred())
+
+		projectDir := claude.ProjectDir(clotildeRoot)
+		claudeProjectDir := filepath.Join(homeDir, ".claude", "projects", projectDir)
+		err = os.MkdirAll(claudeProjectDir, 0o755)
+		Expect(err).NotTo(HaveOccurred())
+
+		// Previous transcript: 1 turn
+		prevID := "uuid-prev-stats-123"
+		prevPath := filepath.Join(claudeProjectDir, prevID+".jsonl")
+		prevData := `{"type":"progress","timestamp":"2025-01-01T10:00:00Z"}
+{"type":"user","timestamp":"2025-01-01T10:00:10Z","message":{"content":"old question"}}
+{"type":"assistant","timestamp":"2025-01-01T10:00:20Z","message":{"content":"old answer"}}`
+		err = os.WriteFile(prevPath, []byte(prevData), 0o644)
+		Expect(err).NotTo(HaveOccurred())
+
+		// Current transcript: 2 turns
+		currentID := "uuid-current-stats-456"
+		currentPath := filepath.Join(claudeProjectDir, currentID+".jsonl")
+		currentData := `{"type":"progress","timestamp":"2025-02-01T10:00:00Z"}
+{"type":"user","timestamp":"2025-02-01T10:00:10Z","message":{"content":"turn 1"}}
+{"type":"assistant","timestamp":"2025-02-01T10:00:20Z","message":{"content":"answer 1"}}
+{"type":"user","timestamp":"2025-02-01T10:01:00Z","message":{"content":"turn 2"}}
+{"type":"assistant","timestamp":"2025-02-01T10:01:15Z","message":{"content":"answer 2"}}`
+		err = os.WriteFile(currentPath, []byte(currentData), 0o644)
+		Expect(err).NotTo(HaveOccurred())
+
+		sess := session.NewSession("multi-transcript-stats", currentID)
+		sess.Metadata.TranscriptPath = currentPath
+		sess.Metadata.PreviousSessionIDs = []string{prevID}
+		err = store.Create(sess)
+		Expect(err).NotTo(HaveOccurred())
+
+		output := captureOutput(func() {
+			rootCmd := cmd.NewRootCmd()
+			rootCmd.SetOut(os.Stdout)
+			rootCmd.SetErr(io.Discard)
+			rootCmd.SetArgs([]string{"stats", "multi-transcript-stats"})
+
+			err := rootCmd.Execute()
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		// 1 turn from previous + 2 turns from current = 3 total
+		Expect(output).To(ContainSubstring("Turns         3"))
+		// Started should reflect the earlier transcript
+		Expect(output).To(ContainSubstring("Jan 1, 2025"))
+		// Last active should reflect the newer transcript
+		Expect(output).To(ContainSubstring("Feb 1, 2025"))
 	})
 
 	It("should show zero turns for empty transcript", func() {
