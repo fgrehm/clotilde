@@ -138,7 +138,7 @@ func extractModel(sess *session.Session, store session.Store) string {
 
 // lastUsedTime returns the best available "last used" timestamp for a session.
 // It prefers the last entry timestamp from the transcript (reflects real activity)
-// over the metadata field (which is only updated by explicit CLI commands).
+// over the metadata field (updated on hook-driven starts/resumes and explicit CLI commands).
 func lastUsedTime(sess *session.Session) time.Time {
 	t := sess.Metadata.LastAccessed
 	if sess.Metadata.TranscriptPath != "" {

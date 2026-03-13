@@ -125,6 +125,10 @@ func LastTranscriptTime(transcriptPath string) time.Time {
 	}
 
 	scanner := bufio.NewScanner(file)
+	const maxCapacity = 1024 * 1024 // 1MB per line — same as ExtractLastModel
+	buf := make([]byte, maxCapacity)
+	scanner.Buffer(buf, maxCapacity)
+
 	// Discard the first (potentially partial) line when seeked into the middle.
 	if info.Size() > tailSize {
 		scanner.Scan()
@@ -147,6 +151,10 @@ func LastTranscriptTime(transcriptPath string) time.Time {
 		if !e.Timestamp.IsZero() {
 			last = e.Timestamp
 		}
+	}
+
+	if err := scanner.Err(); err != nil && !errors.Is(err, io.EOF) {
+		return time.Time{}
 	}
 
 	return last

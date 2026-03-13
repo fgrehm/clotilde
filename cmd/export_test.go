@@ -132,12 +132,13 @@ var _ = Describe("Export Command", func() {
 	})
 
 	It("includes entries from previous transcripts when previousSessionIds is set", func() {
-		homeDir, err := os.UserHomeDir()
-		Expect(err).NotTo(HaveOccurred())
+		// Point HOME at the temp dir so transcript paths stay hermetic.
+		GinkgoT().Setenv("HOME", tempDir)
+		homeDir := tempDir
 
 		projectDir := claude.ProjectDir(clotildeRoot)
 		claudeProjectDir := filepath.Join(homeDir, ".claude", "projects", projectDir)
-		err = os.MkdirAll(claudeProjectDir, 0o755)
+		err := os.MkdirAll(claudeProjectDir, 0o755)
 		Expect(err).NotTo(HaveOccurred())
 
 		// Previous transcript

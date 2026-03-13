@@ -10,7 +10,7 @@ import (
 )
 
 // GitBranchFunc returns the current git branch name.
-// Returns empty string if not in a git repo, on a detached HEAD, or if git is unavailable.
+// Returns empty string if not in a git repo, on detached HEAD, or if git is unavailable.
 // Can be overridden in tests.
 var GitBranchFunc = defaultGitBranch
 
@@ -19,8 +19,12 @@ func defaultGitBranch() string {
 	if err != nil {
 		return ""
 	}
-
-	return strings.TrimSpace(string(out))
+	branch := strings.TrimSpace(string(out))
+	// Normalize detached HEAD to empty string so callers don't need to handle it.
+	if branch == "HEAD" {
+		return ""
+	}
+	return branch
 }
 
 var (
@@ -29,8 +33,9 @@ var (
 	sanitizeMultipleHyphens = regexp.MustCompile(`-{2,}`)
 )
 
-// SanitizeBranchName converts a git branch name into a valid session name.
-// Returns empty string if the result is too short to be a valid session name.
+// SanitizeBranchName converts a git branch name into a valid session name candidate.
+// Returns empty string only when no valid characters remain after sanitization.
+// Minimum-length enforcement is left to the caller.
 func SanitizeBranchName(branch string) string {
 	s := strings.ToLower(branch)
 	s = sanitizeReplacer.Replace(s)
@@ -79,10 +84,10 @@ func GenerateUniqueRandomName(existingNames []string) string {
 		nameMap[name] = struct{}{}
 	}
 
-	// Try branch-based name first; skip trunk/detached-HEAD branches.
+	// Try branch-based name first; skip trunk branches and empty (detached HEAD / no repo).
 	branch := GitBranchFunc()
 	switch branch {
-	case "", "main", "master", "HEAD":
+	case "", "main", "master":
 		// not on a meaningful branch — fall through to random name
 	default:
 		sanitized := SanitizeBranchName(branch)

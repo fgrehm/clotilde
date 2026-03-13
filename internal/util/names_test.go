@@ -149,7 +149,7 @@ func TestGenerateUniqueRandomName_UsesGitBranch(t *testing.T) {
 }
 
 func TestGenerateUniqueRandomName_SkipsMainBranch(t *testing.T) {
-	for _, branch := range []string{"main", "master", "HEAD", ""} {
+	for _, branch := range []string{"main", "master", ""} {
 		t.Run(branch, func(t *testing.T) {
 			setGitBranch(t, branch)
 

@@ -37,7 +37,10 @@ var statsCmd = &cobra.Command{
 		}
 
 		// Collect stats across all transcripts (previous + current)
-		homeDir, _ := util.HomeDir()
+		homeDir, err := util.HomeDir()
+		if err != nil {
+			return fmt.Errorf("resolving home directory: %w", err)
+		}
 		paths := allTranscriptPaths(sess, clotildeRoot, homeDir)
 
 		var stats *claude.TranscriptStats
