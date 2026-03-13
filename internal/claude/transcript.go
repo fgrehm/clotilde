@@ -98,6 +98,60 @@ func formatModelFamily(fullModel string) string {
 	return fullModel
 }
 
+// LastTranscriptTime returns the timestamp of the last entry in a transcript file.
+// Only the tail of the file is read for efficiency (same technique as ExtractLastModel).
+// Returns zero time if the file can't be opened or contains no timestamped entries.
+func LastTranscriptTime(transcriptPath string) time.Time {
+	if transcriptPath == "" {
+		return time.Time{}
+	}
+
+	file, err := os.Open(transcriptPath)
+	if err != nil {
+		return time.Time{}
+	}
+	defer func() { _ = file.Close() }()
+
+	info, err := file.Stat()
+	if err != nil {
+		return time.Time{}
+	}
+
+	const tailSize = 4 * 1024 // 4KB — enough for several JSONL lines
+	if info.Size() > tailSize {
+		if _, err := file.Seek(info.Size()-tailSize, io.SeekStart); err != nil {
+			return time.Time{}
+		}
+	}
+
+	scanner := bufio.NewScanner(file)
+	// Discard the first (potentially partial) line when seeked into the middle.
+	if info.Size() > tailSize {
+		scanner.Scan()
+	}
+
+	type entry struct {
+		Timestamp time.Time `json:"timestamp"`
+	}
+
+	var last time.Time
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		if len(line) == 0 {
+			continue
+		}
+		var e entry
+		if err := json.Unmarshal(line, &e); err != nil {
+			continue
+		}
+		if !e.Timestamp.IsZero() {
+			last = e.Timestamp
+		}
+	}
+
+	return last
+}
+
 // TranscriptStats contains statistics about a session transcript.
 type TranscriptStats struct {
 	Turns           int

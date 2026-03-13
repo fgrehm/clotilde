@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
@@ -64,7 +65,7 @@ func showInteractiveTable(sessions []*session.Session, store session.Store) (*se
 		typeStr := formatSessionType(sess)
 
 		// Format last accessed
-		lastAccessed := util.FormatRelativeTime(sess.Metadata.LastAccessed)
+		lastAccessed := util.FormatRelativeTime(lastUsedTime(sess))
 
 		rows = append(rows, []string{sess.Name, model, typeStr, lastAccessed})
 	}
@@ -108,7 +109,7 @@ func showStaticTable(cmd *cobra.Command, sessions []*session.Session, store sess
 		typeStr := formatSessionType(sess)
 
 		// Format last accessed
-		lastAccessed := util.FormatRelativeTime(sess.Metadata.LastAccessed)
+		lastAccessed := util.FormatRelativeTime(lastUsedTime(sess))
 
 		_ = table.Append(sess.Name, model, typeStr, lastAccessed)
 	}
@@ -133,6 +134,19 @@ func extractModel(sess *session.Session, store session.Store) string {
 		}
 	}
 	return model
+}
+
+// lastUsedTime returns the best available "last used" timestamp for a session.
+// It prefers the last entry timestamp from the transcript (reflects real activity)
+// over the metadata field (which is only updated by explicit CLI commands).
+func lastUsedTime(sess *session.Session) time.Time {
+	t := sess.Metadata.LastAccessed
+	if sess.Metadata.TranscriptPath != "" {
+		if ts := claude.LastTranscriptTime(sess.Metadata.TranscriptPath); ts.After(t) {
+			t = ts
+		}
+	}
+	return t
 }
 
 // formatSessionType formats the session type string (regular, fork, incognito)

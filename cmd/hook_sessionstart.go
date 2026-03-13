@@ -267,16 +267,16 @@ func registerFork(store session.Store, forkName, sessionID string) error {
 	return nil
 }
 
-// saveTranscriptPath saves the transcript path to the session's metadata.
+// saveTranscriptPath saves the transcript path and updates lastAccessed in a single write.
 func saveTranscriptPath(store session.Store, sessionName, transcriptPath string) error {
-	// Load session
 	sess, err := store.Get(sessionName)
 	if err != nil {
 		return fmt.Errorf("session '%s' not found: %w", sessionName, err)
 	}
 
-	// Update transcript path
 	sess.Metadata.TranscriptPath = transcriptPath
+	sess.UpdateLastAccessed()
+
 	if err := store.Update(sess); err != nil {
 		return fmt.Errorf("failed to update session metadata: %w", err)
 	}
