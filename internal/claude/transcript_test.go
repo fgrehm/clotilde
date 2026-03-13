@@ -3,6 +3,7 @@ package claude_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -75,6 +76,40 @@ func TestExtractLastModel(t *testing.T) {
 				t.Errorf("Expected model %q, got %q", tt.expectedModel, result)
 			}
 		})
+	}
+}
+
+func TestExtractLastModel_LargeFile(t *testing.T) {
+	// Verify that the tail-read optimization finds the last model in a file > 128KB.
+	// An early assistant message with "opus" is buried before the 128KB tail;
+	// a later "sonnet" message is in the tail.
+	tmpDir := t.TempDir()
+	transcriptPath := filepath.Join(tmpDir, "large.jsonl")
+
+	f, err := os.Create(transcriptPath)
+	if err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	// Write an early assistant message with opus
+	_, _ = f.WriteString(`{"type":"assistant","message":{"model":"claude-opus-4-20250514","role":"assistant","content":"early"}}` + "\n")
+
+	// Pad with ~130KB of user messages to push the above past the 128KB tail window
+	padding := strings.Repeat(`{"type":"user","message":{"role":"user","content":"padding"}}`, 1500)
+	for _, line := range strings.SplitAfter(padding, "}") {
+		if line == "" {
+			continue
+		}
+		_, _ = f.WriteString(line + "\n")
+	}
+
+	// Write the last assistant message with sonnet (this will be in the tail)
+	_, _ = f.WriteString(`{"type":"assistant","message":{"model":"claude-sonnet-4-5-20250929","role":"assistant","content":"last"}}` + "\n")
+	_ = f.Close()
+
+	result := claude.ExtractLastModel(transcriptPath)
+	if result != "sonnet" {
+		t.Errorf("Expected 'sonnet' from large file, got %q", result)
 	}
 }
 

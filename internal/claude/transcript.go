@@ -22,6 +22,9 @@ var modelFamilyRegex = regexp.MustCompile(`claude-(?:\d+-)*(\w+)-\d+`)
 
 // ExtractLastModel reads the transcript and returns the last model used.
 // Returns the model family name (e.g. "sonnet", "opus", "haiku") or empty string if not found.
+//
+// For large transcripts, only the last 128KB is read: since every assistant turn
+// records the model, the most-recent entry will always be near the end of the file.
 func ExtractLastModel(transcriptPath string) string {
 	if transcriptPath == "" {
 		return ""
@@ -33,17 +36,31 @@ func ExtractLastModel(transcriptPath string) string {
 	}
 	defer func() { _ = file.Close() }()
 
-	// Read the entire file and find the last assistant message with a model
-	// For large files, we could optimize by seeking to end and reading backwards,
-	// but for now we'll read forward and keep the last match
-	var lastModel string
-	scanner := bufio.NewScanner(file)
+	info, err := file.Stat()
+	if err != nil {
+		return ""
+	}
 
-	// Increase buffer size to handle large lines in transcripts
-	const maxCapacity = 1024 * 1024 // 1MB
+	const tailSize = 128 * 1024 // 128KB
+	seeked := false
+	if info.Size() > tailSize {
+		if _, err := file.Seek(info.Size()-tailSize, io.SeekStart); err != nil {
+			return ""
+		}
+		seeked = true
+	}
+
+	scanner := bufio.NewScanner(file)
+	const maxCapacity = 1024 * 1024 // 1MB per line
 	buf := make([]byte, maxCapacity)
 	scanner.Buffer(buf, maxCapacity)
 
+	// Discard the first (potentially partial) line when we seeked into the middle.
+	if seeked {
+		scanner.Scan()
+	}
+
+	var lastModel string
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line == "" {
@@ -52,11 +69,9 @@ func ExtractLastModel(transcriptPath string) string {
 
 		var entry transcriptEntry
 		if err := json.Unmarshal([]byte(line), &entry); err != nil {
-			// Skip malformed lines
 			continue
 		}
 
-		// Look for assistant messages with model field
 		if entry.Type == "assistant" && entry.Message.Model != "" {
 			lastModel = entry.Message.Model
 		}
@@ -66,7 +81,6 @@ func ExtractLastModel(transcriptPath string) string {
 		return ""
 	}
 
-	// Extract model family name using regex
 	return formatModelFamily(lastModel)
 }
 
