@@ -40,6 +40,54 @@ lifecycle events (startup, resume, compact, clear) based on the `source`
 field in JSON input from Claude Code. Fork registration, session ID updates,
 and context injection all happen through this hook.
 
+## Session Transcript Paths
+
+Transcripts live in `~/.claude/projects/<encoded-project-dir>/<uuid>.jsonl`.
+When a user runs `/clear`, Claude Code creates a new UUID; the old one is
+appended to `previousSessionIds` in `metadata.json`. Commands that need the
+full conversation history (stats, export) must collect all paths via the
+shared helper:
+
+```go
+paths := allTranscriptPaths(sess, clotildeRoot, homeDir) // cmd/session_helpers.go
+```
+
+For efficient tail reads (last model, last timestamp), use the seek-to-tail
+pattern established in `internal/claude/transcript.go` (`ExtractLastModel`,
+`LastTranscriptTime`).
+
+## Export HTML Format
+
+`export.BuildHTML` base64-encodes all session entries into a
+`<script id="session-data" type="application/json">` tag. Test assertions
+about message content must decode this data first — a plain
+`ContainSubstring` on the raw HTML will always fail:
+
+```go
+const marker = `<script id="session-data" type="application/json">`
+start := strings.Index(html, marker) + len(marker)
+end := strings.Index(html[start:], "</script>")
+decoded, _ := base64.StdEncoding.DecodeString(html[start : start+end])
+Expect(string(decoded)).To(ContainSubstring("expected text"))
+```
+
+## Injectable Function Variables
+
+Package-level `var` functions allow test overrides without interface
+abstraction. Always restore with `t.Cleanup`:
+
+```go
+// e.g. internal/util/names.go
+var GitBranchFunc = defaultGitBranch
+
+// in tests
+orig := util.GitBranchFunc
+util.GitBranchFunc = func() string { return "feature/test" }
+t.Cleanup(func() { util.GitBranchFunc = orig })
+```
+
+Other examples: `claude.ClaudeBinaryPathFunc`, `claude.VerboseFunc`.
+
 ## Conventions
 
 - Go module: `github.com/fgrehm/clotilde`
