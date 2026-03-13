@@ -149,9 +149,13 @@ func TestGenerateUniqueRandomName_UsesGitBranch(t *testing.T) {
 }
 
 func TestGenerateUniqueRandomName_SkipsMainBranch(t *testing.T) {
-	for _, branch := range []string{"main", "master", ""} {
-		t.Run(branch, func(t *testing.T) {
-			setGitBranch(t, branch)
+	for _, tc := range []struct{ name, branch string }{
+		{"main", "main"},
+		{"master", "master"},
+		{"(empty)", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setGitBranch(t, tc.branch)
 
 			datePrefix := time.Now().Format("2006-01-02")
 			name := GenerateUniqueRandomName([]string{})

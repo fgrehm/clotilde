@@ -48,12 +48,12 @@ func newExportCmd() *cobra.Command {
 				if err != nil {
 					continue // transcript missing — skip
 				}
-				readable++
 				entries, err := export.FilterTranscript(f)
 				_ = f.Close()
 				if err != nil {
 					continue
 				}
+				readable++
 				allEntries = append(allEntries, entries...)
 			}
 			if readable == 0 {

@@ -117,7 +117,7 @@ func LastTranscriptTime(transcriptPath string) time.Time {
 		return time.Time{}
 	}
 
-	const tailSize = 4 * 1024 // 4KB — enough for several JSONL lines
+	const tailSize = 64 * 1024 // 64KB — covers typical assistant/progress entries at EOF
 	if info.Size() > tailSize {
 		if _, err := file.Seek(info.Size()-tailSize, io.SeekStart); err != nil {
 			return time.Time{}
