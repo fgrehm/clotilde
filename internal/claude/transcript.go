@@ -128,7 +128,7 @@ func LastTranscriptTime(transcriptPath string) time.Time {
 		return time.Time{}
 	}
 
-	const tailSize = 64 * 1024 // 64KB — covers typical assistant/progress entries at EOF
+	const tailSize = 128 * 1024 // 128KB — matches ExtractLastModel; lines larger than this are an accepted tradeoff
 	skipFirstLine := false
 	if info.Size() > tailSize {
 		if _, err := file.Seek(info.Size()-tailSize, io.SeekStart); err != nil {
@@ -175,6 +175,83 @@ func LastTranscriptTime(transcriptPath string) time.Time {
 	}
 
 	return last
+}
+
+// ExtractModelAndLastTime reads the transcript tail once and returns both the
+// last model family name and the timestamp of the last entry. More efficient
+// than calling ExtractLastModel and LastTranscriptTime separately.
+// Returns empty string and zero time if the transcript is missing or unreadable.
+func ExtractModelAndLastTime(transcriptPath string) (string, time.Time) {
+	if transcriptPath == "" {
+		return "", time.Time{}
+	}
+
+	file, err := os.Open(transcriptPath)
+	if err != nil {
+		return "", time.Time{}
+	}
+	defer func() { _ = file.Close() }()
+
+	info, err := file.Stat()
+	if err != nil {
+		return "", time.Time{}
+	}
+
+	const tailSize = 128 * 1024 // 128KB
+	skipFirstLine := false
+	if info.Size() > tailSize {
+		if _, err := file.Seek(info.Size()-tailSize, io.SeekStart); err != nil {
+			return "", time.Time{}
+		}
+		check := make([]byte, 1)
+		if _, err := file.ReadAt(check, info.Size()-tailSize-1); err == nil {
+			skipFirstLine = check[0] != '\n'
+		} else {
+			skipFirstLine = true
+		}
+	}
+
+	scanner := bufio.NewScanner(file)
+	const maxCapacity = 1024 * 1024 // 1MB per line
+	buf := make([]byte, maxCapacity)
+	scanner.Buffer(buf, maxCapacity)
+
+	if skipFirstLine {
+		scanner.Scan() // discard partial first line
+	}
+
+	type entry struct {
+		Type      string    `json:"type"`
+		Timestamp time.Time `json:"timestamp"`
+		Message   struct {
+			Model string `json:"model"`
+		} `json:"message"`
+	}
+
+	var lastModel string
+	var lastTime time.Time
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		if len(line) == 0 {
+			continue
+		}
+		var e entry
+		if err := json.Unmarshal(line, &e); err != nil {
+			continue
+		}
+		if !e.Timestamp.IsZero() {
+			lastTime = e.Timestamp
+		}
+		if e.Type == "assistant" && e.Message.Model != "" {
+			lastModel = e.Message.Model
+		}
+	}
+
+	if err := scanner.Err(); err != nil && !errors.Is(err, io.EOF) {
+		return "", time.Time{}
+	}
+
+	return formatModelFamily(lastModel), lastTime
 }
 
 // TranscriptStats contains statistics about a session transcript.
