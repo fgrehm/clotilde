@@ -74,23 +74,26 @@ func GenerateRandomName() string {
 // If the current directory is a git repo on a non-main branch, the branch name is used.
 // Otherwise a random adjective-noun name with a date prefix is generated.
 func GenerateUniqueRandomName(existingNames []string) string {
-	nameMap := make(map[string]bool)
+	nameMap := make(map[string]struct{})
 	for _, name := range existingNames {
-		nameMap[name] = true
+		nameMap[name] = struct{}{}
 	}
 
-	// Try branch-based name first (skip main/master/HEAD)
+	// Try branch-based name first; skip trunk/detached-HEAD branches.
 	branch := GitBranchFunc()
-	if branch != "" && branch != "main" && branch != "master" && branch != "HEAD" {
+	switch branch {
+	case "", "main", "master", "HEAD":
+		// not on a meaningful branch — fall through to random name
+	default:
 		sanitized := SanitizeBranchName(branch)
 		if len(sanitized) >= 2 {
-			if !nameMap[sanitized] {
+			if _, taken := nameMap[sanitized]; !taken {
 				return sanitized
 			}
 			// Branch name taken; try appending a number suffix
 			for i := 2; i <= 9; i++ {
 				candidate := fmt.Sprintf("%s-%d", sanitized, i)
-				if !nameMap[candidate] {
+				if _, taken := nameMap[candidate]; !taken {
 					return candidate
 				}
 			}
@@ -101,7 +104,7 @@ func GenerateUniqueRandomName(existingNames []string) string {
 	const maxAttempts = 100
 	for i := 0; i < maxAttempts; i++ {
 		name := GenerateRandomName()
-		if !nameMap[name] {
+		if _, taken := nameMap[name]; !taken {
 			return name
 		}
 	}

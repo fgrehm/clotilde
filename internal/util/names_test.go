@@ -7,12 +7,12 @@ import (
 	"time"
 )
 
-// disableGitBranch overrides GitBranchFunc to return "" for the duration of the test,
-// ensuring the random name fallback is exercised regardless of the current working branch.
-func disableGitBranch(t *testing.T) {
+// setGitBranch overrides GitBranchFunc for the duration of the test and restores it on cleanup.
+// Pass "" to disable branch detection and force the random-name fallback.
+func setGitBranch(t *testing.T, branch string) {
 	t.Helper()
 	orig := GitBranchFunc
-	GitBranchFunc = func() string { return "" }
+	GitBranchFunc = func() string { return branch }
 	t.Cleanup(func() { GitBranchFunc = orig })
 }
 
@@ -78,7 +78,7 @@ func TestGenerateRandomName_Variety(t *testing.T) {
 }
 
 func TestGenerateUniqueRandomName(t *testing.T) {
-	disableGitBranch(t)
+	setGitBranch(t, "")
 	datePrefix := time.Now().Format("2006-01-02")
 	existing := []string{
 		datePrefix + "-happy-fox",
@@ -102,7 +102,7 @@ func TestGenerateUniqueRandomName(t *testing.T) {
 }
 
 func TestGenerateUniqueRandomName_FallbackWithNumber(t *testing.T) {
-	disableGitBranch(t)
+	setGitBranch(t, "")
 	// Create a scenario where all possible combinations are taken
 	// We have 25*25 = 625 combinations
 	datePrefix := time.Now().Format("2006-01-02")
@@ -123,7 +123,7 @@ func TestGenerateUniqueRandomName_FallbackWithNumber(t *testing.T) {
 }
 
 func TestGenerateUniqueRandomName_Empty(t *testing.T) {
-	disableGitBranch(t)
+	setGitBranch(t, "")
 	name := GenerateUniqueRandomName([]string{})
 
 	// Should generate a valid name
@@ -139,9 +139,7 @@ func TestGenerateUniqueRandomName_Empty(t *testing.T) {
 }
 
 func TestGenerateUniqueRandomName_UsesGitBranch(t *testing.T) {
-	orig := GitBranchFunc
-	GitBranchFunc = func() string { return "feature/my-ticket" }
-	t.Cleanup(func() { GitBranchFunc = orig })
+	setGitBranch(t, "feature/my-ticket")
 
 	name := GenerateUniqueRandomName([]string{})
 
@@ -153,9 +151,7 @@ func TestGenerateUniqueRandomName_UsesGitBranch(t *testing.T) {
 func TestGenerateUniqueRandomName_SkipsMainBranch(t *testing.T) {
 	for _, branch := range []string{"main", "master", "HEAD", ""} {
 		t.Run(branch, func(t *testing.T) {
-			orig := GitBranchFunc
-			GitBranchFunc = func() string { return branch }
-			t.Cleanup(func() { GitBranchFunc = orig })
+			setGitBranch(t, branch)
 
 			datePrefix := time.Now().Format("2006-01-02")
 			name := GenerateUniqueRandomName([]string{})
@@ -168,9 +164,7 @@ func TestGenerateUniqueRandomName_SkipsMainBranch(t *testing.T) {
 }
 
 func TestGenerateUniqueRandomName_BranchConflictFallback(t *testing.T) {
-	orig := GitBranchFunc
-	GitBranchFunc = func() string { return "my-feature" }
-	t.Cleanup(func() { GitBranchFunc = orig })
+	setGitBranch(t, "my-feature")
 
 	// All branch-derived candidates are taken
 	existing := []string{

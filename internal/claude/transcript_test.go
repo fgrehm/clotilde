@@ -1,9 +1,9 @@
 package claude_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -81,35 +81,40 @@ func TestExtractLastModel(t *testing.T) {
 
 func TestExtractLastModel_LargeFile(t *testing.T) {
 	// Verify that the tail-read optimization finds the last model in a file > 128KB.
-	// An early assistant message with "opus" is buried before the 128KB tail;
-	// a later "sonnet" message is in the tail.
+	// An early "opus" message is buried before the 128KB tail;
+	// a later "sonnet" message sits in the tail.
 	tmpDir := t.TempDir()
 	transcriptPath := filepath.Join(tmpDir, "large.jsonl")
 
 	f, err := os.Create(transcriptPath)
 	if err != nil {
-		t.Fatalf("Failed to create test file: %v", err)
+		t.Fatalf("create: %v", err)
 	}
 
-	// Write an early assistant message with opus
-	_, _ = f.WriteString(`{"type":"assistant","message":{"model":"claude-opus-4-20250514","role":"assistant","content":"early"}}` + "\n")
-
-	// Pad with ~130KB of user messages to push the above past the 128KB tail window
-	padding := strings.Repeat(`{"type":"user","message":{"role":"user","content":"padding"}}`, 1500)
-	for _, line := range strings.SplitAfter(padding, "}") {
-		if line == "" {
-			continue
+	writeLine := func(line string) {
+		t.Helper()
+		if _, err := fmt.Fprintln(f, line); err != nil {
+			t.Fatalf("write: %v", err)
 		}
-		_, _ = f.WriteString(line + "\n")
 	}
 
-	// Write the last assistant message with sonnet (this will be in the tail)
-	_, _ = f.WriteString(`{"type":"assistant","message":{"model":"claude-sonnet-4-5-20250929","role":"assistant","content":"last"}}` + "\n")
-	_ = f.Close()
+	writeLine(`{"type":"assistant","message":{"model":"claude-opus-4-20250514","role":"assistant","content":"early"}}`)
+
+	// 2500 lines × ~63 bytes ≈ 157KB – pushes the opus entry before the 128KB tail window.
+	userLine := `{"type":"user","message":{"role":"user","content":"padding"}}`
+	for range 2500 {
+		writeLine(userLine)
+	}
+
+	writeLine(`{"type":"assistant","message":{"model":"claude-sonnet-4-5-20250929","role":"assistant","content":"last"}}`)
+
+	if err := f.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
 
 	result := claude.ExtractLastModel(transcriptPath)
 	if result != "sonnet" {
-		t.Errorf("Expected 'sonnet' from large file, got %q", result)
+		t.Errorf("got %q, want %q", result, "sonnet")
 	}
 }
 

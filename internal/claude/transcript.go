@@ -42,12 +42,10 @@ func ExtractLastModel(transcriptPath string) string {
 	}
 
 	const tailSize = 128 * 1024 // 128KB
-	seeked := false
 	if info.Size() > tailSize {
 		if _, err := file.Seek(info.Size()-tailSize, io.SeekStart); err != nil {
 			return ""
 		}
-		seeked = true
 	}
 
 	scanner := bufio.NewScanner(file)
@@ -56,7 +54,7 @@ func ExtractLastModel(transcriptPath string) string {
 	scanner.Buffer(buf, maxCapacity)
 
 	// Discard the first (potentially partial) line when we seeked into the middle.
-	if seeked {
+	if info.Size() > tailSize {
 		scanner.Scan()
 	}
 
