@@ -23,8 +23,10 @@ var modelFamilyRegex = regexp.MustCompile(`claude-(?:\d+-)*(\w+)-\d+`)
 // ExtractLastModel reads the transcript and returns the last model used.
 // Returns the model family name (e.g. "sonnet", "opus", "haiku") or empty string if not found.
 //
-// For large transcripts, only the last 128KB is read: since every assistant turn
-// records the model, the most-recent entry will always be near the end of the file.
+// For large transcripts, only the last 128KB is read. Assistant entries that
+// record message.model are typically small, so the most recent one will almost
+// always be within the tail. A single assistant response larger than 128KB would
+// be missed, but that is an accepted tradeoff for the performance benefit.
 func ExtractLastModel(transcriptPath string) string {
 	if transcriptPath == "" {
 		return ""
@@ -42,7 +44,8 @@ func ExtractLastModel(transcriptPath string) string {
 	}
 
 	const tailSize = 128 * 1024 // 128KB
-	if info.Size() > tailSize {
+	seeked := info.Size() > tailSize
+	if seeked {
 		if _, err := file.Seek(info.Size()-tailSize, io.SeekStart); err != nil {
 			return ""
 		}
@@ -53,9 +56,18 @@ func ExtractLastModel(transcriptPath string) string {
 	buf := make([]byte, maxCapacity)
 	scanner.Buffer(buf, maxCapacity)
 
-	// Discard the first (potentially partial) line when we seeked into the middle.
-	if info.Size() > tailSize {
-		scanner.Scan()
+	// When seeked into the middle of the file, discard the first line only if
+	// the seek position is not already on a newline boundary. If the byte just
+	// before the seek point is '\n', the first scanned line is already complete.
+	if seeked {
+		onBoundary := false
+		check := make([]byte, 1)
+		if _, err := file.ReadAt(check, info.Size()-tailSize-1); err == nil {
+			onBoundary = check[0] == '\n'
+		}
+		if !onBoundary {
+			scanner.Scan() // discard partial first line
+		}
 	}
 
 	var lastModel string
@@ -118,7 +130,8 @@ func LastTranscriptTime(transcriptPath string) time.Time {
 	}
 
 	const tailSize = 64 * 1024 // 64KB — covers typical assistant/progress entries at EOF
-	if info.Size() > tailSize {
+	seeked := info.Size() > tailSize
+	if seeked {
 		if _, err := file.Seek(info.Size()-tailSize, io.SeekStart); err != nil {
 			return time.Time{}
 		}
@@ -129,9 +142,16 @@ func LastTranscriptTime(transcriptPath string) time.Time {
 	buf := make([]byte, maxCapacity)
 	scanner.Buffer(buf, maxCapacity)
 
-	// Discard the first (potentially partial) line when seeked into the middle.
-	if info.Size() > tailSize {
-		scanner.Scan()
+	// Only discard the first line when seeked and not on a newline boundary.
+	if seeked {
+		onBoundary := false
+		check := make([]byte, 1)
+		if _, err := file.ReadAt(check, info.Size()-tailSize-1); err == nil {
+			onBoundary = check[0] == '\n'
+		}
+		if !onBoundary {
+			scanner.Scan() // discard partial first line
+		}
 	}
 
 	type entry struct {
