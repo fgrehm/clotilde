@@ -44,10 +44,19 @@ func ExtractLastModel(transcriptPath string) string {
 	}
 
 	const tailSize = 128 * 1024 // 128KB
-	seeked := info.Size() > tailSize
-	if seeked {
+	skipFirstLine := false
+	if info.Size() > tailSize {
 		if _, err := file.Seek(info.Size()-tailSize, io.SeekStart); err != nil {
 			return ""
+		}
+		// If the byte just before the seek point is not '\n', the first scanned
+		// line will be partial and must be discarded. Check before creating the
+		// scanner so all file I/O is sequenced clearly.
+		check := make([]byte, 1)
+		if _, err := file.ReadAt(check, info.Size()-tailSize-1); err == nil {
+			skipFirstLine = check[0] != '\n'
+		} else {
+			skipFirstLine = true // can't verify boundary; assume partial
 		}
 	}
 
@@ -56,18 +65,8 @@ func ExtractLastModel(transcriptPath string) string {
 	buf := make([]byte, maxCapacity)
 	scanner.Buffer(buf, maxCapacity)
 
-	// When seeked into the middle of the file, discard the first line only if
-	// the seek position is not already on a newline boundary. If the byte just
-	// before the seek point is '\n', the first scanned line is already complete.
-	if seeked {
-		onBoundary := false
-		check := make([]byte, 1)
-		if _, err := file.ReadAt(check, info.Size()-tailSize-1); err == nil {
-			onBoundary = check[0] == '\n'
-		}
-		if !onBoundary {
-			scanner.Scan() // discard partial first line
-		}
+	if skipFirstLine {
+		scanner.Scan() // discard partial first line
 	}
 
 	var lastModel string
@@ -130,10 +129,16 @@ func LastTranscriptTime(transcriptPath string) time.Time {
 	}
 
 	const tailSize = 64 * 1024 // 64KB — covers typical assistant/progress entries at EOF
-	seeked := info.Size() > tailSize
-	if seeked {
+	skipFirstLine := false
+	if info.Size() > tailSize {
 		if _, err := file.Seek(info.Size()-tailSize, io.SeekStart); err != nil {
 			return time.Time{}
+		}
+		check := make([]byte, 1)
+		if _, err := file.ReadAt(check, info.Size()-tailSize-1); err == nil {
+			skipFirstLine = check[0] != '\n'
+		} else {
+			skipFirstLine = true
 		}
 	}
 
@@ -142,16 +147,8 @@ func LastTranscriptTime(transcriptPath string) time.Time {
 	buf := make([]byte, maxCapacity)
 	scanner.Buffer(buf, maxCapacity)
 
-	// Only discard the first line when seeked and not on a newline boundary.
-	if seeked {
-		onBoundary := false
-		check := make([]byte, 1)
-		if _, err := file.ReadAt(check, info.Size()-tailSize-1); err == nil {
-			onBoundary = check[0] == '\n'
-		}
-		if !onBoundary {
-			scanner.Scan() // discard partial first line
-		}
+	if skipFirstLine {
+		scanner.Scan() // discard partial first line
 	}
 
 	type entry struct {

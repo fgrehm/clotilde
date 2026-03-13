@@ -94,16 +94,9 @@ var _ = Describe("Stats Command", func() {
 		err := store.Create(sess)
 		Expect(err).NotTo(HaveOccurred())
 
-		// Create a fake transcript with one turn
-		homeDir, err := os.UserHomeDir()
-		Expect(err).NotTo(HaveOccurred())
-
-		projectDir := filepath.Join(".claude", "projects", "-temp-bin")
-		claudeProjectDir := filepath.Join(homeDir, projectDir)
-		err = os.MkdirAll(claudeProjectDir, 0o755)
-		Expect(err).NotTo(HaveOccurred())
-
-		transcriptPath := filepath.Join(claudeProjectDir, "uuid-transcript-123.jsonl")
+		// Create a fake transcript in the temp dir (path is set explicitly, so
+		// it doesn't need to follow Claude's ~/.claude/projects/... convention).
+		transcriptPath := filepath.Join(tempDir, "uuid-transcript-123.jsonl")
 		transcriptData := `{"type":"progress","timestamp":"2025-02-17T20:35:00Z"}
 {"type":"user","timestamp":"2025-02-17T20:35:10Z","message":{"content":"hello"}}
 {"type":"assistant","timestamp":"2025-02-17T20:35:15Z","message":{"content":"hi"}}`
@@ -193,16 +186,8 @@ var _ = Describe("Stats Command", func() {
 		err := store.Create(sess)
 		Expect(err).NotTo(HaveOccurred())
 
-		// Create an empty transcript
-		homeDir, err := os.UserHomeDir()
-		Expect(err).NotTo(HaveOccurred())
-
-		projectDir := filepath.Join(".claude", "projects", "-temp-bin")
-		claudeProjectDir := filepath.Join(homeDir, projectDir)
-		err = os.MkdirAll(claudeProjectDir, 0o755)
-		Expect(err).NotTo(HaveOccurred())
-
-		transcriptPath := filepath.Join(claudeProjectDir, "uuid-empty-trans.jsonl")
+		// Create an empty transcript in the temp dir (path is set explicitly).
+		transcriptPath := filepath.Join(tempDir, "uuid-empty-trans.jsonl")
 		err = os.WriteFile(transcriptPath, []byte(""), 0o644)
 		Expect(err).NotTo(HaveOccurred())
 
