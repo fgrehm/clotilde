@@ -46,12 +46,15 @@ func newExportCmd() *cobra.Command {
 			for _, path := range paths {
 				f, err := os.Open(path)
 				if err != nil {
-					continue // transcript missing — skip
+					if os.IsNotExist(err) {
+						continue // previous transcript deleted or not yet written
+					}
+					return fmt.Errorf("opening transcript %s: %w", path, err)
 				}
 				entries, err := export.FilterTranscript(f)
 				_ = f.Close()
 				if err != nil {
-					continue
+					return fmt.Errorf("reading transcript %s: %w", path, err)
 				}
 				readable++
 				allEntries = append(allEntries, entries...)
