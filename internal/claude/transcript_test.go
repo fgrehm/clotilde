@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -349,5 +350,35 @@ func TestParseTranscriptStats_EmptyPath(t *testing.T) {
 	}
 	if stats.Turns != 0 {
 		t.Errorf("Expected 0 turns, got %d", stats.Turns)
+	}
+}
+
+func TestParseTranscriptStats_OversizedLine(t *testing.T) {
+	// Verify that a line exceeding the 1MB scanner limit doesn't cause an error —
+	// ParseTranscriptStats should return partial results from lines processed before
+	// the oversized one rather than failing entirely.
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "transcript.jsonl")
+
+	// Write a valid turn before the giant line so we can verify partial results.
+	prefix := `{"type":"progress","timestamp":"2025-01-01T10:00:00Z"}
+{"type":"user","timestamp":"2025-01-01T10:00:10Z","message":{"content":"hello"}}
+{"type":"assistant","timestamp":"2025-01-01T10:00:15Z","message":{"content":"hi"}}
+`
+	// A single JSON line with >1MB content field — triggers bufio.ErrTooLong.
+	hugeLine := fmt.Sprintf(`{"type":"user","message":{"content":"%s"}}`, strings.Repeat("x", 1024*1024+1))
+	data := prefix + hugeLine + "\n"
+
+	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	stats, err := claude.ParseTranscriptStats(path)
+	if err != nil {
+		t.Fatalf("expected no error on oversized line, got: %v", err)
+	}
+	// We should have captured the one turn that precedes the giant line.
+	if stats.Turns != 1 {
+		t.Errorf("expected 1 turn, got %d", stats.Turns)
 	}
 }

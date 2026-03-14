@@ -62,7 +62,7 @@ func ExtractLastModel(transcriptPath string) string {
 
 	scanner := bufio.NewScanner(file)
 	const maxCapacity = 1024 * 1024 // 1MB per line
-	buf := make([]byte, maxCapacity)
+	buf := make([]byte, 64*1024)
 	scanner.Buffer(buf, maxCapacity)
 
 	if skipFirstLine {
@@ -71,13 +71,13 @@ func ExtractLastModel(transcriptPath string) string {
 
 	var lastModel string
 	for scanner.Scan() {
-		line := scanner.Text()
-		if line == "" {
+		line := scanner.Bytes()
+		if len(line) == 0 {
 			continue
 		}
 
 		var entry transcriptEntry
-		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+		if err := json.Unmarshal(line, &entry); err != nil {
 			continue
 		}
 
@@ -86,7 +86,7 @@ func ExtractLastModel(transcriptPath string) string {
 		}
 	}
 
-	if err := scanner.Err(); err != nil && !errors.Is(err, io.EOF) {
+	if err := scanner.Err(); err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, bufio.ErrTooLong) {
 		return ""
 	}
 
@@ -144,7 +144,7 @@ func LastTranscriptTime(transcriptPath string) time.Time {
 
 	scanner := bufio.NewScanner(file)
 	const maxCapacity = 1024 * 1024 // 1MB per line — same as ExtractLastModel
-	buf := make([]byte, maxCapacity)
+	buf := make([]byte, 64*1024)
 	scanner.Buffer(buf, maxCapacity)
 
 	if skipFirstLine {
@@ -170,7 +170,7 @@ func LastTranscriptTime(transcriptPath string) time.Time {
 		}
 	}
 
-	if err := scanner.Err(); err != nil && !errors.Is(err, io.EOF) {
+	if err := scanner.Err(); err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, bufio.ErrTooLong) {
 		return time.Time{}
 	}
 
@@ -213,7 +213,7 @@ func ExtractModelAndLastTime(transcriptPath string) (string, time.Time) {
 
 	scanner := bufio.NewScanner(file)
 	const maxCapacity = 1024 * 1024 // 1MB per line
-	buf := make([]byte, maxCapacity)
+	buf := make([]byte, 64*1024)
 	scanner.Buffer(buf, maxCapacity)
 
 	if skipFirstLine {
@@ -247,7 +247,7 @@ func ExtractModelAndLastTime(transcriptPath string) (string, time.Time) {
 		}
 	}
 
-	if err := scanner.Err(); err != nil && !errors.Is(err, io.EOF) {
+	if err := scanner.Err(); err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, bufio.ErrTooLong) {
 		return "", time.Time{}
 	}
 
@@ -303,20 +303,20 @@ func ParseTranscriptStats(transcriptPath string) (*TranscriptStats, error) {
 
 	scanner := bufio.NewScanner(file)
 	const maxCapacity = 1024 * 1024 // 1MB
-	buf := make([]byte, maxCapacity)
+	buf := make([]byte, 64*1024)
 	scanner.Buffer(buf, maxCapacity)
 
 	var turnStart time.Time
 	var lastAssistantTime time.Time
 
 	for scanner.Scan() {
-		line := scanner.Text()
-		if line == "" {
+		line := scanner.Bytes()
+		if len(line) == 0 {
 			continue
 		}
 
 		var entry transcriptEntryForStats
-		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+		if err := json.Unmarshal(line, &entry); err != nil {
 			// Skip malformed lines
 			continue
 		}
@@ -358,7 +358,7 @@ func ParseTranscriptStats(transcriptPath string) (*TranscriptStats, error) {
 		}
 	}
 
-	if err := scanner.Err(); err != nil && !errors.Is(err, io.EOF) {
+	if err := scanner.Err(); err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, bufio.ErrTooLong) {
 		return nil, err
 	}
 

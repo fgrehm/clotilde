@@ -17,10 +17,12 @@ func allTranscriptPaths(sess *session.Session, clotildeRoot, homeDir string) []s
 	}
 
 	current := sess.Metadata.TranscriptPath
-	if current == "" {
+	if current == "" && sess.Metadata.SessionID != "" {
 		current = claude.TranscriptPath(homeDir, clotildeRoot, sess.Metadata.SessionID)
 	}
-	paths = append(paths, current)
+	if current != "" {
+		paths = append(paths, current)
+	}
 
 	return paths
 }
