@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Git branch auto-naming**: `clotilde start` (no name argument) now uses the current git branch name as the session name when not on `main` or `master` (e.g. branch `feature/gh-456` → session `feature-gh-456`). If the branch name is already taken, a numeric suffix is appended (`-2` through `-9`). Falls back to the existing `YYYY-MM-DD-adjective-noun` format on trunk branches, detached HEAD, or outside a git repo.
+- **Git branch auto-naming**: Auto-naming commands (`start`, `incognito`, `fork`, and dashboard quick-actions) now use the current git branch name as the session name when not on `main` or `master` (e.g. branch `feature/gh-456` → session `feature-gh-456`). If the branch name is already taken, a numeric suffix is appended (`-2` through `-9`). Falls back to the existing `YYYY-MM-DD-adjective-noun` format on trunk branches, detached HEAD, or outside a git repo.
 - **Full transcript history in `stats` and `export`**: Both commands now include all previous transcripts (from `/clear` operations tracked in `previousSessionIds`). `stats` sums turns across the full history and shows the earliest start time and latest activity. `export` produces HTML covering the complete conversation from the first message.
 
 ### Changed
