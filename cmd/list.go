@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/olekukonko/tablewriter"
@@ -91,7 +90,7 @@ func showInteractiveTable(sessions []*session.Session, store session.Store) (*se
 func showStaticTable(cmd *cobra.Command, sessions []*session.Session, store session.Store) error {
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Sessions (%d total):\n", len(sessions))
 
-	table := tablewriter.NewWriter(os.Stdout)
+	table := tablewriter.NewWriter(cmd.OutOrStdout())
 	table.Header("NAME", "MODEL", "TYPE", "LAST USED")
 
 	for _, sess := range sessions {
