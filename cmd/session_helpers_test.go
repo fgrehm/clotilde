@@ -6,57 +6,62 @@ import (
 	"github.com/fgrehm/clotilde/internal/session"
 )
 
-func TestAllTranscriptPaths_EmptyFork(t *testing.T) {
-	// A newly-created fork has empty SessionID and no TranscriptPath (the hook
-	// hasn't run yet). allTranscriptPaths must not append a path ending in ".jsonl"
-	// for such sessions.
-	sess := &session.Session{}
-	sess.Metadata.SessionID = ""
-	sess.Metadata.TranscriptPath = ""
-
-	paths := allTranscriptPaths(sess, "/tmp/clotilde", "/home/user")
-	if len(paths) != 0 {
-		t.Errorf("expected 0 paths for empty fork, got %d: %v", len(paths), paths)
+func TestAllTranscriptPaths(t *testing.T) {
+	tests := []struct {
+		name           string
+		sessionID      string
+		transcriptPath string
+		previousIDs    []string
+		wantCount      int
+	}{
+		{
+			name:      "empty fork — hook hasn't filled in UUID yet",
+			wantCount: 0,
+		},
+		{
+			name:      "session with UUID only — path computed from UUID",
+			sessionID: "abc-123",
+			wantCount: 1,
+		},
+		{
+			name:           "explicit TranscriptPath takes precedence over UUID",
+			transcriptPath: "/home/user/.claude/projects/foo/abc.jsonl",
+			wantCount:      1,
+		},
+		{
+			name:        "previous IDs included before current",
+			sessionID:   "current-uuid",
+			previousIDs: []string{"old-uuid-1", "old-uuid-2"},
+			wantCount:   3, // 2 previous + 1 current
+		},
 	}
-}
 
-func TestAllTranscriptPaths_WithSessionID(t *testing.T) {
-	sess := &session.Session{}
-	sess.Metadata.SessionID = "abc-123"
-	sess.Metadata.TranscriptPath = ""
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sess := &session.Session{}
+			sess.Metadata.SessionID = tt.sessionID
+			sess.Metadata.TranscriptPath = tt.transcriptPath
+			sess.Metadata.PreviousSessionIDs = tt.previousIDs
 
-	paths := allTranscriptPaths(sess, "/tmp/.claude/clotilde", "/home/user")
-	if len(paths) != 1 {
-		t.Fatalf("expected 1 path, got %d: %v", len(paths), paths)
-	}
-	if paths[0] == "" {
-		t.Error("expected non-empty path for session with UUID")
-	}
-}
+			paths := allTranscriptPaths(sess, "/tmp/.claude/clotilde", "/home/user")
 
-func TestAllTranscriptPaths_WithExplicitTranscriptPath(t *testing.T) {
-	sess := &session.Session{}
-	sess.Metadata.SessionID = ""
-	sess.Metadata.TranscriptPath = "/home/user/.claude/projects/foo/abc.jsonl"
-
-	paths := allTranscriptPaths(sess, "/tmp/.claude/clotilde", "/home/user")
-	if len(paths) != 1 {
-		t.Fatalf("expected 1 path, got %d: %v", len(paths), paths)
-	}
-	if paths[0] != "/home/user/.claude/projects/foo/abc.jsonl" {
-		t.Errorf("unexpected path: %s", paths[0])
-	}
-}
-
-func TestAllTranscriptPaths_WithPreviousIDs(t *testing.T) {
-	sess := &session.Session{}
-	sess.Metadata.SessionID = "current-uuid"
-	sess.Metadata.TranscriptPath = ""
-	sess.Metadata.PreviousSessionIDs = []string{"old-uuid-1", "old-uuid-2"}
-
-	paths := allTranscriptPaths(sess, "/tmp/.claude/clotilde", "/home/user")
-	// previous (2) + current (1)
-	if len(paths) != 3 {
-		t.Fatalf("expected 3 paths, got %d: %v", len(paths), paths)
+			if len(paths) != tt.wantCount {
+				t.Errorf("got %d paths %v, want %d", len(paths), paths, tt.wantCount)
+			}
+			// Verify no path is empty — a path ending in ".jsonl" would be a sign
+			// that an empty UUID slipped through.
+			for _, p := range paths {
+				if p == "" {
+					t.Errorf("paths contains an empty entry: %v", paths)
+				}
+			}
+			// Explicit path should be preserved verbatim.
+			if tt.transcriptPath != "" && len(paths) > 0 {
+				last := paths[len(paths)-1]
+				if last != tt.transcriptPath {
+					t.Errorf("last path = %q, want %q", last, tt.transcriptPath)
+				}
+			}
+		})
 	}
 }

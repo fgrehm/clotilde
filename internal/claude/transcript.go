@@ -20,6 +20,14 @@ type transcriptEntry struct {
 
 var modelFamilyRegex = regexp.MustCompile(`claude-(?:\d+-)*(\w+)-\d+`)
 
+// newTranscriptScanner returns a bufio.Scanner configured for transcript JSONL reading.
+// It starts with a 64KB buffer and allows lines up to 1MB before returning ErrTooLong.
+func newTranscriptScanner(r io.Reader) *bufio.Scanner {
+	scanner := bufio.NewScanner(r)
+	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
+	return scanner
+}
+
 // ExtractLastModel reads the transcript and returns the last model used.
 // Returns the model family name (e.g. "sonnet", "opus", "haiku") or empty string if not found.
 //
@@ -60,10 +68,7 @@ func ExtractLastModel(transcriptPath string) string {
 		}
 	}
 
-	scanner := bufio.NewScanner(file)
-	const maxCapacity = 1024 * 1024 // 1MB per line
-	buf := make([]byte, 64*1024)
-	scanner.Buffer(buf, maxCapacity)
+	scanner := newTranscriptScanner(file)
 
 	if skipFirstLine {
 		scanner.Scan() // discard partial first line
@@ -142,10 +147,7 @@ func LastTranscriptTime(transcriptPath string) time.Time {
 		}
 	}
 
-	scanner := bufio.NewScanner(file)
-	const maxCapacity = 1024 * 1024 // 1MB per line — same as ExtractLastModel
-	buf := make([]byte, 64*1024)
-	scanner.Buffer(buf, maxCapacity)
+	scanner := newTranscriptScanner(file)
 
 	if skipFirstLine {
 		scanner.Scan() // discard partial first line
@@ -211,10 +213,7 @@ func ExtractModelAndLastTime(transcriptPath string) (string, time.Time) {
 		}
 	}
 
-	scanner := bufio.NewScanner(file)
-	const maxCapacity = 1024 * 1024 // 1MB per line
-	buf := make([]byte, 64*1024)
-	scanner.Buffer(buf, maxCapacity)
+	scanner := newTranscriptScanner(file)
 
 	if skipFirstLine {
 		scanner.Scan() // discard partial first line
@@ -301,10 +300,7 @@ func ParseTranscriptStats(transcriptPath string) (*TranscriptStats, error) {
 
 	stats := &TranscriptStats{}
 
-	scanner := bufio.NewScanner(file)
-	const maxCapacity = 1024 * 1024 // 1MB
-	buf := make([]byte, 64*1024)
-	scanner.Buffer(buf, maxCapacity)
+	scanner := newTranscriptScanner(file)
 
 	var turnStart time.Time
 	var lastAssistantTime time.Time
