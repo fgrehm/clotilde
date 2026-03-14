@@ -52,9 +52,18 @@ shared helper:
 paths := allTranscriptPaths(sess, clotildeRoot, homeDir) // cmd/session_helpers.go
 ```
 
-For efficient tail reads (last model, last timestamp), use the seek-to-tail
-pattern established in `internal/claude/transcript.go` (`ExtractLastModel`,
-`LastTranscriptTime`).
+For efficient tail reads (last model, last timestamp), use `forEachTailLine`
+in `internal/claude/transcript.go`. It handles tail-seeking, newline boundary
+detection, and uses `bufio.Reader` with `ReadSlice` + drain so oversized
+lines are skipped without halting (unlike `bufio.Scanner` which stops
+permanently on `ErrTooLong`). All tail readers (`ExtractLastModel`,
+`LastTranscriptTime`, `ExtractModelAndLastTime`) use this helper.
+
+`ParseTranscriptStats` uses the same `ReadSlice` + drain approach with a 1MB
+buffer (reads the full file, not just the tail).
+
+Multi-transcript loops (stats, export) skip `os.IsNotExist` errors (expected
+for old `/clear` transcripts) and surface all other errors to the user.
 
 ## Export HTML Format
 
@@ -88,10 +97,21 @@ t.Cleanup(func() { util.GitBranchFunc = orig })
 
 Other examples: `claude.ClaudeBinaryPathFunc`, `claude.VerboseFunc`.
 
+## Testing Patterns
+
+- Tests that create transcript files set `HOME` to a temp dir to avoid
+  polluting the real `~/.claude/projects/` directory.
+- `t.Run` subtests use descriptive fallback names for empty inputs
+  (e.g. `"(empty)"`) to avoid panics.
+- `export.FilterTranscript` uses `ReadBytes('\n')` intentionally; export
+  needs full line content for HTML output, so oversized lines cannot be
+  skipped. This is a known tradeoff, not a bug.
+
 ## Conventions
 
 - Go module: `github.com/fgrehm/clotilde`
-- Test framework: Ginkgo/Gomega
+- Test framework: Ginkgo/Gomega for cmd/internal packages, stdlib
+  `testing` for unit tests in util/claude
 - Linting: golangci-lint v2, formatting: gofumpt (via `golangci-lint fmt`)
 - Commit format: Conventional Commits, present tense, under 72 chars
 - `CHANGELOG.md` uses Keep a Changelog format
