@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"os"
+	"time"
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
@@ -57,16 +57,9 @@ func showInteractiveTable(sessions []*session.Session, store session.Store) (*se
 	// Build rows (rows will be in same order as sessions array initially)
 	var rows [][]string
 	for _, sess := range sessions {
-		// Extract model
-		model := extractModel(sess, store)
-
-		// Format type
+		model, lastUsed := extractModelAndLastUsed(sess, store)
 		typeStr := formatSessionType(sess)
-
-		// Format last accessed
-		lastAccessed := util.FormatRelativeTime(sess.Metadata.LastAccessed)
-
-		rows = append(rows, []string{sess.Name, model, typeStr, lastAccessed})
+		rows = append(rows, []string{sess.Name, model, typeStr, util.FormatRelativeTime(lastUsed)})
 	}
 
 	// Create and run interactive table
@@ -97,42 +90,45 @@ func showInteractiveTable(sessions []*session.Session, store session.Store) (*se
 func showStaticTable(cmd *cobra.Command, sessions []*session.Session, store session.Store) error {
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Sessions (%d total):\n", len(sessions))
 
-	table := tablewriter.NewWriter(os.Stdout)
+	table := tablewriter.NewWriter(cmd.OutOrStdout())
 	table.Header("NAME", "MODEL", "TYPE", "LAST USED")
 
 	for _, sess := range sessions {
-		// Extract model
-		model := extractModel(sess, store)
-
-		// Format type
+		model, lastUsed := extractModelAndLastUsed(sess, store)
 		typeStr := formatSessionType(sess)
-
-		// Format last accessed
-		lastAccessed := util.FormatRelativeTime(sess.Metadata.LastAccessed)
-
-		_ = table.Append(sess.Name, model, typeStr, lastAccessed)
+		_ = table.Append(sess.Name, model, typeStr, util.FormatRelativeTime(lastUsed))
 	}
 
 	_ = table.Render()
 	return nil
 }
 
-// extractModel tries to extract the last used model from transcript, falls back to settings
-func extractModel(sess *session.Session, store session.Store) string {
+// extractModelAndLastUsed reads the transcript tail once, returning both the model
+// family and the best "last used" time. More efficient than separate ExtractLastModel
+// and LastTranscriptTime calls, which would each open and seek the file.
+func extractModelAndLastUsed(sess *session.Session, store session.Store) (string, time.Time) {
+	lastUsed := sess.Metadata.LastAccessed
 	model := "-"
+
 	if sess.Metadata.TranscriptPath != "" {
-		if lastModel := claude.ExtractLastModel(sess.Metadata.TranscriptPath); lastModel != "" {
-			model = lastModel
+		m, ts := claude.ExtractModelAndLastTime(sess.Metadata.TranscriptPath)
+		if m != "" {
+			model = m
+		}
+		if ts.After(lastUsed) {
+			lastUsed = ts
 		}
 	}
-	// Fall back to requested model from settings
+
+	// Fall back to requested model from settings (error is non-critical; no settings is common)
 	if model == "-" {
-		settings, _ := store.LoadSettings(sess.Name)
+		settings, _ := store.LoadSettings(sess.Name) //nolint:errcheck // missing settings file is expected
 		if settings != nil && settings.Model != "" {
 			model = settings.Model
 		}
 	}
-	return model
+
+	return model, lastUsed
 }
 
 // formatSessionType formats the session type string (regular, fork, incognito)

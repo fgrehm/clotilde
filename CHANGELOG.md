@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Git branch auto-naming**: Auto-naming commands (`start`, `incognito`, `fork`, and dashboard quick-actions) now use the current git branch name as the session name when not on `main` or `master` (e.g. branch `feature/gh-456` → session `feature-gh-456`). If the branch name is already taken, a numeric suffix is appended (`-2` through `-9`). Falls back to the existing `YYYY-MM-DD-adjective-noun` format on trunk branches, detached HEAD, or outside a git repo.
+- **Full transcript history in `stats` and `export`**: Both commands now include all previous transcripts (from `/clear` operations tracked in `previousSessionIds`). `stats` sums turns across the full history and shows the earliest start time and latest activity. `export` produces HTML covering the complete conversation from the first message.
+
+### Changed
+
+- **`clotilde ls` model column**: Reads only the last 128KB of each transcript file instead of the full file, significantly reducing load time for projects with many or large sessions.
+- **`clotilde ls` last-used column**: Now reads the timestamp of the last entry in the transcript instead of the file mtime, giving a more accurate and meaningful activity time. Also updated on every hook-driven session start, not just on explicit `clotilde resume`.
+
 ## [0.7.0] - 2026-03-11
 
 ### Added

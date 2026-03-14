@@ -1,12 +1,12 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
-	"path/filepath"
+	"os"
 
 	"github.com/spf13/cobra"
 
-	"github.com/fgrehm/clotilde/internal/claude"
 	"github.com/fgrehm/clotilde/internal/config"
 	"github.com/fgrehm/clotilde/internal/export"
 	"github.com/fgrehm/clotilde/internal/session"
@@ -34,21 +34,44 @@ func newExportCmd() *cobra.Command {
 				return fmt.Errorf("session '%s' not found", name)
 			}
 
-			// Resolve transcript path
-			transcriptPath := sess.Metadata.TranscriptPath
-			if transcriptPath == "" {
-				homeDir, err := util.HomeDir()
+			// Collect entries from all transcripts (previous + current)
+			homeDir, err := util.HomeDir()
+			if err != nil {
+				return fmt.Errorf("could not determine home directory: %w", err)
+			}
+
+			paths := allTranscriptPaths(sess, clotildeRoot, homeDir)
+			var allEntries []json.RawMessage
+			var readable int
+			for _, path := range paths {
+				f, err := os.Open(path)
 				if err != nil {
-					return fmt.Errorf("could not determine transcript path for session '%s': %w", name, err)
+					if os.IsNotExist(err) {
+						continue // previous transcript deleted or not yet written
+					}
+					return fmt.Errorf("opening transcript %s: %w", path, err)
 				}
-				projectDir := claude.ProjectDir(clotildeRoot)
-				claudeProjectDir := filepath.Join(homeDir, ".claude", "projects", projectDir)
-				transcriptPath = filepath.Join(claudeProjectDir, sess.Metadata.SessionID+".jsonl")
+				entries, err := export.FilterTranscript(f)
+				_ = f.Close()
+				if err != nil {
+					return fmt.Errorf("reading transcript %s: %w", path, err)
+				}
+				readable++
+				allEntries = append(allEntries, entries...)
+			}
+			if readable == 0 {
+				return fmt.Errorf("no transcript found for session '%s'", name)
+			}
+
+			html, err := export.BuildHTML(name, allEntries)
+			if err != nil {
+				return fmt.Errorf("building HTML: %w", err)
 			}
 
 			toStdout, _ := cmd.Flags().GetBool("stdout")
 			if toStdout {
-				return export.ExportToWriter(transcriptPath, name, cmd.OutOrStdout())
+				_, err = fmt.Fprint(cmd.OutOrStdout(), html)
+				return err
 			}
 
 			outputPath, _ := cmd.Flags().GetString("output")
@@ -56,8 +79,8 @@ func newExportCmd() *cobra.Command {
 				outputPath = name + ".html"
 			}
 
-			if err := export.Export(transcriptPath, name, outputPath); err != nil {
-				return err
+			if err := os.WriteFile(outputPath, []byte(html), 0o644); err != nil {
+				return fmt.Errorf("writing output file: %w", err)
 			}
 
 			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Wrote %s\n", outputPath)

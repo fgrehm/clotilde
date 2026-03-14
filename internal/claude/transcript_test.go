@@ -1,8 +1,10 @@
 package claude_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -78,6 +80,45 @@ func TestExtractLastModel(t *testing.T) {
 	}
 }
 
+func TestExtractLastModel_LargeFile(t *testing.T) {
+	// Verify that the tail-read optimization finds the last model in a file > 128KB.
+	// An early "opus" message is buried before the 128KB tail;
+	// a later "sonnet" message sits in the tail.
+	tmpDir := t.TempDir()
+	transcriptPath := filepath.Join(tmpDir, "large.jsonl")
+
+	f, err := os.Create(transcriptPath)
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	writeLine := func(line string) {
+		t.Helper()
+		if _, err := fmt.Fprintln(f, line); err != nil {
+			t.Fatalf("write: %v", err)
+		}
+	}
+
+	writeLine(`{"type":"assistant","message":{"model":"claude-opus-4-20250514","role":"assistant","content":"early"}}`)
+
+	// 2500 lines × ~63 bytes ≈ 157KB – pushes the opus entry before the 128KB tail window.
+	userLine := `{"type":"user","message":{"role":"user","content":"padding"}}`
+	for range 2500 {
+		writeLine(userLine)
+	}
+
+	writeLine(`{"type":"assistant","message":{"model":"claude-sonnet-4-5-20250929","role":"assistant","content":"last"}}`)
+
+	if err := f.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+
+	result := claude.ExtractLastModel(transcriptPath)
+	if result != "sonnet" {
+		t.Errorf("got %q, want %q", result, "sonnet")
+	}
+}
+
 func TestExtractLastModel_NonExistentFile(t *testing.T) {
 	result := claude.ExtractLastModel("/non/existent/path")
 	if result != "" {
@@ -89,6 +130,91 @@ func TestExtractLastModel_EmptyPath(t *testing.T) {
 	result := claude.ExtractLastModel("")
 	if result != "" {
 		t.Errorf("Expected empty string for empty path, got %q", result)
+	}
+}
+
+func TestExtractModelAndLastTime(t *testing.T) {
+	tests := []struct {
+		name          string
+		transcript    string
+		expectedModel string
+		expectTime    bool // whether we expect a non-zero timestamp
+	}{
+		{
+			name: "returns model and timestamp from assistant entry",
+			transcript: `{"type":"user","timestamp":"2025-01-01T10:00:00Z","message":{"content":"hello"}}
+{"type":"assistant","timestamp":"2025-01-01T10:00:05Z","message":{"model":"claude-sonnet-4-5-20250929","content":"hi"}}`,
+			expectedModel: "sonnet",
+			expectTime:    true,
+		},
+		{
+			name: "last timestamp wins even if not on assistant entry",
+			transcript: `{"type":"assistant","timestamp":"2025-01-01T10:00:05Z","message":{"model":"claude-sonnet-4-5-20250929","content":"hi"}}
+{"type":"user","timestamp":"2025-01-01T10:01:00Z","message":{"content":"follow-up"}}`,
+			expectedModel: "sonnet",
+			expectTime:    true,
+		},
+		{
+			name: "last assistant model wins",
+			transcript: `{"type":"assistant","timestamp":"2025-01-01T10:00:00Z","message":{"model":"claude-opus-4-20250514","content":"first"}}
+{"type":"user","timestamp":"2025-01-01T10:00:10Z","message":{"content":"ok"}}
+{"type":"assistant","timestamp":"2025-01-01T10:00:20Z","message":{"model":"claude-sonnet-4-5-20250929","content":"second"}}`,
+			expectedModel: "sonnet",
+			expectTime:    true,
+		},
+		{
+			name:          "empty transcript",
+			transcript:    "",
+			expectedModel: "",
+			expectTime:    false,
+		},
+		{
+			name:          "no assistant entries",
+			transcript:    `{"type":"user","timestamp":"2025-01-01T10:00:00Z","message":{"content":"hello"}}`,
+			expectedModel: "",
+			expectTime:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			path := filepath.Join(tmpDir, "transcript.jsonl")
+			if err := os.WriteFile(path, []byte(tt.transcript), 0o644); err != nil {
+				t.Fatalf("write: %v", err)
+			}
+
+			model, ts := claude.ExtractModelAndLastTime(path)
+			if model != tt.expectedModel {
+				t.Errorf("model: got %q, want %q", model, tt.expectedModel)
+			}
+			if tt.expectTime && ts.IsZero() {
+				t.Error("expected non-zero timestamp, got zero")
+			}
+			if !tt.expectTime && !ts.IsZero() {
+				t.Errorf("expected zero timestamp, got %v", ts)
+			}
+		})
+	}
+}
+
+func TestExtractModelAndLastTime_NonExistentFile(t *testing.T) {
+	model, ts := claude.ExtractModelAndLastTime("/non/existent/path")
+	if model != "" {
+		t.Errorf("expected empty model, got %q", model)
+	}
+	if !ts.IsZero() {
+		t.Errorf("expected zero time, got %v", ts)
+	}
+}
+
+func TestExtractModelAndLastTime_EmptyPath(t *testing.T) {
+	model, ts := claude.ExtractModelAndLastTime("")
+	if model != "" {
+		t.Errorf("expected empty model, got %q", model)
+	}
+	if !ts.IsZero() {
+		t.Errorf("expected zero time, got %v", ts)
 	}
 }
 
@@ -224,5 +350,43 @@ func TestParseTranscriptStats_EmptyPath(t *testing.T) {
 	}
 	if stats.Turns != 0 {
 		t.Errorf("Expected 0 turns, got %d", stats.Turns)
+	}
+}
+
+func TestParseTranscriptStats_OversizedLine(t *testing.T) {
+	// Verify that a >1MB line (e.g. large tool output) doesn't stop parsing.
+	// Entries both before AND after the oversized line must be counted.
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "transcript.jsonl")
+
+	// Turn 1 before the giant line.
+	before := `{"type":"progress","timestamp":"2025-01-01T10:00:00Z"}
+{"type":"user","timestamp":"2025-01-01T10:00:10Z","message":{"content":"hello"}}
+{"type":"assistant","timestamp":"2025-01-01T10:00:15Z","message":{"content":"hi"}}
+`
+	// A tool-result line (array content) that exceeds 1MB.
+	// Array content makes isHumanTurn return false so it is not counted as a turn.
+	hugeLine := fmt.Sprintf(
+		`{"type":"user","message":{"content":[{"type":"tool_result","content":"%s"}]}}`,
+		strings.Repeat("x", 1024*1024+1),
+	)
+
+	// Turn 2 after the giant line — must be counted to prove parsing continued.
+	after := `{"type":"user","timestamp":"2025-01-01T10:01:00Z","message":{"content":"second"}}
+{"type":"assistant","timestamp":"2025-01-01T10:01:10Z","message":{"content":"done"}}
+`
+	data := before + hugeLine + "\n" + after
+
+	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	stats, err := claude.ParseTranscriptStats(path)
+	if err != nil {
+		t.Fatalf("expected no error on oversized line, got: %v", err)
+	}
+	// Both turns (before and after the giant line) should be counted.
+	if stats.Turns != 2 {
+		t.Errorf("expected 2 turns (before and after giant line), got %d", stats.Turns)
 	}
 }
