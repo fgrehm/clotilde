@@ -302,17 +302,31 @@ func ParseTranscriptStats(transcriptPath string) (*TranscriptStats, error) {
 	stats := &TranscriptStats{}
 
 	// Use bufio.Reader instead of bufio.Scanner so that oversized lines (e.g. large
-	// tool outputs) are read and discarded rather than halting the scan entirely.
-	// ReadBytes('\n') allocates each line in full, which is acceptable here since
-	// ParseTranscriptStats is only called from inspect, not on the ls hot path.
+	// tool outputs) are consumed and skipped rather than halting the scan entirely.
+	// ReadSlice avoids allocating for lines that fit in the buffer; oversized lines
+	// (ErrBufferFull) are drained and skipped so we never hold a huge []byte.
 	reader := bufio.NewReaderSize(file, 64*1024)
 
 	var turnStart time.Time
 	var lastAssistantTime time.Time
 
 	for {
-		raw, readErr := reader.ReadBytes('\n')
-		line := bytes.TrimRight(raw, "\r\n")
+		line, readErr := reader.ReadSlice('\n')
+		if errors.Is(readErr, bufio.ErrBufferFull) {
+			// Line exceeds buffer size; discard the remainder and skip it.
+			for errors.Is(readErr, bufio.ErrBufferFull) {
+				_, readErr = reader.ReadSlice('\n')
+			}
+			// readErr is now nil (newline found) or io.EOF / other error.
+			if readErr != nil && readErr != io.EOF {
+				return nil, readErr
+			}
+			if readErr == io.EOF {
+				break
+			}
+			continue
+		}
+		line = bytes.TrimRight(line, "\r\n")
 
 		if len(line) > 0 {
 			var entry transcriptEntryForStats
