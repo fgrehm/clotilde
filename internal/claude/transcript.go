@@ -2,6 +2,7 @@ package claude
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
@@ -300,62 +301,65 @@ func ParseTranscriptStats(transcriptPath string) (*TranscriptStats, error) {
 
 	stats := &TranscriptStats{}
 
-	scanner := newTranscriptScanner(file)
+	// Use bufio.Reader instead of bufio.Scanner so that oversized lines (e.g. large
+	// tool outputs) are read and discarded rather than halting the scan entirely.
+	// ReadBytes('\n') allocates each line in full, which is acceptable here since
+	// ParseTranscriptStats is only called from inspect, not on the ls hot path.
+	reader := bufio.NewReaderSize(file, 64*1024)
 
 	var turnStart time.Time
 	var lastAssistantTime time.Time
 
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		if len(line) == 0 {
-			continue
-		}
+	for {
+		raw, readErr := reader.ReadBytes('\n')
+		line := bytes.TrimRight(raw, "\r\n")
 
-		var entry transcriptEntryForStats
-		if err := json.Unmarshal(line, &entry); err != nil {
-			// Skip malformed lines
-			continue
-		}
-
-		// Track the overall max timestamp as LastMessage
-		if !entry.Timestamp.IsZero() {
-			if stats.LastMessage.IsZero() || entry.Timestamp.After(stats.LastMessage) {
-				stats.LastMessage = entry.Timestamp
-			}
-		}
-
-		switch entry.Type {
-		case "progress":
-			// First progress event marks session start
-			if stats.FirstMessage.IsZero() && !entry.Timestamp.IsZero() {
-				stats.FirstMessage = entry.Timestamp
-			}
-
-		case "user":
-			// Check if this is a human turn (string content) vs tool result (array content)
-			if len(entry.Message.Content) > 0 && isHumanTurn(entry.Message.Content) {
-				// Finalize previous turn if any
-				if !turnStart.IsZero() && !lastAssistantTime.IsZero() {
-					stats.ActiveTime += lastAssistantTime.Sub(turnStart)
+		if len(line) > 0 {
+			var entry transcriptEntryForStats
+			if err := json.Unmarshal(line, &entry); err == nil {
+				// Track the overall max timestamp as LastMessage
+				if !entry.Timestamp.IsZero() {
+					if stats.LastMessage.IsZero() || entry.Timestamp.After(stats.LastMessage) {
+						stats.LastMessage = entry.Timestamp
+					}
 				}
 
-				// Start new turn
-				turnStart = entry.Timestamp
-				lastAssistantTime = time.Time{}
-				stats.Turns++
-			}
-			// If it's a tool result (array), skip it
+				switch entry.Type {
+				case "progress":
+					// First progress event marks session start
+					if stats.FirstMessage.IsZero() && !entry.Timestamp.IsZero() {
+						stats.FirstMessage = entry.Timestamp
+					}
 
-		case "assistant":
-			// Update last assistant time for this turn
-			if !entry.Timestamp.IsZero() {
-				lastAssistantTime = entry.Timestamp
+				case "user":
+					// Check if this is a human turn (string content) vs tool result (array content)
+					if len(entry.Message.Content) > 0 && isHumanTurn(entry.Message.Content) {
+						// Finalize previous turn if any
+						if !turnStart.IsZero() && !lastAssistantTime.IsZero() {
+							stats.ActiveTime += lastAssistantTime.Sub(turnStart)
+						}
+
+						// Start new turn
+						turnStart = entry.Timestamp
+						lastAssistantTime = time.Time{}
+						stats.Turns++
+					}
+
+				case "assistant":
+					// Update last assistant time for this turn
+					if !entry.Timestamp.IsZero() {
+						lastAssistantTime = entry.Timestamp
+					}
+				}
 			}
 		}
-	}
 
-	if err := scanner.Err(); err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, bufio.ErrTooLong) {
-		return nil, err
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			return nil, readErr
+		}
 	}
 
 	// Finalize last open turn

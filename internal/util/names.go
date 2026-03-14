@@ -75,9 +75,10 @@ func GenerateRandomName() string {
 	return fmt.Sprintf("%s-%s-%s", date, adjective, noun)
 }
 
-// GenerateUniqueRandomName generates a unique session name.
-// If the current directory is a git repo on a non-main branch, the branch name is used.
-// Otherwise a random adjective-noun name with a date prefix is generated.
+// GenerateUniqueRandomName generates a unique session name for all auto-naming scenarios
+// (start, incognito, fork, and dashboard quick-actions). If the current directory is a
+// git repo on a non-main/master branch, the sanitized branch name is used as the session
+// name. Otherwise a random adjective-noun name with a date prefix is generated.
 func GenerateUniqueRandomName(existingNames []string) string {
 	nameMap := make(map[string]struct{})
 	for _, name := range existingNames {

@@ -354,20 +354,28 @@ func TestParseTranscriptStats_EmptyPath(t *testing.T) {
 }
 
 func TestParseTranscriptStats_OversizedLine(t *testing.T) {
-	// Verify that a line exceeding the 1MB scanner limit doesn't cause an error —
-	// ParseTranscriptStats should return partial results from lines processed before
-	// the oversized one rather than failing entirely.
+	// Verify that a >1MB line (e.g. large tool output) doesn't stop parsing.
+	// Entries both before AND after the oversized line must be counted.
 	tmpDir := t.TempDir()
 	path := filepath.Join(tmpDir, "transcript.jsonl")
 
-	// Write a valid turn before the giant line so we can verify partial results.
-	prefix := `{"type":"progress","timestamp":"2025-01-01T10:00:00Z"}
+	// Turn 1 before the giant line.
+	before := `{"type":"progress","timestamp":"2025-01-01T10:00:00Z"}
 {"type":"user","timestamp":"2025-01-01T10:00:10Z","message":{"content":"hello"}}
 {"type":"assistant","timestamp":"2025-01-01T10:00:15Z","message":{"content":"hi"}}
 `
-	// A single JSON line with >1MB content field — triggers bufio.ErrTooLong.
-	hugeLine := fmt.Sprintf(`{"type":"user","message":{"content":"%s"}}`, strings.Repeat("x", 1024*1024+1))
-	data := prefix + hugeLine + "\n"
+	// A tool-result line (array content) that exceeds 1MB.
+	// Array content makes isHumanTurn return false so it is not counted as a turn.
+	hugeLine := fmt.Sprintf(
+		`{"type":"user","message":{"content":[{"type":"tool_result","content":"%s"}]}}`,
+		strings.Repeat("x", 1024*1024+1),
+	)
+
+	// Turn 2 after the giant line — must be counted to prove parsing continued.
+	after := `{"type":"user","timestamp":"2025-01-01T10:01:00Z","message":{"content":"second"}}
+{"type":"assistant","timestamp":"2025-01-01T10:01:10Z","message":{"content":"done"}}
+`
+	data := before + hugeLine + "\n" + after
 
 	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
 		t.Fatalf("write: %v", err)
@@ -377,8 +385,8 @@ func TestParseTranscriptStats_OversizedLine(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error on oversized line, got: %v", err)
 	}
-	// We should have captured the one turn that precedes the giant line.
-	if stats.Turns != 1 {
-		t.Errorf("expected 1 turn, got %d", stats.Turns)
+	// Both turns (before and after the giant line) should be counted.
+	if stats.Turns != 2 {
+		t.Errorf("expected 2 turns (before and after giant line), got %d", stats.Turns)
 	}
 }

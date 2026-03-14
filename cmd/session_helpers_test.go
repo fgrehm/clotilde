@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/fgrehm/clotilde/internal/session"
@@ -48,11 +49,14 @@ func TestAllTranscriptPaths(t *testing.T) {
 			if len(paths) != tt.wantCount {
 				t.Errorf("got %d paths %v, want %d", len(paths), paths, tt.wantCount)
 			}
-			// Verify no path is empty — a path ending in ".jsonl" would be a sign
-			// that an empty UUID slipped through.
+			// Verify no path is empty or has a bare ".jsonl" basename — either
+			// would indicate an empty UUID slipped through TranscriptPath().
 			for _, p := range paths {
 				if p == "" {
 					t.Errorf("paths contains an empty entry: %v", paths)
+				}
+				if filepath.Base(p) == ".jsonl" {
+					t.Errorf("paths contains a bare .jsonl entry (empty UUID): %v", paths)
 				}
 			}
 			// Explicit path should be preserved verbatim.
