@@ -21,12 +21,84 @@ type transcriptEntry struct {
 
 var modelFamilyRegex = regexp.MustCompile(`claude-(?:\d+-)*(\w+)-\d+`)
 
-// newTranscriptScanner returns a bufio.Scanner configured for transcript JSONL reading.
-// It starts with a 64KB buffer and allows lines up to 1MB before returning ErrTooLong.
-func newTranscriptScanner(r io.Reader) *bufio.Scanner {
-	scanner := bufio.NewScanner(r)
-	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
-	return scanner
+// forEachTailLine opens a transcript file, seeks to the last tailSize bytes,
+// and calls fn for each complete JSONL line in the tail. Uses bufio.Reader with
+// ReadSlice so that oversized lines are drained and skipped rather than halting
+// the scan (unlike bufio.Scanner which stops permanently on ErrTooLong).
+// Returns a non-nil error only for unexpected I/O failures.
+func forEachTailLine(transcriptPath string, tailSize int, fn func(line []byte)) error {
+	if transcriptPath == "" {
+		return nil
+	}
+
+	file, err := os.Open(transcriptPath)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = file.Close() }()
+
+	info, err := file.Stat()
+	if err != nil {
+		return err
+	}
+
+	skipFirstLine := false
+	if info.Size() > int64(tailSize) {
+		if _, err := file.Seek(info.Size()-int64(tailSize), io.SeekStart); err != nil {
+			return err
+		}
+		check := make([]byte, 1)
+		if _, err := file.ReadAt(check, info.Size()-int64(tailSize)-1); err == nil {
+			skipFirstLine = check[0] != '\n'
+		} else {
+			skipFirstLine = true
+		}
+	}
+
+	reader := bufio.NewReaderSize(file, tailSize)
+
+	if skipFirstLine {
+		// Drain partial first line (may span multiple ReadSlice calls).
+		var drainErr error
+		for {
+			_, drainErr = reader.ReadSlice('\n')
+			if !errors.Is(drainErr, bufio.ErrBufferFull) {
+				break
+			}
+		}
+		if drainErr == io.EOF {
+			return nil
+		}
+		if drainErr != nil {
+			return drainErr
+		}
+	}
+
+	for {
+		line, readErr := reader.ReadSlice('\n')
+		if errors.Is(readErr, bufio.ErrBufferFull) {
+			for errors.Is(readErr, bufio.ErrBufferFull) {
+				_, readErr = reader.ReadSlice('\n')
+			}
+			if readErr == io.EOF {
+				return nil
+			}
+			if readErr != nil {
+				return readErr
+			}
+			continue
+		}
+		line = bytes.TrimRight(line, "\r\n")
+		if len(line) > 0 {
+			fn(line)
+		}
+		if readErr == io.EOF {
+			return nil
+		}
+		if readErr != nil {
+			return readErr
+		}
+	}
 }
 
 // ExtractLastModel reads the transcript and returns the last model used.
@@ -37,65 +109,18 @@ func newTranscriptScanner(r io.Reader) *bufio.Scanner {
 // always be within the tail. A single assistant response larger than 128KB would
 // be missed, but that is an accepted tradeoff for the performance benefit.
 func ExtractLastModel(transcriptPath string) string {
-	if transcriptPath == "" {
-		return ""
-	}
-
-	file, err := os.Open(transcriptPath)
-	if err != nil {
-		return ""
-	}
-	defer func() { _ = file.Close() }()
-
-	info, err := file.Stat()
-	if err != nil {
-		return ""
-	}
-
-	const tailSize = 128 * 1024 // 128KB
-	skipFirstLine := false
-	if info.Size() > tailSize {
-		if _, err := file.Seek(info.Size()-tailSize, io.SeekStart); err != nil {
-			return ""
-		}
-		// If the byte just before the seek point is not '\n', the first scanned
-		// line will be partial and must be discarded. Check before creating the
-		// scanner so all file I/O is sequenced clearly.
-		check := make([]byte, 1)
-		if _, err := file.ReadAt(check, info.Size()-tailSize-1); err == nil {
-			skipFirstLine = check[0] != '\n'
-		} else {
-			skipFirstLine = true // can't verify boundary; assume partial
-		}
-	}
-
-	scanner := newTranscriptScanner(file)
-
-	if skipFirstLine {
-		scanner.Scan() // discard partial first line
-	}
-
 	var lastModel string
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		if len(line) == 0 {
-			continue
-		}
-
+	err := forEachTailLine(transcriptPath, 128*1024, func(line []byte) {
 		var entry transcriptEntry
-		if err := json.Unmarshal(line, &entry); err != nil {
-			continue
+		if err := json.Unmarshal(line, &entry); err == nil {
+			if entry.Type == "assistant" && entry.Message.Model != "" {
+				lastModel = entry.Message.Model
+			}
 		}
-
-		if entry.Type == "assistant" && entry.Message.Model != "" {
-			lastModel = entry.Message.Model
-		}
-	}
-
-	if err := scanner.Err(); err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, bufio.ErrTooLong) {
+	})
+	if err != nil {
 		return ""
 	}
-
 	return formatModelFamily(lastModel)
 }
 
@@ -119,64 +144,21 @@ func formatModelFamily(fullModel string) string {
 // Only the tail of the file is read for efficiency (same technique as ExtractLastModel).
 // Returns zero time if the file can't be opened or contains no timestamped entries.
 func LastTranscriptTime(transcriptPath string) time.Time {
-	if transcriptPath == "" {
-		return time.Time{}
-	}
-
-	file, err := os.Open(transcriptPath)
-	if err != nil {
-		return time.Time{}
-	}
-	defer func() { _ = file.Close() }()
-
-	info, err := file.Stat()
-	if err != nil {
-		return time.Time{}
-	}
-
-	const tailSize = 128 * 1024 // 128KB — matches ExtractLastModel; lines larger than this are an accepted tradeoff
-	skipFirstLine := false
-	if info.Size() > tailSize {
-		if _, err := file.Seek(info.Size()-tailSize, io.SeekStart); err != nil {
-			return time.Time{}
-		}
-		check := make([]byte, 1)
-		if _, err := file.ReadAt(check, info.Size()-tailSize-1); err == nil {
-			skipFirstLine = check[0] != '\n'
-		} else {
-			skipFirstLine = true
-		}
-	}
-
-	scanner := newTranscriptScanner(file)
-
-	if skipFirstLine {
-		scanner.Scan() // discard partial first line
-	}
-
-	type entry struct {
+	type tsEntry struct {
 		Timestamp time.Time `json:"timestamp"`
 	}
-
 	var last time.Time
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		if len(line) == 0 {
-			continue
+	err := forEachTailLine(transcriptPath, 128*1024, func(line []byte) {
+		var e tsEntry
+		if err := json.Unmarshal(line, &e); err == nil {
+			if !e.Timestamp.IsZero() {
+				last = e.Timestamp
+			}
 		}
-		var e entry
-		if err := json.Unmarshal(line, &e); err != nil {
-			continue
-		}
-		if !e.Timestamp.IsZero() {
-			last = e.Timestamp
-		}
-	}
-
-	if err := scanner.Err(); err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, bufio.ErrTooLong) {
+	})
+	if err != nil {
 		return time.Time{}
 	}
-
 	return last
 }
 
@@ -185,41 +167,6 @@ func LastTranscriptTime(transcriptPath string) time.Time {
 // than calling ExtractLastModel and LastTranscriptTime separately.
 // Returns empty string and zero time if the transcript is missing or unreadable.
 func ExtractModelAndLastTime(transcriptPath string) (string, time.Time) {
-	if transcriptPath == "" {
-		return "", time.Time{}
-	}
-
-	file, err := os.Open(transcriptPath)
-	if err != nil {
-		return "", time.Time{}
-	}
-	defer func() { _ = file.Close() }()
-
-	info, err := file.Stat()
-	if err != nil {
-		return "", time.Time{}
-	}
-
-	const tailSize = 128 * 1024 // 128KB
-	skipFirstLine := false
-	if info.Size() > tailSize {
-		if _, err := file.Seek(info.Size()-tailSize, io.SeekStart); err != nil {
-			return "", time.Time{}
-		}
-		check := make([]byte, 1)
-		if _, err := file.ReadAt(check, info.Size()-tailSize-1); err == nil {
-			skipFirstLine = check[0] != '\n'
-		} else {
-			skipFirstLine = true
-		}
-	}
-
-	scanner := newTranscriptScanner(file)
-
-	if skipFirstLine {
-		scanner.Scan() // discard partial first line
-	}
-
 	type entry struct {
 		Type      string    `json:"type"`
 		Timestamp time.Time `json:"timestamp"`
@@ -227,30 +174,22 @@ func ExtractModelAndLastTime(transcriptPath string) (string, time.Time) {
 			Model string `json:"model"`
 		} `json:"message"`
 	}
-
 	var lastModel string
 	var lastTime time.Time
-	for scanner.Scan() {
-		line := scanner.Bytes()
-		if len(line) == 0 {
-			continue
-		}
+	err := forEachTailLine(transcriptPath, 128*1024, func(line []byte) {
 		var e entry
-		if err := json.Unmarshal(line, &e); err != nil {
-			continue
+		if err := json.Unmarshal(line, &e); err == nil {
+			if !e.Timestamp.IsZero() {
+				lastTime = e.Timestamp
+			}
+			if e.Type == "assistant" && e.Message.Model != "" {
+				lastModel = e.Message.Model
+			}
 		}
-		if !e.Timestamp.IsZero() {
-			lastTime = e.Timestamp
-		}
-		if e.Type == "assistant" && e.Message.Model != "" {
-			lastModel = e.Message.Model
-		}
-	}
-
-	if err := scanner.Err(); err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, bufio.ErrTooLong) {
+	})
+	if err != nil {
 		return "", time.Time{}
 	}
-
 	return formatModelFamily(lastModel), lastTime
 }
 
