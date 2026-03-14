@@ -302,10 +302,11 @@ func ParseTranscriptStats(transcriptPath string) (*TranscriptStats, error) {
 	stats := &TranscriptStats{}
 
 	// Use bufio.Reader instead of bufio.Scanner so that oversized lines (e.g. large
-	// tool outputs) are consumed and skipped rather than halting the scan entirely.
+	// tool outputs >1MB) are consumed and skipped rather than halting the scan entirely.
 	// ReadSlice avoids allocating for lines that fit in the buffer; oversized lines
 	// (ErrBufferFull) are drained and skipped so we never hold a huge []byte.
-	reader := bufio.NewReaderSize(file, 64*1024)
+	// 1MB matches the old scanner max token size so entries up to 1MB are still parsed.
+	reader := bufio.NewReaderSize(file, 1024*1024)
 
 	var turnStart time.Time
 	var lastAssistantTime time.Time
