@@ -209,7 +209,11 @@ func TestSanitizeBranchName(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
+		name := tt.input
+		if name == "" {
+			name = "(empty)"
+		}
+		t.Run(name, func(t *testing.T) {
 			result := SanitizeBranchName(tt.input)
 			if result != tt.expected {
 				t.Errorf("SanitizeBranchName(%q) = %q, want %q", tt.input, result, tt.expected)

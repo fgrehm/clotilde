@@ -13,6 +13,9 @@ func allTranscriptPaths(sess *session.Session, clotildeRoot, homeDir string) []s
 	var paths []string
 
 	for _, prevID := range sess.Metadata.PreviousSessionIDs {
+		if prevID == "" {
+			continue
+		}
 		paths = append(paths, claude.TranscriptPath(homeDir, clotildeRoot, prevID))
 	}
 
