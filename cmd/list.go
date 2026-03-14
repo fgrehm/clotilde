@@ -121,9 +121,9 @@ func extractModelAndLastUsed(sess *session.Session, store session.Store) (string
 		}
 	}
 
-	// Fall back to requested model from settings
+	// Fall back to requested model from settings (error is non-critical; no settings is common)
 	if model == "-" {
-		settings, _ := store.LoadSettings(sess.Name)
+		settings, _ := store.LoadSettings(sess.Name) //nolint:errcheck // missing settings file is expected
 		if settings != nil && settings.Model != "" {
 			model = settings.Model
 		}
