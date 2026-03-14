@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -47,7 +49,11 @@ var statsCmd = &cobra.Command{
 		for _, path := range paths {
 			s, err := claude.ParseTranscriptStats(path)
 			if err != nil {
-				continue // transcript missing or unreadable — skip
+				var pathErr *os.PathError
+				if errors.As(err, &pathErr) && os.IsNotExist(pathErr) {
+					continue // previous transcript deleted or not yet written
+				}
+				return fmt.Errorf("reading transcript %s: %w", path, err)
 			}
 			stats = mergeTranscriptStats(stats, s)
 		}
