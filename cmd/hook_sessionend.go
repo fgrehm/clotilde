@@ -86,8 +86,10 @@ func buildStatsRecord(hookData hookInput, now time.Time) (claude.SessionStatsRec
 
 		if sessionName != "" {
 			if sess, err := store.Get(sessionName); err == nil {
-				homeDir, _ := util.HomeDir()
-				transcriptPaths = allTranscriptPaths(sess, clotildeRoot, homeDir)
+				homeDir, homeDirErr := util.HomeDir()
+				if homeDirErr == nil {
+					transcriptPaths = allTranscriptPaths(sess, clotildeRoot, homeDir)
+				}
 			}
 		}
 	}
@@ -153,6 +155,9 @@ func buildStatsRecord(hookData hookInput, now time.Time) (claude.SessionStatsRec
 		record.PrevTotalTimeS = prev.TotalTimeS
 		record.PrevInputTokens = prev.InputTokens
 		record.PrevOutputTokens = prev.OutputTokens
+		record.PrevCacheCreationTokens = prev.CacheCreationTokens
+		record.PrevCacheReadTokens = prev.CacheReadTokens
+		record.PrevToolUses = prev.ToolUses
 	}
 
 	return record, nil

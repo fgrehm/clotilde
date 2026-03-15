@@ -230,8 +230,7 @@ type aggregateStats struct {
 }
 
 // aggregateRecords sums deduplicated stats records into a single aggregate.
-// Each record's cumulative totals are summed directly (they represent one session each
-// after dedup). Uses delta fields (turns - prev_turns) to compute per-period activity.
+// Uses delta fields (current - prev_*) for all counters to compute per-period activity.
 func aggregateRecords(records []claude.SessionStatsRecord) aggregateStats {
 	agg := aggregateStats{
 		ToolUses: make(map[string]int),
@@ -246,9 +245,8 @@ func aggregateRecords(records []claude.SessionStatsRecord) aggregateStats {
 		agg.InputTokens += rec.InputTokens - rec.PrevInputTokens
 		agg.OutputTokens += rec.OutputTokens - rec.PrevOutputTokens
 
-		// Cumulative fields without prev_ tracking
-		agg.CacheCreationTokens += rec.CacheCreationTokens
-		agg.CacheReadTokens += rec.CacheReadTokens
+		agg.CacheCreationTokens += rec.CacheCreationTokens - rec.PrevCacheCreationTokens
+		agg.CacheReadTokens += rec.CacheReadTokens - rec.PrevCacheReadTokens
 
 		for _, m := range rec.Models {
 			if !modelSeen[m] {
@@ -257,7 +255,8 @@ func aggregateRecords(records []claude.SessionStatsRecord) aggregateStats {
 			}
 		}
 		for tool, count := range rec.ToolUses {
-			agg.ToolUses[tool] += count
+			prevCount := rec.PrevToolUses[tool]
+			agg.ToolUses[tool] += count - prevCount
 		}
 
 		if !rec.EndedAt.IsZero() {

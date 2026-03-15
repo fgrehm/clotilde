@@ -25,11 +25,14 @@ type SessionStatsRecord struct {
 	Models              []string       `json:"models"`
 	ToolUses            map[string]int `json:"tool_uses"`
 
-	PrevTurns        int `json:"prev_turns"`
-	PrevActiveTimeS  int `json:"prev_active_time_s"`
-	PrevTotalTimeS   int `json:"prev_total_time_s"`
-	PrevInputTokens  int `json:"prev_input_tokens"`
-	PrevOutputTokens int `json:"prev_output_tokens"`
+	PrevTurns               int            `json:"prev_turns"`
+	PrevActiveTimeS         int            `json:"prev_active_time_s"`
+	PrevTotalTimeS          int            `json:"prev_total_time_s"`
+	PrevInputTokens         int            `json:"prev_input_tokens"`
+	PrevOutputTokens        int            `json:"prev_output_tokens"`
+	PrevCacheCreationTokens int            `json:"prev_cache_creation_tokens"`
+	PrevCacheReadTokens     int            `json:"prev_cache_read_tokens"`
+	PrevToolUses            map[string]int `json:"prev_tool_uses"`
 
 	EndedAt time.Time `json:"ended_at"`
 }
@@ -90,7 +93,7 @@ func AppendStatsRecord(record SessionStatsRecord) error {
 
 // ReadStatsFile reads all records from a daily stats file.
 // Skips lines that fail JSON unmarshal (handles truncated writes).
-// Returns an empty slice (not error) if the file doesn't exist.
+// Returns nil, nil if the file doesn't exist.
 func ReadStatsFile(path string) ([]SessionStatsRecord, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -103,6 +106,7 @@ func ReadStatsFile(path string) ([]SessionStatsRecord, error) {
 
 	var records []SessionStatsRecord
 	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024) // 1MB max line length
 	for scanner.Scan() {
 		var rec SessionStatsRecord
 		if json.Unmarshal(scanner.Bytes(), &rec) == nil {

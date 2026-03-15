@@ -174,7 +174,11 @@ func attemptCrashRecovery(clotildeRoot, sessionName string, store session.Store)
 	}
 
 	// No prior record found: write a recovery record
-	homeDir, _ := util.HomeDir()
+	homeDir, err := util.HomeDir()
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "clotilde: crash recovery skipped: %v\n", err)
+		return
+	}
 	paths := allTranscriptPaths(sess, clotildeRoot, homeDir)
 	if len(paths) == 0 {
 		return

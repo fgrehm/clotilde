@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 
 	"github.com/fgrehm/clotilde/internal/claude"
@@ -114,7 +115,11 @@ func resolveStatsPreference(cmd *cobra.Command) bool {
 		return true
 	}
 
-	// Interactive prompt
+	// Only prompt interactively when stdin is a TTY
+	if !isatty.IsTerminal(os.Stdin.Fd()) {
+		return false
+	}
+
 	_, _ = fmt.Fprint(cmd.OutOrStdout(), "Track session statistics (turns, tokens, tool usage)? [y/N] ")
 	reader := bufio.NewReader(cmd.InOrStdin())
 	line, _ := reader.ReadString('\n')
