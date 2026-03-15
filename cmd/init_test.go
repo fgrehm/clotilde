@@ -197,6 +197,110 @@ var _ = Describe("Init Command", func() {
 		Expect(sessionStart).To(HaveLen(1)) // Now using unified hook
 	})
 
+	It("should preserve third-party hooks when merging", func() {
+		// Create .claude directory with settings that have third-party hooks
+		// alongside clotilde hooks (simulates manual merge or other tools)
+		claudeDir := filepath.Join(tempDir, ".claude")
+		err := os.Mkdir(claudeDir, 0o755)
+		Expect(err).NotTo(HaveOccurred())
+
+		existingSettings := map[string]interface{}{
+			"hooks": map[string]interface{}{
+				"SessionStart": []interface{}{
+					map[string]interface{}{
+						"hooks": []interface{}{
+							map[string]interface{}{
+								"type":    "command",
+								"command": "/old/path/clotilde hook sessionstart",
+							},
+							map[string]interface{}{
+								"type":    "command",
+								"command": "/some/other/tool.sh",
+								"timeout": 5,
+							},
+						},
+					},
+				},
+				"SessionEnd": []interface{}{
+					map[string]interface{}{
+						"hooks": []interface{}{
+							map[string]interface{}{
+								"type":    "command",
+								"command": "/some/other/tool.sh",
+							},
+						},
+					},
+				},
+				"Stop": []interface{}{
+					map[string]interface{}{
+						"hooks": []interface{}{
+							map[string]interface{}{
+								"type":    "command",
+								"command": "/some/other/tool.sh",
+							},
+						},
+					},
+				},
+			},
+		}
+		settingsPath := filepath.Join(claudeDir, "settings.local.json")
+		content, err := json.Marshal(existingSettings)
+		Expect(err).NotTo(HaveOccurred())
+		err = os.WriteFile(settingsPath, content, 0o644)
+		Expect(err).NotTo(HaveOccurred())
+
+		// Also need clotilde structure for init
+		err = config.EnsureClotildeStructure(tempDir)
+		Expect(err).NotTo(HaveOccurred())
+
+		// Run init (which calls mergeHooksIntoSettings)
+		rootCmd := cmd.NewRootCmd()
+		rootCmd.SetOut(io.Discard)
+		rootCmd.SetErr(io.Discard)
+		rootCmd.SetArgs([]string{"init"})
+		err = rootCmd.Execute()
+		Expect(err).NotTo(HaveOccurred())
+
+		// Read resulting settings
+		content, err = os.ReadFile(settingsPath)
+		Expect(err).NotTo(HaveOccurred())
+
+		var settings map[string]interface{}
+		err = json.Unmarshal(content, &settings)
+		Expect(err).NotTo(HaveOccurred())
+
+		hooks := settings["hooks"].(map[string]interface{})
+
+		// SessionStart should have 2 matchers: third-party (preserved) + clotilde (new)
+		sessionStart := hooks["SessionStart"].([]interface{})
+		Expect(sessionStart).To(HaveLen(2))
+
+		// First matcher: the third-party hook only (old clotilde hook stripped)
+		firstMatcher := sessionStart[0].(map[string]interface{})
+		firstHooks := firstMatcher["hooks"].([]interface{})
+		Expect(firstHooks).To(HaveLen(1))
+		firstCmd := firstHooks[0].(map[string]interface{})["command"]
+		Expect(firstCmd).To(Equal("/some/other/tool.sh"))
+
+		// Second matcher: new clotilde hook
+		secondMatcher := sessionStart[1].(map[string]interface{})
+		secondHooks := secondMatcher["hooks"].([]interface{})
+		Expect(secondHooks).To(HaveLen(1))
+		secondCmd := secondHooks[0].(map[string]interface{})["command"].(string)
+		Expect(secondCmd).To(ContainSubstring("hook sessionstart"))
+
+		// SessionEnd: third-party preserved, no clotilde added (init doesn't enable stats)
+		sessionEnd := hooks["SessionEnd"].([]interface{})
+		Expect(sessionEnd).To(HaveLen(1))
+		endHooks := sessionEnd[0].(map[string]interface{})["hooks"].([]interface{})
+		endCmd := endHooks[0].(map[string]interface{})["command"]
+		Expect(endCmd).To(Equal("/some/other/tool.sh"))
+
+		// Stop: untouched (clotilde doesn't generate Stop hooks)
+		stop := hooks["Stop"].([]interface{})
+		Expect(stop).To(HaveLen(1))
+	})
+
 	It("should allow re-initialization to update hooks only", func() {
 		// Initialize first time
 		rootCmd1 := cmd.NewRootCmd()

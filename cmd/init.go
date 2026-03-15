@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -103,7 +104,7 @@ func mergeHooksIntoSettings(settingsPath, clotildeBinary string, opts claude.Hoo
 	// Generate hook config
 	hookConfig := claude.GenerateHookConfig(clotildeBinary, opts)
 
-	// Merge hooks into settings
+	// Merge hooks into settings, preserving non-clotilde hooks
 	var hooks map[string]interface{}
 	if existingHooks, ok := settings["hooks"].(map[string]interface{}); ok {
 		hooks = existingHooks
@@ -111,24 +112,22 @@ func mergeHooksIntoSettings(settingsPath, clotildeBinary string, opts claude.Hoo
 		hooks = make(map[string]interface{})
 	}
 
-	if len(hookConfig.SessionStart) > 0 {
-		hooks["SessionStart"] = hookConfig.SessionStart
+	mergeHookType := func(key string, matchers []claude.HookMatcher) {
+		existing := hooks[key]
+		merged := stripAndAppendHooks(existing, matchers, clotildeBinary)
+		if len(merged) > 0 {
+			hooks[key] = merged
+		} else {
+			delete(hooks, key)
+		}
 	}
-	if len(hookConfig.Stop) > 0 {
-		hooks["Stop"] = hookConfig.Stop
-	}
-	if len(hookConfig.Notification) > 0 {
-		hooks["Notification"] = hookConfig.Notification
-	}
-	if len(hookConfig.PreToolUse) > 0 {
-		hooks["PreToolUse"] = hookConfig.PreToolUse
-	}
-	if len(hookConfig.PostToolUse) > 0 {
-		hooks["PostToolUse"] = hookConfig.PostToolUse
-	}
-	if len(hookConfig.SessionEnd) > 0 {
-		hooks["SessionEnd"] = hookConfig.SessionEnd
-	}
+
+	mergeHookType("SessionStart", hookConfig.SessionStart)
+	mergeHookType("Stop", hookConfig.Stop)
+	mergeHookType("Notification", hookConfig.Notification)
+	mergeHookType("PreToolUse", hookConfig.PreToolUse)
+	mergeHookType("PostToolUse", hookConfig.PostToolUse)
+	mergeHookType("SessionEnd", hookConfig.SessionEnd)
 	settings["hooks"] = hooks
 
 	if err := util.WriteJSON(settingsPath, settings); err != nil {
@@ -136,6 +135,77 @@ func mergeHooksIntoSettings(settingsPath, clotildeBinary string, opts claude.Hoo
 	}
 
 	return hooks, nil
+}
+
+// stripAndAppendHooks removes clotilde hooks from existing matchers, then
+// appends the new clotilde matchers. Preserves non-clotilde hooks. A hook is
+// considered "clotilde" if its command starts with the clotilde binary path.
+// Returns nil if both existing and new are empty.
+func stripAndAppendHooks(existing interface{}, newMatchers []claude.HookMatcher, clotildeBinary string) []interface{} {
+	prefix := clotildeBinary + " "
+	var result []interface{}
+
+	// Process existing matchers: remove clotilde hooks, keep others
+	if arr, ok := existing.([]interface{}); ok {
+		for _, item := range arr {
+			matcher, ok := item.(map[string]interface{})
+			if !ok {
+				result = append(result, item)
+				continue
+			}
+
+			hooksRaw, ok := matcher["hooks"].([]interface{})
+			if !ok {
+				result = append(result, item)
+				continue
+			}
+
+			// Filter out clotilde hooks
+			var kept []interface{}
+			for _, h := range hooksRaw {
+				hook, ok := h.(map[string]interface{})
+				if !ok {
+					kept = append(kept, h)
+					continue
+				}
+				cmd, _ := hook["command"].(string)
+				if isClotildeHookCmd(cmd, prefix, clotildeBinary) {
+					continue // strip clotilde hook
+				}
+				kept = append(kept, h)
+			}
+
+			if len(kept) > 0 {
+				stripped := make(map[string]interface{})
+				for k, v := range matcher {
+					stripped[k] = v
+				}
+				stripped["hooks"] = kept
+				result = append(result, stripped)
+			}
+		}
+	}
+
+	// Append new clotilde matchers
+	for _, m := range newMatchers {
+		result = append(result, m)
+	}
+
+	return result
+}
+
+// isClotildeHookCmd returns true if a hook command belongs to clotilde,
+// either matching the current binary path or any binary named "clotilde".
+func isClotildeHookCmd(cmd, currentPrefix, currentBinary string) bool {
+	if strings.HasPrefix(cmd, currentPrefix) || cmd == currentBinary {
+		return true
+	}
+	// Detect old clotilde hooks installed from a different path
+	parts := strings.Fields(cmd)
+	if len(parts) > 0 {
+		return filepath.Base(parts[0]) == "clotilde"
+	}
+	return false
 }
 
 func setupHooks(projectRoot, clotildeBinary, settingsFile string) error {
