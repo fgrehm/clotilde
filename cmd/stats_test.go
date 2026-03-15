@@ -264,8 +264,8 @@ var _ = Describe("Stats Command", func() {
 		})
 
 		It("should aggregate from JSONL stats files", func() {
+			// Use minute offsets to avoid crossing day boundaries near midnight
 			now := time.Now()
-			// Write two records to today's stats file
 			err := claude.AppendStatsRecord(claude.SessionStatsRecord{
 				SessionName:  "session-1",
 				SessionID:    "uuid-all-1",
@@ -276,7 +276,7 @@ var _ = Describe("Stats Command", func() {
 				OutputTokens: 500,
 				Models:       []string{"claude-sonnet-4-5-20250929"},
 				ToolUses:     map[string]int{"Read": 3, "Bash": 2},
-				EndedAt:      now.Add(-1 * time.Hour),
+				EndedAt:      now.Add(-10 * time.Minute),
 			})
 			Expect(err).NotTo(HaveOccurred())
 
@@ -290,7 +290,7 @@ var _ = Describe("Stats Command", func() {
 				OutputTokens: 1000,
 				Models:       []string{"claude-opus-4-6-20260301"},
 				ToolUses:     map[string]int{"Edit": 5},
-				EndedAt:      now.Add(-2 * time.Hour),
+				EndedAt:      now.Add(-20 * time.Minute),
 			})
 			Expect(err).NotTo(HaveOccurred())
 
@@ -311,13 +311,13 @@ var _ = Describe("Stats Command", func() {
 		})
 
 		It("should deduplicate by session_id keeping latest", func() {
+			// Use minute offsets to avoid crossing day boundaries near midnight
 			now := time.Now()
-			// Two records for same session (resumed)
 			err := claude.AppendStatsRecord(claude.SessionStatsRecord{
 				SessionID:   "uuid-dup",
 				Turns:       5,
 				InputTokens: 1000,
-				EndedAt:     now.Add(-3 * time.Hour),
+				EndedAt:     now.Add(-20 * time.Minute),
 			})
 			Expect(err).NotTo(HaveOccurred())
 
@@ -327,7 +327,7 @@ var _ = Describe("Stats Command", func() {
 				PrevTurns:       5,
 				InputTokens:     3000,
 				PrevInputTokens: 1000,
-				EndedAt:         now.Add(-1 * time.Hour),
+				EndedAt:         now.Add(-10 * time.Minute),
 			})
 			Expect(err).NotTo(HaveOccurred())
 
@@ -375,6 +375,27 @@ var _ = Describe("Stats Command", func() {
 			Expect(output).To(ContainSubstring("Turns         1"))
 		})
 
+		It("should show no activity when stats files exist but have zero turns", func() {
+			now := time.Now()
+			err := claude.AppendStatsRecord(claude.SessionStatsRecord{
+				SessionID: "uuid-zero",
+				Turns:     0,
+				EndedAt:   now.Add(-5 * time.Minute),
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			output := captureOutput(func() {
+				rootCmd := cmd.NewRootCmd()
+				rootCmd.SetOut(os.Stdout)
+				rootCmd.SetErr(io.Discard)
+				rootCmd.SetArgs([]string{"stats", "--all"})
+				err := rootCmd.Execute()
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			Expect(output).To(ContainSubstring("No activity recorded"))
+		})
+
 		It("should exclude old sessions in transcript fallback", func() {
 			// No JSONL files; session with old lastAccessed
 			sess := session.NewSession("old-session", "uuid-old-1")
@@ -401,6 +422,75 @@ var _ = Describe("Stats Command", func() {
 			})
 
 			Expect(output).To(ContainSubstring("No sessions active in the last 7 days"))
+		})
+	})
+	Context("backfill subcommand", func() {
+		BeforeEach(func() {
+			GinkgoT().Setenv("XDG_DATA_HOME", filepath.Join(tempDir, "xdg-data"))
+		})
+
+		It("should write records for sessions with transcripts", func() {
+			sess := session.NewSession("backfill-test", "uuid-bf-1")
+			err := store.Create(sess)
+			Expect(err).NotTo(HaveOccurred())
+
+			transcriptPath := filepath.Join(tempDir, "uuid-bf-1.jsonl")
+			err = os.WriteFile(transcriptPath, []byte(`{"type":"progress","timestamp":"2025-02-17T10:00:00Z"}
+{"type":"user","timestamp":"2025-02-17T10:00:10Z","message":{"content":"hello"}}
+{"type":"assistant","timestamp":"2025-02-17T10:00:20Z","message":{"content":"hi","usage":{"input_tokens":500,"output_tokens":200}}}`), 0o644)
+			Expect(err).NotTo(HaveOccurred())
+
+			sess.Metadata.TranscriptPath = transcriptPath
+			err = store.Update(sess)
+			Expect(err).NotTo(HaveOccurred())
+
+			output := captureOutput(func() {
+				rootCmd := cmd.NewRootCmd()
+				rootCmd.SetOut(os.Stdout)
+				rootCmd.SetErr(io.Discard)
+				rootCmd.SetArgs([]string{"stats", "backfill"})
+				err := rootCmd.Execute()
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			Expect(output).To(ContainSubstring("backfill-test"))
+			Expect(output).To(ContainSubstring("1 written"))
+		})
+
+		It("should skip sessions that already have records", func() {
+			sess := session.NewSession("already-recorded", "uuid-bf-2")
+			err := store.Create(sess)
+			Expect(err).NotTo(HaveOccurred())
+
+			transcriptPath := filepath.Join(tempDir, "uuid-bf-2.jsonl")
+			err = os.WriteFile(transcriptPath, []byte(`{"type":"progress","timestamp":"2025-02-17T10:00:00Z"}
+{"type":"user","timestamp":"2025-02-17T10:00:10Z","message":{"content":"hello"}}
+{"type":"assistant","timestamp":"2025-02-17T10:00:20Z","message":{"content":"hi"}}`), 0o644)
+			Expect(err).NotTo(HaveOccurred())
+
+			sess.Metadata.TranscriptPath = transcriptPath
+			err = store.Update(sess)
+			Expect(err).NotTo(HaveOccurred())
+
+			// Pre-write a record
+			err = claude.AppendStatsRecord(claude.SessionStatsRecord{
+				SessionID: "uuid-bf-2",
+				Turns:     1,
+				EndedAt:   time.Now(),
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			output := captureOutput(func() {
+				rootCmd := cmd.NewRootCmd()
+				rootCmd.SetOut(os.Stdout)
+				rootCmd.SetErr(io.Discard)
+				rootCmd.SetArgs([]string{"stats", "backfill"})
+				err := rootCmd.Execute()
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			Expect(output).To(ContainSubstring("0 written"))
+			Expect(output).To(ContainSubstring("1 skipped"))
 		})
 	})
 })

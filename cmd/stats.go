@@ -45,6 +45,7 @@ also designed for consumption by other tools (dashboards, scripts, etc.).`,
 	}
 
 	cmd.Flags().Bool("all", false, "Show aggregate stats across sessions active in the last 7 days")
+	cmd.AddCommand(newStatsBackfillCmd())
 
 	return cmd
 }
