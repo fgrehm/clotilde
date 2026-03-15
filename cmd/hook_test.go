@@ -383,10 +383,19 @@ var _ = Describe("Hook Commands", func() {
 			BeforeEach(func() {
 				statsDir = filepath.Join(tempDir, "stats-recovery")
 				_ = os.Setenv("XDG_DATA_HOME", statsDir)
+
+				// Crash recovery is gated behind StatsTracking config
+				configDir := filepath.Join(tempDir, "config-recovery")
+				_ = os.Setenv("XDG_CONFIG_HOME", configDir)
+				cfgPath := filepath.Join(configDir, "clotilde")
+				Expect(os.MkdirAll(cfgPath, 0o755)).To(Succeed())
+				Expect(os.WriteFile(filepath.Join(cfgPath, "config.json"),
+					[]byte(`{"statsTracking":true}`), 0o644)).To(Succeed())
 			})
 
 			AfterEach(func() {
 				_ = os.Unsetenv("XDG_DATA_HOME")
+				_ = os.Unsetenv("XDG_CONFIG_HOME")
 			})
 
 			writeTranscriptForRecovery := func(path string) {
