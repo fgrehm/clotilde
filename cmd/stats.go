@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -202,13 +203,15 @@ func showAggregateFromTranscripts(cmd *cobra.Command) error {
 // readStatsForPeriod reads all stats records from the last N days of JSONL files.
 // Returns records in chronological order (oldest first) so dedup keeps the latest.
 func readStatsForPeriod(now time.Time, days int) ([]claude.SessionStatsRecord, error) {
+	statsDir, err := claude.StatsDir()
+	if err != nil {
+		return nil, err
+	}
+
 	var all []claude.SessionStatsRecord
 	for daysBack := days - 1; daysBack >= 0; daysBack-- {
 		date := now.AddDate(0, 0, -daysBack)
-		path, err := claude.DailyStatsFilePath(date)
-		if err != nil {
-			return nil, err
-		}
+		path := filepath.Join(statsDir, date.UTC().Format("2006-01-02")+".jsonl")
 		records, err := claude.ReadStatsFile(path)
 		if err != nil {
 			return nil, err
@@ -216,6 +219,21 @@ func readStatsForPeriod(now time.Time, days int) ([]claude.SessionStatsRecord, e
 		all = append(all, records...)
 	}
 	return all, nil
+}
+
+// buildKnownSessionIDs reads all stats files from the last 30 days and returns
+// a set of session IDs that already have at least one record. Used by backfill
+// to skip sessions in bulk instead of calling FindLastRecord per session.
+func buildKnownSessionIDs(now time.Time) (map[string]bool, error) {
+	records, err := readStatsForPeriod(now, 30)
+	if err != nil {
+		return nil, err
+	}
+	known := make(map[string]bool, len(records))
+	for _, rec := range records {
+		known[rec.SessionID] = true
+	}
+	return known, nil
 }
 
 // aggregateStats holds aggregated data from SessionStatsRecords.

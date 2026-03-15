@@ -37,6 +37,16 @@ existing project.`,
 			}
 
 			now := time.Now()
+
+			// Build a set of session IDs that already have records,
+			// reading stats files once instead of per-session (avoids N+1 reads).
+			knownIDs, err := buildKnownSessionIDs(now)
+			if err != nil {
+				_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "  warning: failed to read existing stats: %v\n", err)
+				// Continue anyway; worst case we write duplicate records
+				// that ConsolidateStatsFile can deduplicate later.
+			}
+
 			var wrote, skipped, errored int
 
 			for _, sess := range sessions {
@@ -47,14 +57,7 @@ existing project.`,
 					continue
 				}
 
-				// Skip if a record already exists for this session
-				existing, err := claude.FindLastRecord(sid, now)
-				if err != nil {
-					_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "  warning: %s: failed to check existing records: %v\n", name, err)
-					errored++
-					continue
-				}
-				if existing != nil {
+				if knownIDs[sid] {
 					skipped++
 					continue
 				}
