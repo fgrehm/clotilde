@@ -10,11 +10,36 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/fgrehm/clotilde/cmd"
+	"github.com/fgrehm/clotilde/internal/claude"
 	"github.com/fgrehm/clotilde/internal/config"
 	"github.com/fgrehm/clotilde/internal/notify"
 	"github.com/fgrehm/clotilde/internal/session"
 	"github.com/fgrehm/clotilde/internal/testutil"
 )
+
+// readAllStatsRecords reads all stats records from all daily files in a stats directory.
+func readAllStatsRecords(dataHome string) ([]claude.SessionStatsRecord, error) {
+	statsDir := filepath.Join(dataHome, "clotilde", "stats")
+	entries, err := os.ReadDir(statsDir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var all []claude.SessionStatsRecord
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		records, err := claude.ReadStatsFile(filepath.Join(statsDir, e.Name()))
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, records...)
+	}
+	return all, nil
+}
 
 // executeHookWithInput executes a hook command with JSON input via stdin
 func executeHookWithInput(hookName string, input []byte) error { //nolint:unparam // test helper, hookName kept for clarity
@@ -349,6 +374,163 @@ var _ = Describe("Hook Commands", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(updatedSess.Metadata.TranscriptPath).To(Equal("/home/user/.claude/projects/test-project/test-uuid-456.jsonl"))
 			})
+		})
+	})
+
+	Describe("hook sessionend", func() {
+		var statsDir string
+
+		BeforeEach(func() {
+			statsDir = filepath.Join(tempDir, "stats-data")
+			_ = os.Setenv("XDG_DATA_HOME", statsDir)
+		})
+
+		AfterEach(func() {
+			_ = os.Unsetenv("XDG_DATA_HOME")
+		})
+
+		writeTranscript := func(path string) {
+			dir := filepath.Dir(path)
+			Expect(os.MkdirAll(dir, 0o755)).To(Succeed())
+			transcript := `{"type":"progress","timestamp":"2026-03-15T10:00:00Z"}
+{"type":"user","timestamp":"2026-03-15T10:00:10Z","message":{"content":"hello"}}
+{"type":"assistant","timestamp":"2026-03-15T10:00:15Z","message":{"model":"claude-sonnet-4-5-20250929","content":[{"type":"text","text":"hi"}],"usage":{"input_tokens":100,"output_tokens":50,"cache_creation_input_tokens":5,"cache_read_input_tokens":80}}}
+`
+			Expect(os.WriteFile(path, []byte(transcript), 0o644)).To(Succeed())
+		}
+
+		It("should write stats record from transcript", func() {
+			// Create session and transcript
+			sess := session.NewSession("stats-test", "stats-uuid-1")
+			transcriptPath := filepath.Join(tempDir, "transcript.jsonl")
+			sess.Metadata.TranscriptPath = transcriptPath
+			Expect(store.Create(sess)).To(Succeed())
+			writeTranscript(transcriptPath)
+
+			_ = os.Setenv("CLOTILDE_SESSION_NAME", "stats-test")
+			defer func() { _ = os.Unsetenv("CLOTILDE_SESSION_NAME") }()
+
+			hookInput := map[string]string{
+				"session_id":      "stats-uuid-1",
+				"transcript_path": transcriptPath,
+			}
+			inputJSON, _ := json.Marshal(hookInput)
+			Expect(executeHookWithInput("sessionend", inputJSON)).To(Succeed())
+
+			// Read the stats file
+			records, err := readAllStatsRecords(statsDir)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(records).To(HaveLen(1))
+			Expect(records[0].SessionName).To(Equal("stats-test"))
+			Expect(records[0].SessionID).To(Equal("stats-uuid-1"))
+			Expect(records[0].Turns).To(Equal(1))
+			Expect(records[0].InputTokens).To(Equal(100))
+			Expect(records[0].OutputTokens).To(Equal(50))
+			Expect(records[0].Models).To(ContainElement("claude-sonnet-4-5-20250929"))
+		})
+
+		It("should fall back to payload transcript_path when clotilde root not found", func() {
+			nonClotildeDir := GinkgoT().TempDir()
+			Expect(os.Chdir(nonClotildeDir)).To(Succeed())
+
+			transcriptPath := filepath.Join(nonClotildeDir, "transcript.jsonl")
+			writeTranscript(transcriptPath)
+
+			hookInput := map[string]string{
+				"session_id":      "fallback-uuid",
+				"transcript_path": transcriptPath,
+			}
+			inputJSON, _ := json.Marshal(hookInput)
+			Expect(executeHookWithInput("sessionend", inputJSON)).To(Succeed())
+
+			records, err := readAllStatsRecords(statsDir)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(records).To(HaveLen(1))
+			Expect(records[0].SessionName).To(BeEmpty())
+			Expect(records[0].ProjectPath).To(BeEmpty())
+			Expect(records[0].Turns).To(Equal(1))
+		})
+
+		It("should exit 0 when transcript is unreadable", func() {
+			_ = os.Setenv("CLOTILDE_SESSION_NAME", "nonexistent")
+			defer func() { _ = os.Unsetenv("CLOTILDE_SESSION_NAME") }()
+
+			hookInput := map[string]string{
+				"session_id":      "bad-transcript-uuid",
+				"transcript_path": "/nonexistent/transcript.jsonl",
+			}
+			inputJSON, _ := json.Marshal(hookInput)
+
+			// Should not error (exit 0)
+			Expect(executeHookWithInput("sessionend", inputJSON)).To(Succeed())
+		})
+
+		It("should populate prev_* fields from prior record", func() {
+			sess := session.NewSession("prev-test", "prev-uuid")
+			transcriptPath := filepath.Join(tempDir, "prev-transcript.jsonl")
+			sess.Metadata.TranscriptPath = transcriptPath
+			Expect(store.Create(sess)).To(Succeed())
+			writeTranscript(transcriptPath)
+
+			_ = os.Setenv("CLOTILDE_SESSION_NAME", "prev-test")
+			defer func() { _ = os.Unsetenv("CLOTILDE_SESSION_NAME") }()
+
+			// First invocation
+			hookInput := map[string]string{
+				"session_id":      "prev-uuid",
+				"transcript_path": transcriptPath,
+			}
+			inputJSON, _ := json.Marshal(hookInput)
+			Expect(executeHookWithInput("sessionend", inputJSON)).To(Succeed())
+
+			// Reset double-execution guard for second invocation
+			_ = os.Unsetenv("CLOTILDE_HOOK_EXECUTED")
+			envFile := os.Getenv("CLAUDE_ENV_FILE")
+			if envFile != "" {
+				_ = os.Remove(envFile)
+			}
+
+			// Second invocation (same session)
+			Expect(executeHookWithInput("sessionend", inputJSON)).To(Succeed())
+
+			records, err := readAllStatsRecords(statsDir)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(len(records)).To(BeNumerically(">=", 2))
+
+			last := records[len(records)-1]
+			Expect(last.PrevTurns).To(Equal(1))
+			Expect(last.PrevInputTokens).To(Equal(100))
+		})
+
+		It("should prevent duplicate records via double-execution guard", func() {
+			sess := session.NewSession("guard-test", "guard-uuid")
+			transcriptPath := filepath.Join(tempDir, "guard-transcript.jsonl")
+			sess.Metadata.TranscriptPath = transcriptPath
+			Expect(store.Create(sess)).To(Succeed())
+			writeTranscript(transcriptPath)
+
+			_ = os.Setenv("CLOTILDE_SESSION_NAME", "guard-test")
+			defer func() { _ = os.Unsetenv("CLOTILDE_SESSION_NAME") }()
+
+			// Guard requires CLAUDE_ENV_FILE to persist the marker
+			envFile := filepath.Join(tempDir, "env-guard")
+			_ = os.Setenv("CLAUDE_ENV_FILE", envFile)
+			defer func() { _ = os.Unsetenv("CLAUDE_ENV_FILE") }()
+
+			hookInput := map[string]string{
+				"session_id":      "guard-uuid",
+				"transcript_path": transcriptPath,
+			}
+			inputJSON, _ := json.Marshal(hookInput)
+
+			// First invocation
+			Expect(executeHookWithInput("sessionend", inputJSON)).To(Succeed())
+			// Second invocation (guard blocks it)
+			Expect(executeHookWithInput("sessionend", inputJSON)).To(Succeed())
+
+			records, err := readAllStatsRecords(statsDir)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(records).To(HaveLen(1))
 		})
 	})
 
