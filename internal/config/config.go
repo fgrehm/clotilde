@@ -4,6 +4,10 @@ package config
 type Config struct {
 	// Profiles is a map of named session profiles
 	Profiles map[string]Profile `json:"profiles,omitempty"`
+
+	// StatsTracking enables session stats recording via SessionEnd hook.
+	// Only meaningful in the global config; project configs ignore it.
+	StatsTracking bool `json:"statsTracking,omitempty"`
 }
 
 // Profile represents a named preset of session settings.

@@ -1,14 +1,17 @@
 package cmd
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/fgrehm/clotilde/internal/claude"
+	"github.com/fgrehm/clotilde/internal/config"
 	"github.com/fgrehm/clotilde/internal/ui"
 	"github.com/fgrehm/clotilde/internal/util"
 )
@@ -20,7 +23,8 @@ func newSetupCmd() *cobra.Command {
 		Long: `Register SessionStart hooks in ~/.claude/settings.json so clotilde
 works automatically in all projects. Run this once after installing clotilde.
 
-Use --local to install hooks in ~/.claude/settings.local.json instead.`,
+Use --local to install hooks in ~/.claude/settings.local.json instead.
+Use --stats to enable session statistics tracking (opt-in).`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			local, _ := cmd.Flags().GetBool("local")
 
@@ -51,7 +55,23 @@ Use --local to install hooks in ~/.claude/settings.local.json instead.`,
 				return fmt.Errorf("failed to create ~/.claude directory: %w", err)
 			}
 
-			hooks, err := mergeHooksIntoSettings(settingsPath, clotildeBinary)
+			// Resolve stats preference
+			statsEnabled := resolveStatsPreference(cmd)
+
+			// Persist stats preference in global config
+			globalCfg, err := config.LoadGlobalOrDefault()
+			if err != nil {
+				return fmt.Errorf("failed to load global config: %w", err)
+			}
+			globalCfg.StatsTracking = statsEnabled
+			if err := config.SaveGlobal(globalCfg); err != nil {
+				return fmt.Errorf("failed to save global config: %w", err)
+			}
+
+			opts := claude.HookConfigOptions{
+				StatsEnabled: statsEnabled,
+			}
+			hooks, err := mergeHooksIntoSettings(settingsPath, clotildeBinary, opts)
 			if err != nil {
 				return err
 			}
@@ -63,11 +83,41 @@ Use --local to install hooks in ~/.claude/settings.local.json instead.`,
 			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "  Sessions will be created automatically when you run:")
 			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "  clotilde start <session-name>")
 
+			if statsEnabled {
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "  Session statistics tracking is enabled.")
+			}
+
 			return nil
 		},
 	}
 
 	cmd.Flags().Bool("local", false, "Install hooks in ~/.claude/settings.local.json instead of settings.json")
+	cmd.Flags().Bool("stats", false, "Enable session statistics tracking")
+	cmd.Flags().Bool("no-stats", false, "Disable session statistics tracking")
 
 	return cmd
+}
+
+// resolveStatsPreference determines whether stats should be enabled.
+// --stats flag takes precedence, then --no-stats, then existing config, then interactive prompt.
+func resolveStatsPreference(cmd *cobra.Command) bool {
+	if cmd.Flags().Changed("stats") {
+		return true
+	}
+	if cmd.Flags().Changed("no-stats") {
+		return false
+	}
+
+	// Preserve existing preference from global config
+	globalCfg, err := config.LoadGlobalOrDefault()
+	if err == nil && globalCfg.StatsTracking {
+		return true
+	}
+
+	// Interactive prompt
+	_, _ = fmt.Fprint(cmd.OutOrStdout(), "Track session statistics (turns, tokens, tool usage)? [y/N] ")
+	reader := bufio.NewReader(cmd.InOrStdin())
+	line, _ := reader.ReadString('\n')
+	answer := strings.TrimSpace(strings.ToLower(line))
+	return answer == "y" || answer == "yes"
 }

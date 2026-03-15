@@ -89,7 +89,7 @@ Use --global to install hooks in .claude/settings.json instead (shared with team
 // mergeHooksIntoSettings reads a Claude settings file, merges clotilde's
 // hooks, and writes it back. Returns the merged hooks map for display purposes.
 // The caller is responsible for ensuring the parent directory exists.
-func mergeHooksIntoSettings(settingsPath, clotildeBinary string) (map[string]interface{}, error) {
+func mergeHooksIntoSettings(settingsPath, clotildeBinary string, opts claude.HookConfigOptions) (map[string]interface{}, error) {
 	// Read existing settings if they exist
 	var settings map[string]interface{}
 	if util.FileExists(settingsPath) {
@@ -101,7 +101,7 @@ func mergeHooksIntoSettings(settingsPath, clotildeBinary string) (map[string]int
 	}
 
 	// Generate hook config
-	hookConfig := claude.GenerateHookConfig(clotildeBinary)
+	hookConfig := claude.GenerateHookConfig(clotildeBinary, opts)
 
 	// Merge hooks into settings
 	var hooks map[string]interface{}
@@ -147,7 +147,7 @@ func setupHooks(projectRoot, clotildeBinary, settingsFile string) error {
 		return fmt.Errorf("failed to create .claude directory: %w", err)
 	}
 
-	hooks, err := mergeHooksIntoSettings(settingsPath, clotildeBinary)
+	hooks, err := mergeHooksIntoSettings(settingsPath, clotildeBinary, claude.HookConfigOptions{})
 	if err != nil {
 		return err
 	}

@@ -27,15 +27,20 @@ type HookConfig struct {
 	SessionEnd   []HookMatcher `json:"SessionEnd,omitempty"`
 }
 
+// HookConfigOptions controls which optional hooks are generated.
+type HookConfigOptions struct {
+	StatsEnabled bool
+}
+
 // GenerateHookConfig generates the hook configuration for clotilde.
-// Returns a HookConfig that should be merged into .claude/settings.json
-func GenerateHookConfig(clotildeBinaryPath string) HookConfig {
+// Returns a HookConfig that should be merged into .claude/settings.json.
+// When opts.StatsEnabled is true, includes a SessionEnd hook for stats recording.
+func GenerateHookConfig(clotildeBinaryPath string, opts HookConfigOptions) HookConfig {
 	sessionStartCommand := fmt.Sprintf("%s hook sessionstart", clotildeBinaryPath)
 
-	return HookConfig{
+	config := HookConfig{
 		SessionStart: []HookMatcher{
 			{
-				// No matcher field - handles all sources (startup, resume, compact, clear) internally
 				Hooks: []Hook{
 					{
 						Type:    "command",
@@ -45,6 +50,22 @@ func GenerateHookConfig(clotildeBinaryPath string) HookConfig {
 			},
 		},
 	}
+
+	if opts.StatsEnabled {
+		sessionEndCommand := fmt.Sprintf("%s hook sessionend", clotildeBinaryPath)
+		config.SessionEnd = []HookMatcher{
+			{
+				Hooks: []Hook{
+					{
+						Type:    "command",
+						Command: sessionEndCommand,
+					},
+				},
+			},
+		}
+	}
+
+	return config
 }
 
 // GenerateNotifyHookConfig returns hook matchers for Stop, Notification, PreToolUse,
