@@ -137,6 +137,7 @@ func FindLastRecord(sessionID string, now time.Time) (*SessionStatsRecord, error
 // of days, returning the most recent record matching sessionID.
 // Returns nil (no error) if no prior record is found.
 func FindLastRecordDays(sessionID string, now time.Time, days int) (*SessionStatsRecord, error) {
+	now = now.UTC()
 	for daysBack := range days + 1 {
 		date := now.AddDate(0, 0, -daysBack)
 		path, err := DailyStatsFilePath(date)

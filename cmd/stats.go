@@ -3,6 +3,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -77,7 +78,7 @@ func showSessionStats(cmd *cobra.Command, name string) error {
 }
 
 func showAllStats(cmd *cobra.Command) error {
-	now := time.Now()
+	now := time.Now().UTC()
 
 	// Resolve project path for filtering (empty if not in a project)
 	var projectPath string
@@ -503,7 +504,7 @@ var internalTools = map[string]bool{
 
 // printToolUses prints tool usage sorted by count (descending), then name.
 // Internal/orchestration tools are excluded from display.
-func printToolUses(w interface{ Write([]byte) (int, error) }, toolUses map[string]int) {
+func printToolUses(w io.Writer, toolUses map[string]int) {
 	type toolCount struct {
 		name  string
 		count int

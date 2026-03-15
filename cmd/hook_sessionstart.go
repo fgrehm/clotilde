@@ -166,14 +166,16 @@ func attemptCrashRecovery(clotildeRoot, sessionName string, store session.Store)
 		return
 	}
 
-	// Check if a stats record already exists for the last invocation
-	prev, err := claude.FindLastRecord(sess.Metadata.SessionID, time.Now())
+	// Check if a stats record already exists for the last invocation.
+	// Only skip recovery if the record's EndedAt is after LastAccessed,
+	// meaning the prior run exited cleanly after the session was last opened.
+	prev, err := claude.FindLastRecord(sess.Metadata.SessionID, time.Now().UTC())
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "clotilde: crash recovery lookup failed: %v\n", err)
 		return
 	}
-	if prev != nil {
-		return // Normal exit, stats already recorded
+	if prev != nil && prev.EndedAt.After(sess.Metadata.LastAccessed) {
+		return // Normal exit, stats already recorded for this invocation
 	}
 
 	// No prior record found: write a recovery record
@@ -205,6 +207,9 @@ func attemptCrashRecovery(clotildeRoot, sessionName string, store session.Store)
 	}
 
 	endedAt := sess.Metadata.LastAccessed.UTC()
+	if !merged.LastMessage.IsZero() {
+		endedAt = merged.LastMessage.UTC()
+	}
 	record := claude.SessionStatsRecord{
 		SessionName:         sessionName,
 		SessionID:           sess.Metadata.SessionID,

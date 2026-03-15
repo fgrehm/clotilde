@@ -342,7 +342,7 @@ func ParseTranscriptStats(transcriptPath string) (*TranscriptStats, error) {
 					}
 
 					// Tool usage from content blocks
-					if len(entry.Message.Content) > 0 && entry.Message.Content[0] == '[' {
+					if len(entry.Message.Content) > 0 && !isHumanTurn(entry.Message.Content) {
 						var blocks []contentBlock
 						if json.Unmarshal(entry.Message.Content, &blocks) == nil {
 							for _, b := range blocks {
