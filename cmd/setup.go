@@ -64,7 +64,7 @@ Use --stats to enable session statistics tracking (opt-in).`,
 			if err != nil {
 				return fmt.Errorf("failed to load global config: %w", err)
 			}
-			globalCfg.StatsTracking = statsEnabled
+			globalCfg.StatsTracking = &statsEnabled
 			if err := config.SaveGlobal(globalCfg); err != nil {
 				return fmt.Errorf("failed to save global config: %w", err)
 			}
@@ -109,19 +109,20 @@ func resolveStatsPreference(cmd *cobra.Command) bool {
 		return false
 	}
 
-	// Preserve existing preference from global config
+	// Preserve existing preference from global config (both true and false)
 	globalCfg, err := config.LoadGlobalOrDefault()
-	if err == nil && globalCfg.StatsTracking {
-		return true
+	if err == nil && globalCfg.StatsTracking != nil {
+		return *globalCfg.StatsTracking
 	}
 
 	// Only prompt interactively when stdin is a TTY
-	if !isatty.IsTerminal(os.Stdin.Fd()) {
+	stdin := cmd.InOrStdin()
+	if f, ok := stdin.(*os.File); !ok || !isatty.IsTerminal(f.Fd()) {
 		return false
 	}
 
 	_, _ = fmt.Fprint(cmd.OutOrStdout(), "Track session statistics (turns, tokens, tool usage)? [y/N] ")
-	reader := bufio.NewReader(cmd.InOrStdin())
+	reader := bufio.NewReader(stdin)
 	line, _ := reader.ReadString('\n')
 	answer := strings.TrimSpace(strings.ToLower(line))
 	return answer == "y" || answer == "yes"

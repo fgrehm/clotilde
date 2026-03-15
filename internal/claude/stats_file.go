@@ -119,11 +119,18 @@ func ReadStatsFile(path string) ([]SessionStatsRecord, error) {
 	return records, nil
 }
 
-// FindLastRecord scans daily stats files from today back up to 7 days,
+// FindLastRecord scans daily stats files from today back up to 30 days,
 // returning the most recent record matching sessionID.
 // Returns nil (no error) if no prior record is found.
 func FindLastRecord(sessionID string, now time.Time) (*SessionStatsRecord, error) {
-	for daysBack := range 8 {
+	return FindLastRecordDays(sessionID, now, 30)
+}
+
+// FindLastRecordDays scans daily stats files from today back the given number
+// of days, returning the most recent record matching sessionID.
+// Returns nil (no error) if no prior record is found.
+func FindLastRecordDays(sessionID string, now time.Time, days int) (*SessionStatsRecord, error) {
+	for daysBack := range days + 1 {
 		date := now.AddDate(0, 0, -daysBack)
 		path, err := DailyStatsFilePath(date)
 		if err != nil {

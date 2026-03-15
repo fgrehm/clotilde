@@ -186,7 +186,7 @@ func showAggregateFromTranscripts(cmd *cobra.Command) error {
 
 	merged := claude.MergeTranscriptStats(allStats)
 
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Aggregate stats (%d sessions, last 7 days)\n", len(recent))
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Aggregate stats (%d sessions, last 7 days)\n", len(rows))
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "─────────────────────────────────\n")
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "(from transcripts, enable stats tracking with 'clotilde setup --stats')\n\n")
 
