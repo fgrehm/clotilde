@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -373,6 +374,113 @@ var _ = Describe("Hook Commands", func() {
 				updatedSess, err := store.Get("session-resume-transcript")
 				Expect(err).NotTo(HaveOccurred())
 				Expect(updatedSess.Metadata.TranscriptPath).To(Equal("/home/user/.claude/projects/test-project/test-uuid-456.jsonl"))
+			})
+		})
+
+		Context("crash recovery on resume", func() {
+			var statsDir string
+
+			BeforeEach(func() {
+				statsDir = filepath.Join(tempDir, "stats-recovery")
+				_ = os.Setenv("XDG_DATA_HOME", statsDir)
+			})
+
+			AfterEach(func() {
+				_ = os.Unsetenv("XDG_DATA_HOME")
+			})
+
+			writeTranscriptForRecovery := func(path string) {
+				dir := filepath.Dir(path)
+				Expect(os.MkdirAll(dir, 0o755)).To(Succeed())
+				transcript := `{"type":"progress","timestamp":"2026-03-14T10:00:00Z"}
+{"type":"user","timestamp":"2026-03-14T10:00:10Z","message":{"content":"hello"}}
+{"type":"assistant","timestamp":"2026-03-14T10:00:15Z","message":{"model":"claude-sonnet-4-5-20250929","content":"hi","usage":{"input_tokens":100,"output_tokens":50}}}
+`
+				Expect(os.WriteFile(path, []byte(transcript), 0o644)).To(Succeed())
+			}
+
+			It("should write recovery record when prior SessionEnd is missing", func() {
+				// Create session with stale lastAccessed (> 30s ago)
+				sess := session.NewSession("crash-test", "crash-uuid")
+				sess.Metadata.LastAccessed = time.Now().Add(-5 * time.Minute)
+				transcriptPath := filepath.Join(tempDir, "crash-transcript.jsonl")
+				sess.Metadata.TranscriptPath = transcriptPath
+				Expect(store.Create(sess)).To(Succeed())
+				writeTranscriptForRecovery(transcriptPath)
+
+				_ = os.Setenv("CLOTILDE_SESSION_NAME", "crash-test")
+				defer func() { _ = os.Unsetenv("CLOTILDE_SESSION_NAME") }()
+
+				hookInput := map[string]string{
+					"session_id": "crash-uuid",
+					"source":     "resume",
+				}
+				inputJSON, _ := json.Marshal(hookInput)
+				Expect(executeHookWithInput("sessionstart", inputJSON)).To(Succeed())
+
+				// Verify recovery record was written
+				records, err := readAllStatsRecords(statsDir)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(records).To(HaveLen(1))
+				Expect(records[0].SessionName).To(Equal("crash-test"))
+				Expect(records[0].Turns).To(Equal(1))
+			})
+
+			It("should skip recovery when prior SessionEnd record exists", func() {
+				sess := session.NewSession("no-crash-test", "no-crash-uuid")
+				sess.Metadata.LastAccessed = time.Now().Add(-5 * time.Minute)
+				transcriptPath := filepath.Join(tempDir, "no-crash-transcript.jsonl")
+				sess.Metadata.TranscriptPath = transcriptPath
+				Expect(store.Create(sess)).To(Succeed())
+				writeTranscriptForRecovery(transcriptPath)
+
+				// Write a prior stats record so recovery is skipped
+				priorRecord := claude.SessionStatsRecord{
+					SessionID: "no-crash-uuid",
+					Turns:     1,
+					EndedAt:   time.Now().Add(-5 * time.Minute).UTC(),
+				}
+				Expect(claude.AppendStatsRecord(priorRecord)).To(Succeed())
+
+				_ = os.Setenv("CLOTILDE_SESSION_NAME", "no-crash-test")
+				defer func() { _ = os.Unsetenv("CLOTILDE_SESSION_NAME") }()
+
+				hookInput := map[string]string{
+					"session_id": "no-crash-uuid",
+					"source":     "resume",
+				}
+				inputJSON, _ := json.Marshal(hookInput)
+				Expect(executeHookWithInput("sessionstart", inputJSON)).To(Succeed())
+
+				// Only the prior record should exist (no recovery record added)
+				records, err := readAllStatsRecords(statsDir)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(records).To(HaveLen(1))
+			})
+
+			It("should skip recovery for brand-new sessions", func() {
+				// Session with very recent lastAccessed (< 30s)
+				sess := session.NewSession("new-test", "new-uuid")
+				// lastAccessed is Now() from NewSession, so < 30s
+				transcriptPath := filepath.Join(tempDir, "new-transcript.jsonl")
+				sess.Metadata.TranscriptPath = transcriptPath
+				Expect(store.Create(sess)).To(Succeed())
+				writeTranscriptForRecovery(transcriptPath)
+
+				_ = os.Setenv("CLOTILDE_SESSION_NAME", "new-test")
+				defer func() { _ = os.Unsetenv("CLOTILDE_SESSION_NAME") }()
+
+				hookInput := map[string]string{
+					"session_id": "new-uuid",
+					"source":     "resume",
+				}
+				inputJSON, _ := json.Marshal(hookInput)
+				Expect(executeHookWithInput("sessionstart", inputJSON)).To(Succeed())
+
+				// No stats records should be written (fast-path skip)
+				records, err := readAllStatsRecords(statsDir)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(records).To(BeEmpty())
 			})
 		})
 	})
