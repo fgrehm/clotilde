@@ -127,7 +127,7 @@ func showAggregateFromRecords(cmd *cobra.Command, records []claude.SessionStatsR
 
 	merged := aggregateRecords(deduped)
 
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Aggregate stats (%d sessions, last 7 days)\n", len(deduped))
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Aggregate stats (%d %s, last 7 days)\n", len(deduped), pluralSessions(len(deduped)))
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "─────────────────────────────────\n")
 
 	printAggregateStats(cmd, merged)
@@ -192,7 +192,7 @@ func showAggregateFromTranscripts(cmd *cobra.Command) error {
 
 	merged := claude.MergeTranscriptStats(allStats)
 
-	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Aggregate stats (%d sessions, last 7 days)\n", len(rows))
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Aggregate stats (%d %s, last 7 days)\n", len(rows), pluralSessions(len(rows)))
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "─────────────────────────────────\n")
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "(from transcripts, enable stats tracking with 'clotilde setup --stats')\n\n")
 
@@ -536,6 +536,13 @@ func formatTokenCount(count int) string {
 		return fmt.Sprintf("%.1fk", float64(count)/1000)
 	}
 	return fmt.Sprintf("%dk", count/1000)
+}
+
+func pluralSessions(n int) string {
+	if n == 1 {
+		return "session"
+	}
+	return "sessions"
 }
 
 // formatSessionDate formats a time as "Month Day, Year HH:MM"

@@ -308,7 +308,7 @@ var _ = Describe("Stats Command", func() {
 				Expect(err).NotTo(HaveOccurred())
 			})
 
-			Expect(output).To(ContainSubstring("Aggregate stats (2 sessions, last 7 days)"))
+			Expect(output).To(ContainSubstring("Aggregate stats (2 sessions, last 7 days"))
 			Expect(output).To(ContainSubstring("Turns         15"))
 			Expect(output).To(ContainSubstring("Input tokens"))
 			Expect(output).To(ContainSubstring("Models"))
@@ -341,7 +341,7 @@ var _ = Describe("Stats Command", func() {
 				Expect(err).NotTo(HaveOccurred())
 			})
 
-			Expect(output).To(ContainSubstring("Aggregate stats (1 sessions"))
+			Expect(output).To(ContainSubstring("Aggregate stats (1 session"))
 			Expect(output).NotTo(ContainSubstring("Session"))
 		})
 
@@ -378,7 +378,7 @@ var _ = Describe("Stats Command", func() {
 			})
 
 			// Should use delta: 12 - 5 = 7 turns from the latest record
-			Expect(output).To(ContainSubstring("Aggregate stats (1 sessions"))
+			Expect(output).To(ContainSubstring("Aggregate stats (1 session"))
 			Expect(output).To(ContainSubstring("Turns         7"))
 		})
 
@@ -407,7 +407,7 @@ var _ = Describe("Stats Command", func() {
 				Expect(err).NotTo(HaveOccurred())
 			})
 
-			Expect(output).To(ContainSubstring("Aggregate stats (1 sessions, last 7 days)"))
+			Expect(output).To(ContainSubstring("Aggregate stats (1 session, last 7 days)"))
 			Expect(output).To(ContainSubstring("from transcripts"))
 			Expect(output).To(ContainSubstring("Turns         1"))
 		})

@@ -23,8 +23,6 @@ var sessionEndCmd = &cobra.Command{
 	Short: "SessionEnd hook handler for stats recording",
 	Long:  `Called by Claude Code's SessionEnd hook. Records session statistics to a daily JSONL file.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		_, _ = fmt.Fprint(os.Stderr, "clotilde: saving session stats...\n")
-
 		input, err := io.ReadAll(os.Stdin)
 		if err != nil {
 			return fmt.Errorf("failed to read hook input: %w", err)
@@ -35,14 +33,17 @@ var sessionEndCmd = &cobra.Command{
 			return fmt.Errorf("failed to parse hook input: %w", err)
 		}
 
-		if err := notify.LogEvent(input, hookData.SessionID); err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "Warning: failed to log event: %v\n", err)
-		}
-
-		// Double-execution guard (checked before work, marked after successful write)
+		// Double-execution guard: check before any output or logging so a
+		// duplicate invocation (global + project hooks) produces no side effects.
 		marker := hookData.SessionID + ":sessionend"
 		if isHookExecuted(marker) {
 			return nil
+		}
+
+		_, _ = fmt.Fprint(os.Stderr, "clotilde: saving session stats...\n")
+
+		if err := notify.LogEvent(input, hookData.SessionID); err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "Warning: failed to log event: %v\n", err)
 		}
 
 		now := time.Now().UTC()

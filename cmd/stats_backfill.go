@@ -18,8 +18,8 @@ func newStatsBackfillCmd() *cobra.Command {
 		Short: "Generate stats records from existing session transcripts",
 		Long: `Parse transcripts for all sessions in the current project and write
 stats records to the daily JSONL files. Skips sessions that already have
-a record. Useful for populating stats after enabling tracking on an
-existing project.`,
+a record in the last 30 days. Useful for populating stats after enabling
+tracking on an existing project.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clotildeRoot, err := config.FindClotildeRoot()
 			if err != nil {

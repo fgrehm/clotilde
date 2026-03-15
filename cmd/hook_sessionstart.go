@@ -123,6 +123,16 @@ func handleResume(clotildeRoot string, hookData hookInput, store session.Store) 
 		sessionName = forkName
 	}
 
+	// Crash recovery must run before saveTranscriptPath, which updates LastAccessed.
+	// If it ran after, attemptCrashRecovery would always see a fresh timestamp and
+	// skip via the <30s fast-path, making recovery never trigger.
+	if sessionName != "" {
+		globalCfg, cfgErr := config.LoadGlobalOrDefault()
+		if cfgErr == nil && globalCfg.StatsTracking != nil && *globalCfg.StatsTracking {
+			attemptCrashRecovery(clotildeRoot, sessionName, store)
+		}
+	}
+
 	// Persist session name
 	if sessionName != "" {
 		if err := writeSessionNameToEnv(sessionName); err != nil {
@@ -134,15 +144,6 @@ func handleResume(clotildeRoot string, hookData hookInput, store session.Store) 
 			if err := saveTranscriptPath(store, sessionName, hookData.TranscriptPath); err != nil {
 				_, _ = fmt.Fprintf(os.Stderr, "Warning: failed to save transcript path: %v\n", err)
 			}
-		}
-	}
-
-	// Crash recovery: check if the prior invocation's stats were recorded
-	// Only run when stats tracking is enabled (opt-in)
-	if sessionName != "" {
-		globalCfg, cfgErr := config.LoadGlobalOrDefault()
-		if cfgErr == nil && globalCfg.StatsTracking != nil && *globalCfg.StatsTracking {
-			attemptCrashRecovery(clotildeRoot, sessionName, store)
 		}
 	}
 
