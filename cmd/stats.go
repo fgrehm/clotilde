@@ -376,7 +376,25 @@ func printStats(cmd *cobra.Command, stats *claude.TranscriptStats) {
 	}
 }
 
+// internalTools are Claude Code orchestration/meta tools that aren't
+// user-visible work actions. Excluded from stats display.
+var internalTools = map[string]bool{
+	"AskUserQuestion": true,
+	"EnterPlanMode":   true,
+	"ExitPlanMode":    true,
+	"EnterWorktree":   true,
+	"ExitWorktree":    true,
+	"TaskCreate":      true,
+	"TaskGet":         true,
+	"TaskList":        true,
+	"TaskOutput":      true,
+	"TaskStop":        true,
+	"TaskUpdate":      true,
+	"ToolSearch":      true,
+}
+
 // printToolUses prints tool usage sorted by count (descending), then name.
+// Internal/orchestration tools are excluded from display.
 func printToolUses(w interface{ Write([]byte) (int, error) }, toolUses map[string]int) {
 	type toolCount struct {
 		name  string
@@ -384,6 +402,9 @@ func printToolUses(w interface{ Write([]byte) (int, error) }, toolUses map[strin
 	}
 	sorted := make([]toolCount, 0, len(toolUses))
 	for name, count := range toolUses {
+		if internalTools[name] {
+			continue
+		}
 		sorted = append(sorted, toolCount{name, count})
 	}
 	sort.Slice(sorted, func(i, j int) bool {
