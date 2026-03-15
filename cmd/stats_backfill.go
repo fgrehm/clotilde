@@ -37,7 +37,7 @@ existing project.`,
 				return nil
 			}
 
-			now := time.Now()
+			now := time.Now().UTC()
 
 			// Build a set of session IDs that already have records,
 			// reading stats files once instead of per-session (avoids N+1 reads).
@@ -93,7 +93,7 @@ existing project.`,
 					CacheReadTokens:     stats.CacheReadTokens,
 					Models:              stats.Models,
 					ToolUses:            stats.ToolUses,
-					EndedAt:             sess.Metadata.LastAccessed,
+					EndedAt:             sess.Metadata.LastAccessed.UTC(),
 				}
 
 				if err := claude.AppendStatsRecord(record); err != nil {

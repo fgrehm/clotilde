@@ -186,7 +186,7 @@ func ConsolidateStatsFile(path string) ([]SessionStatsRecord, error) {
 	base := filepath.Base(path)
 	tmpPath := filepath.Join(dir, "."+base+".tmp")
 
-	f, err := os.Create(tmpPath)
+	f, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp file: %w", err)
 	}
