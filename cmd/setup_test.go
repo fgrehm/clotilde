@@ -76,11 +76,13 @@ var _ = Describe("Setup Command", func() {
 		Expect(settings).To(HaveKey("hooks"))
 		hooks := settings["hooks"].(map[string]interface{})
 		Expect(hooks).To(HaveKey("SessionStart"))
-		Expect(hooks).To(HaveKey("Stop"))
-		Expect(hooks).To(HaveKey("Notification"))
-		Expect(hooks).To(HaveKey("PreToolUse"))
-		Expect(hooks).To(HaveKey("PostToolUse"))
-		Expect(hooks).To(HaveKey("SessionEnd"))
+
+		// Only SessionStart should be present (GenerateHookConfig doesn't set the others)
+		Expect(hooks).NotTo(HaveKey("Stop"))
+		Expect(hooks).NotTo(HaveKey("Notification"))
+		Expect(hooks).NotTo(HaveKey("PreToolUse"))
+		Expect(hooks).NotTo(HaveKey("PostToolUse"))
+		Expect(hooks).NotTo(HaveKey("SessionEnd"))
 
 		sessionStart := hooks["SessionStart"].([]interface{})
 		Expect(sessionStart).To(HaveLen(1))
@@ -167,6 +169,51 @@ var _ = Describe("Setup Command", func() {
 		hooks := settings["hooks"].(map[string]interface{})
 		Expect(hooks).To(HaveKey("UserPromptSubmit"))
 		Expect(hooks).To(HaveKey("SessionStart"))
-		Expect(hooks).To(HaveKey("Stop"))
+	})
+
+	It("should not overwrite existing hooks for types not in HookConfig", func() {
+		// Pre-populate settings with user-defined Stop and SessionEnd hooks
+		claudeDir := filepath.Join(fakeHome, ".claude")
+		err := os.MkdirAll(claudeDir, 0o755)
+		Expect(err).NotTo(HaveOccurred())
+
+		existingSettings := map[string]interface{}{
+			"hooks": map[string]interface{}{
+				"Stop":       []interface{}{"echo my-stop-hook"},
+				"SessionEnd": []interface{}{"echo my-sessionend-hook"},
+			},
+		}
+		settingsPath := filepath.Join(claudeDir, "settings.json")
+		content, err := json.Marshal(existingSettings)
+		Expect(err).NotTo(HaveOccurred())
+		err = os.WriteFile(settingsPath, content, 0o644)
+		Expect(err).NotTo(HaveOccurred())
+
+		rootCmd := cmd.NewRootCmd()
+		rootCmd.SetArgs([]string{"setup"})
+		err = rootCmd.Execute()
+		Expect(err).NotTo(HaveOccurred())
+
+		// Read back and verify
+		content, err = os.ReadFile(settingsPath)
+		Expect(err).NotTo(HaveOccurred())
+
+		var settings map[string]interface{}
+		err = json.Unmarshal(content, &settings)
+		Expect(err).NotTo(HaveOccurred())
+
+		hooks := settings["hooks"].(map[string]interface{})
+
+		// Clotilde's SessionStart hook should be present
+		Expect(hooks).To(HaveKey("SessionStart"))
+
+		// User-defined hooks should be preserved (not overwritten with null)
+		Expect(hooks["Stop"]).To(Equal([]interface{}{"echo my-stop-hook"}))
+		Expect(hooks["SessionEnd"]).To(Equal([]interface{}{"echo my-sessionend-hook"}))
+
+		// Hook types not set by GenerateHookConfig should not appear as null keys
+		Expect(hooks).NotTo(HaveKey("Notification"))
+		Expect(hooks).NotTo(HaveKey("PreToolUse"))
+		Expect(hooks).NotTo(HaveKey("PostToolUse"))
 	})
 })

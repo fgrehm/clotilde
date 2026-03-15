@@ -111,12 +111,24 @@ func mergeHooksIntoSettings(settingsPath, clotildeBinary string) (map[string]int
 		hooks = make(map[string]interface{})
 	}
 
-	hooks["SessionStart"] = hookConfig.SessionStart
-	hooks["Stop"] = hookConfig.Stop
-	hooks["Notification"] = hookConfig.Notification
-	hooks["PreToolUse"] = hookConfig.PreToolUse
-	hooks["PostToolUse"] = hookConfig.PostToolUse
-	hooks["SessionEnd"] = hookConfig.SessionEnd
+	if len(hookConfig.SessionStart) > 0 {
+		hooks["SessionStart"] = hookConfig.SessionStart
+	}
+	if len(hookConfig.Stop) > 0 {
+		hooks["Stop"] = hookConfig.Stop
+	}
+	if len(hookConfig.Notification) > 0 {
+		hooks["Notification"] = hookConfig.Notification
+	}
+	if len(hookConfig.PreToolUse) > 0 {
+		hooks["PreToolUse"] = hookConfig.PreToolUse
+	}
+	if len(hookConfig.PostToolUse) > 0 {
+		hooks["PostToolUse"] = hookConfig.PostToolUse
+	}
+	if len(hookConfig.SessionEnd) > 0 {
+		hooks["SessionEnd"] = hookConfig.SessionEnd
+	}
 	settings["hooks"] = hooks
 
 	if err := util.WriteJSON(settingsPath, settings); err != nil {
