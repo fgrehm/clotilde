@@ -228,7 +228,7 @@ func TestFindLastRecord(t *testing.T) {
 		}
 	})
 
-	t.Run("returns nil when no record found within 7 days", func(t *testing.T) {
+	t.Run("returns nil when no record found within 30 days", func(t *testing.T) {
 		found, err := claude.FindLastRecord("uuid-nonexistent", now)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)

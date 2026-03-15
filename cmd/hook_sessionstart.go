@@ -166,6 +166,12 @@ func attemptCrashRecovery(clotildeRoot, sessionName string, store session.Store)
 		return
 	}
 
+	// Skip recovery if the session is older than the FindLastRecord lookback window (30 days).
+	// Beyond that window FindLastRecord returns nil even for clean exits, causing false positives.
+	if time.Since(sess.Metadata.LastAccessed) > 30*24*time.Hour {
+		return
+	}
+
 	// Check if a stats record already exists for the last invocation.
 	// Only skip recovery if the record's EndedAt is after LastAccessed,
 	// meaning the prior run exited cleanly after the session was last opened.

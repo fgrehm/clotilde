@@ -92,11 +92,11 @@ func showAllStats(cmd *cobra.Command) error {
 		_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "warning: failed to read stats files: %v\n", err)
 	}
 
-	// Filter to current project (keep records with matching or empty project path)
+	// Filter to current project
 	if projectPath != "" && len(records) > 0 {
 		var filtered []claude.SessionStatsRecord
 		for _, rec := range records {
-			if rec.ProjectPath == "" || rec.ProjectPath == projectPath {
+			if rec.ProjectPath == projectPath {
 				filtered = append(filtered, rec)
 			}
 		}

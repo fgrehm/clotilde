@@ -258,9 +258,12 @@ var _ = Describe("Stats Command", func() {
 	})
 
 	Context("--all flag", func() {
+		var projectPath string
+
 		BeforeEach(func() {
 			// Isolate stats files from real system
 			GinkgoT().Setenv("XDG_DATA_HOME", filepath.Join(tempDir, "xdg-data"))
+			projectPath = config.ProjectRoot(clotildeRoot)
 		})
 
 		It("should aggregate from JSONL stats files with per-session breakdown", func() {
@@ -269,6 +272,7 @@ var _ = Describe("Stats Command", func() {
 			err := claude.AppendStatsRecord(claude.SessionStatsRecord{
 				SessionName:  "session-1",
 				SessionID:    "uuid-all-1",
+				ProjectPath:  projectPath,
 				Turns:        5,
 				ActiveTimeS:  300,
 				TotalTimeS:   600,
@@ -283,6 +287,7 @@ var _ = Describe("Stats Command", func() {
 			err = claude.AppendStatsRecord(claude.SessionStatsRecord{
 				SessionName:  "session-2",
 				SessionID:    "uuid-all-2",
+				ProjectPath:  projectPath,
 				Turns:        10,
 				ActiveTimeS:  600,
 				TotalTimeS:   1200,
@@ -320,6 +325,7 @@ var _ = Describe("Stats Command", func() {
 			err := claude.AppendStatsRecord(claude.SessionStatsRecord{
 				SessionName: "only-one",
 				SessionID:   "uuid-single",
+				ProjectPath: projectPath,
 				Turns:       5,
 				ActiveTimeS: 300,
 				EndedAt:     now.Add(-10 * time.Minute),
@@ -344,6 +350,7 @@ var _ = Describe("Stats Command", func() {
 			now := time.Now()
 			err := claude.AppendStatsRecord(claude.SessionStatsRecord{
 				SessionID:   "uuid-dup",
+				ProjectPath: projectPath,
 				Turns:       5,
 				InputTokens: 1000,
 				EndedAt:     now.Add(-20 * time.Minute),
@@ -352,6 +359,7 @@ var _ = Describe("Stats Command", func() {
 
 			err = claude.AppendStatsRecord(claude.SessionStatsRecord{
 				SessionID:       "uuid-dup",
+				ProjectPath:     projectPath,
 				Turns:           12,
 				PrevTurns:       5,
 				InputTokens:     3000,
@@ -407,9 +415,10 @@ var _ = Describe("Stats Command", func() {
 		It("should show no activity when stats files exist but have zero turns", func() {
 			now := time.Now()
 			err := claude.AppendStatsRecord(claude.SessionStatsRecord{
-				SessionID: "uuid-zero",
-				Turns:     0,
-				EndedAt:   now.Add(-5 * time.Minute),
+				SessionID:   "uuid-zero",
+				ProjectPath: projectPath,
+				Turns:       0,
+				EndedAt:     now.Add(-5 * time.Minute),
 			})
 			Expect(err).NotTo(HaveOccurred())
 
