@@ -18,9 +18,15 @@ import (
 
 func newStatsCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:               "stats [name]",
-		Short:             "Show session activity statistics",
-		Long:              `Display activity statistics for a session including turn count, timing, tokens, models, and tool usage.`,
+		Use:   "stats [name]",
+		Short: "Show session activity statistics",
+		Long: `Display activity statistics for a session including turn count, timing,
+tokens, models, and tool usage.
+
+With --all, reads from daily JSONL stats files recorded by the SessionEnd hook
+(enable with 'clotilde setup --stats'). Falls back to parsing transcripts if
+no stats files exist. The JSONL files at $XDG_DATA_HOME/clotilde/stats/ are
+also designed for consumption by other tools (dashboards, scripts, etc.).`,
 		Args:              cobra.MaximumNArgs(1),
 		ValidArgsFunction: sessionNameCompletion,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -69,6 +75,47 @@ func showSessionStats(cmd *cobra.Command, name string) error {
 }
 
 func showAllStats(cmd *cobra.Command) error {
+	now := time.Now()
+
+	// Try reading from daily JSONL stats files first
+	records, err := readStatsForPeriod(now, 7)
+	if err != nil {
+		_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "warning: failed to read stats files: %v\n", err)
+	}
+
+	if len(records) > 0 {
+		return showAggregateFromRecords(cmd, records)
+	}
+
+	// Fall back to transcript parsing
+	return showAggregateFromTranscripts(cmd)
+}
+
+// showAggregateFromRecords aggregates stats from daily JSONL records.
+func showAggregateFromRecords(cmd *cobra.Command, records []claude.SessionStatsRecord) error {
+	// Deduplicate: keep last record per session_id (most recent cumulative totals)
+	seen := make(map[string]int)
+	var deduped []claude.SessionStatsRecord
+	for _, rec := range records {
+		if idx, ok := seen[rec.SessionID]; ok {
+			deduped[idx] = rec
+		} else {
+			seen[rec.SessionID] = len(deduped)
+			deduped = append(deduped, rec)
+		}
+	}
+
+	merged := aggregateRecords(deduped)
+
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Aggregate stats (%d sessions, last 7 days)\n", len(deduped))
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "─────────────────────────────────\n")
+
+	printAggregateStats(cmd, merged)
+	return nil
+}
+
+// showAggregateFromTranscripts falls back to parsing transcripts when no stats files exist.
+func showAggregateFromTranscripts(cmd *cobra.Command) error {
 	clotildeRoot, err := config.FindClotildeRoot()
 	if err != nil {
 		return fmt.Errorf("no sessions found (create one with 'clotilde start <name>')")
@@ -85,7 +132,6 @@ func showAllStats(cmd *cobra.Command) error {
 		return nil
 	}
 
-	// Filter to sessions active in the last 7 days
 	cutoff := time.Now().Add(-7 * 24 * time.Hour)
 	var recent []*session.Session
 	for _, sess := range sessions {
@@ -115,9 +161,132 @@ func showAllStats(cmd *cobra.Command) error {
 
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Aggregate stats (%d sessions, last 7 days)\n", len(recent))
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "─────────────────────────────────\n")
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "(from transcripts, enable stats tracking with 'clotilde setup --stats')\n\n")
 
 	printStats(cmd, merged)
 	return nil
+}
+
+// readStatsForPeriod reads all stats records from the last N days of JSONL files.
+// Returns records in chronological order (oldest first) so dedup keeps the latest.
+func readStatsForPeriod(now time.Time, days int) ([]claude.SessionStatsRecord, error) {
+	var all []claude.SessionStatsRecord
+	for daysBack := days - 1; daysBack >= 0; daysBack-- {
+		date := now.AddDate(0, 0, -daysBack)
+		path, err := claude.DailyStatsFilePath(date)
+		if err != nil {
+			return nil, err
+		}
+		records, err := claude.ReadStatsFile(path)
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, records...)
+	}
+	return all, nil
+}
+
+// aggregateStats holds aggregated data from SessionStatsRecords.
+type aggregateStats struct {
+	Turns               int
+	ActiveTimeS         int
+	TotalTimeS          int
+	InputTokens         int
+	OutputTokens        int
+	CacheCreationTokens int
+	CacheReadTokens     int
+	Models              []string
+	ToolUses            map[string]int
+	Earliest            time.Time
+	Latest              time.Time
+}
+
+// aggregateRecords sums deduplicated stats records into a single aggregate.
+// Each record's cumulative totals are summed directly (they represent one session each
+// after dedup). Uses delta fields (turns - prev_turns) to compute per-period activity.
+func aggregateRecords(records []claude.SessionStatsRecord) aggregateStats {
+	agg := aggregateStats{
+		ToolUses: make(map[string]int),
+	}
+	modelSeen := make(map[string]bool)
+
+	for _, rec := range records {
+		// Use delta (current - prev) for per-period stats
+		agg.Turns += rec.Turns - rec.PrevTurns
+		agg.ActiveTimeS += rec.ActiveTimeS - rec.PrevActiveTimeS
+		agg.TotalTimeS += rec.TotalTimeS - rec.PrevTotalTimeS
+		agg.InputTokens += rec.InputTokens - rec.PrevInputTokens
+		agg.OutputTokens += rec.OutputTokens - rec.PrevOutputTokens
+
+		// Cumulative fields without prev_ tracking
+		agg.CacheCreationTokens += rec.CacheCreationTokens
+		agg.CacheReadTokens += rec.CacheReadTokens
+
+		for _, m := range rec.Models {
+			if !modelSeen[m] {
+				modelSeen[m] = true
+				agg.Models = append(agg.Models, m)
+			}
+		}
+		for tool, count := range rec.ToolUses {
+			agg.ToolUses[tool] += count
+		}
+
+		if !rec.EndedAt.IsZero() {
+			if agg.Earliest.IsZero() || rec.EndedAt.Before(agg.Earliest) {
+				agg.Earliest = rec.EndedAt
+			}
+			if rec.EndedAt.After(agg.Latest) {
+				agg.Latest = rec.EndedAt
+			}
+		}
+	}
+	return agg
+}
+
+func printAggregateStats(cmd *cobra.Command, agg aggregateStats) {
+	w := cmd.OutOrStdout()
+
+	if agg.Turns == 0 {
+		_, _ = fmt.Fprintln(w, "No activity recorded.")
+		return
+	}
+
+	_, _ = fmt.Fprintf(w, "Turns         %d\n", agg.Turns)
+
+	if agg.TotalTimeS > 0 {
+		_, _ = fmt.Fprintf(w, "Total time    %s\n", util.FormatDuration(time.Duration(agg.TotalTimeS)*time.Second))
+	}
+	if agg.ActiveTimeS > 0 {
+		_, _ = fmt.Fprintf(w, "Active time   %s     (approx)\n", util.FormatDuration(time.Duration(agg.ActiveTimeS)*time.Second))
+	}
+
+	if agg.InputTokens > 0 || agg.OutputTokens > 0 {
+		_, _ = fmt.Fprintln(w)
+		_, _ = fmt.Fprintf(w, "Input tokens  %s\n", formatTokenCount(agg.InputTokens))
+		_, _ = fmt.Fprintf(w, "Output tokens %s\n", formatTokenCount(agg.OutputTokens))
+		if agg.CacheReadTokens > 0 {
+			_, _ = fmt.Fprintf(w, "Cache read    %s\n", formatTokenCount(agg.CacheReadTokens))
+		}
+		if agg.CacheCreationTokens > 0 {
+			_, _ = fmt.Fprintf(w, "Cache write   %s\n", formatTokenCount(agg.CacheCreationTokens))
+		}
+	}
+
+	if len(agg.Models) > 0 {
+		_, _ = fmt.Fprintln(w)
+		families := make([]string, len(agg.Models))
+		for i, m := range agg.Models {
+			families[i] = claude.FormatModelFamily(m)
+		}
+		_, _ = fmt.Fprintf(w, "Models        %s\n", strings.Join(families, ", "))
+	}
+
+	if len(agg.ToolUses) > 0 {
+		_, _ = fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w, "Tool usage:")
+		printToolUses(w, agg.ToolUses)
+	}
 }
 
 func collectSessionStats(sess *session.Session, clotildeRoot string) (*claude.TranscriptStats, error) {

@@ -258,8 +258,95 @@ var _ = Describe("Stats Command", func() {
 	})
 
 	Context("--all flag", func() {
-		It("should aggregate stats across recent sessions", func() {
-			// Create two sessions with recent lastAccessed
+		BeforeEach(func() {
+			// Isolate stats files from real system
+			GinkgoT().Setenv("XDG_DATA_HOME", filepath.Join(tempDir, "xdg-data"))
+		})
+
+		It("should aggregate from JSONL stats files", func() {
+			now := time.Now()
+			// Write two records to today's stats file
+			err := claude.AppendStatsRecord(claude.SessionStatsRecord{
+				SessionName:  "session-1",
+				SessionID:    "uuid-all-1",
+				Turns:        5,
+				ActiveTimeS:  300,
+				TotalTimeS:   600,
+				InputTokens:  1000,
+				OutputTokens: 500,
+				Models:       []string{"claude-sonnet-4-5-20250929"},
+				ToolUses:     map[string]int{"Read": 3, "Bash": 2},
+				EndedAt:      now.Add(-1 * time.Hour),
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			err = claude.AppendStatsRecord(claude.SessionStatsRecord{
+				SessionName:  "session-2",
+				SessionID:    "uuid-all-2",
+				Turns:        10,
+				ActiveTimeS:  600,
+				TotalTimeS:   1200,
+				InputTokens:  2000,
+				OutputTokens: 1000,
+				Models:       []string{"claude-opus-4-6-20260301"},
+				ToolUses:     map[string]int{"Edit": 5},
+				EndedAt:      now.Add(-2 * time.Hour),
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			output := captureOutput(func() {
+				rootCmd := cmd.NewRootCmd()
+				rootCmd.SetOut(os.Stdout)
+				rootCmd.SetErr(io.Discard)
+				rootCmd.SetArgs([]string{"stats", "--all"})
+				err := rootCmd.Execute()
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			Expect(output).To(ContainSubstring("Aggregate stats (2 sessions, last 7 days)"))
+			Expect(output).To(ContainSubstring("Turns         15"))
+			Expect(output).To(ContainSubstring("Input tokens"))
+			Expect(output).To(ContainSubstring("Models"))
+			Expect(output).To(ContainSubstring("Tool usage:"))
+		})
+
+		It("should deduplicate by session_id keeping latest", func() {
+			now := time.Now()
+			// Two records for same session (resumed)
+			err := claude.AppendStatsRecord(claude.SessionStatsRecord{
+				SessionID:   "uuid-dup",
+				Turns:       5,
+				InputTokens: 1000,
+				EndedAt:     now.Add(-3 * time.Hour),
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			err = claude.AppendStatsRecord(claude.SessionStatsRecord{
+				SessionID:       "uuid-dup",
+				Turns:           12,
+				PrevTurns:       5,
+				InputTokens:     3000,
+				PrevInputTokens: 1000,
+				EndedAt:         now.Add(-1 * time.Hour),
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			output := captureOutput(func() {
+				rootCmd := cmd.NewRootCmd()
+				rootCmd.SetOut(os.Stdout)
+				rootCmd.SetErr(io.Discard)
+				rootCmd.SetArgs([]string{"stats", "--all"})
+				err := rootCmd.Execute()
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			// Should use delta: 12 - 5 = 7 turns from the latest record
+			Expect(output).To(ContainSubstring("Aggregate stats (1 sessions"))
+			Expect(output).To(ContainSubstring("Turns         7"))
+		})
+
+		It("should fall back to transcripts when no stats files exist", func() {
+			// No JSONL files written; create sessions with transcripts
 			sess1 := session.NewSession("session-1", "uuid-all-1")
 			sess1.Metadata.LastAccessed = time.Now().Add(-1 * time.Hour)
 			err := store.Create(sess1)
@@ -274,20 +361,6 @@ var _ = Describe("Stats Command", func() {
 			err = store.Update(sess1)
 			Expect(err).NotTo(HaveOccurred())
 
-			sess2 := session.NewSession("session-2", "uuid-all-2")
-			sess2.Metadata.LastAccessed = time.Now().Add(-2 * time.Hour)
-			err = store.Create(sess2)
-			Expect(err).NotTo(HaveOccurred())
-
-			t2Path := filepath.Join(tempDir, "uuid-all-2.jsonl")
-			err = os.WriteFile(t2Path, []byte(`{"type":"progress","timestamp":"2025-02-18T10:00:00Z"}
-{"type":"user","timestamp":"2025-02-18T10:00:10Z","message":{"content":"hello"}}
-{"type":"assistant","timestamp":"2025-02-18T10:00:20Z","message":{"content":"hi","usage":{"input_tokens":200,"output_tokens":100}}}`), 0o644)
-			Expect(err).NotTo(HaveOccurred())
-			sess2.Metadata.TranscriptPath = t2Path
-			err = store.Update(sess2)
-			Expect(err).NotTo(HaveOccurred())
-
 			output := captureOutput(func() {
 				rootCmd := cmd.NewRootCmd()
 				rootCmd.SetOut(os.Stdout)
@@ -297,12 +370,13 @@ var _ = Describe("Stats Command", func() {
 				Expect(err).NotTo(HaveOccurred())
 			})
 
-			Expect(output).To(ContainSubstring("Aggregate stats (2 sessions, last 7 days)"))
-			Expect(output).To(ContainSubstring("Turns         2"))
+			Expect(output).To(ContainSubstring("Aggregate stats (1 sessions, last 7 days)"))
+			Expect(output).To(ContainSubstring("from transcripts"))
+			Expect(output).To(ContainSubstring("Turns         1"))
 		})
 
-		It("should exclude sessions older than 7 days", func() {
-			// Create a session with old lastAccessed
+		It("should exclude old sessions in transcript fallback", func() {
+			// No JSONL files; session with old lastAccessed
 			sess := session.NewSession("old-session", "uuid-old-1")
 			sess.Metadata.LastAccessed = time.Now().Add(-10 * 24 * time.Hour)
 			err := store.Create(sess)
