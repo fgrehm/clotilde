@@ -290,9 +290,9 @@ clotilde start myfeature --output-style-file ./my-style.md
 
 ## Commands
 
-### `clotilde setup [--local]`
+### `clotilde setup [--local] [--stats] [--no-stats]`
 
-One-time setup that registers SessionStart hooks in `~/.claude/settings.json` (Claude Code's global user settings). Run this once after installing clotilde.
+One-time setup that registers hooks in `~/.claude/settings.json` (Claude Code's global user settings). Run this once after installing clotilde. With `--stats`, also registers a SessionEnd hook that records session statistics (turns, tokens, models, tool usage) to daily JSONL files.
 
 ```bash
 # Install hooks globally (default)
@@ -300,6 +300,12 @@ clotilde setup
 
 # Install hooks in ~/.claude/settings.local.json instead
 clotilde setup --local
+
+# Enable session statistics tracking (records turns, tokens, tool usage)
+clotilde setup --stats
+
+# Disable statistics tracking
+clotilde setup --no-stats
 ```
 
 After setup, `clotilde start` works in any project directory. The `.claude/clotilde/sessions/` directory is created automatically on first use.
@@ -436,9 +442,9 @@ clotilde fork auth-feature --incognito
 
 **Note:** You cannot fork FROM incognito sessions, but you can fork TO incognito sessions.
 
-### `clotilde stats <name>`
+### `clotilde stats [name] [--all]`
 
-Show session activity statistics including turn count, timing, and response times.
+Show session activity statistics including turn count, timing, tokens, models, and tool usage. Parses Claude Code transcripts for per-session stats.
 
 ```bash
 clotilde stats auth-feature
@@ -450,7 +456,38 @@ clotilde stats auth-feature
 # Total time    8h 12m
 # Active time   2h 35m     (approx)
 # Avg response  3m 41s     (approx)
+#
+# Input tokens  1245k
+# Output tokens 245k
+# Cache read    890k
+#
+# Models        opus
+#
+# Tool usage:
+#   Edit           87
+#   Read           64
+#   Bash           23
+#   Grep           19
 ```
+
+**Options:**
+- `--all` - Show aggregate stats across sessions active in the last 7 days (scoped to current project)
+
+With `--all`, reads from daily JSONL stats files recorded by the SessionEnd hook (enable with `clotilde setup --stats`). Falls back to parsing transcripts if no stats files exist. The JSONL files at `$XDG_DATA_HOME/clotilde/stats/` are designed for consumption by other tools (dashboards, scripts, etc.).
+
+### `clotilde stats backfill`
+
+Generate stats records from existing session transcripts. Parses transcripts for all sessions in the current project and writes records to the daily JSONL files. Skips sessions that already have a record.
+
+```bash
+clotilde stats backfill
+#   auth-feature: 42 turns, 1490k tokens
+#   refactor-db: 18 turns, 520k tokens
+#
+# Backfill complete: 2 written, 1 skipped
+```
+
+Useful for populating stats after enabling tracking on an existing project.
 
 ### `clotilde export <name> [options]`
 
