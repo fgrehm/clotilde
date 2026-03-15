@@ -201,6 +201,13 @@ type TranscriptStats struct {
 	TotalTime       time.Duration
 	ActiveTime      time.Duration
 	AvgResponseTime time.Duration
+
+	InputTokens         int
+	OutputTokens        int
+	CacheCreationTokens int
+	CacheReadTokens     int
+	Models              []string       // deduplicated, first-appearance order
+	ToolUses            map[string]int // tool name -> invocation count
 }
 
 // transcriptEntryForStats is used for parsing transcript entries for stats.
@@ -209,8 +216,21 @@ type transcriptEntryForStats struct {
 	Type      string    `json:"type"`
 	Timestamp time.Time `json:"timestamp"`
 	Message   struct {
+		Model   string          `json:"model"`
 		Content json.RawMessage `json:"content"`
+		Usage   struct {
+			InputTokens              int `json:"input_tokens"`
+			OutputTokens             int `json:"output_tokens"`
+			CacheCreationInputTokens int `json:"cache_creation_input_tokens"`
+			CacheReadInputTokens     int `json:"cache_read_input_tokens"`
+		} `json:"usage"`
 	} `json:"message"`
+}
+
+// contentBlock is used to extract tool_use blocks from message.content arrays.
+type contentBlock struct {
+	Type string `json:"type"`
+	Name string `json:"name"`
 }
 
 // isHumanTurn checks if a message content is a human turn (string) vs tool result (array).
@@ -238,7 +258,11 @@ func ParseTranscriptStats(transcriptPath string) (*TranscriptStats, error) {
 	}
 	defer func() { _ = file.Close() }()
 
-	stats := &TranscriptStats{}
+	stats := &TranscriptStats{
+		ToolUses: make(map[string]int),
+	}
+
+	modelSeen := make(map[string]bool)
 
 	// Use bufio.Reader instead of bufio.Scanner so that oversized lines (e.g. large
 	// tool outputs >1MB) are consumed and skipped rather than halting the scan entirely.
@@ -304,6 +328,30 @@ func ParseTranscriptStats(transcriptPath string) (*TranscriptStats, error) {
 					if !entry.Timestamp.IsZero() {
 						lastAssistantTime = entry.Timestamp
 					}
+
+					// Token usage
+					stats.InputTokens += entry.Message.Usage.InputTokens
+					stats.OutputTokens += entry.Message.Usage.OutputTokens
+					stats.CacheCreationTokens += entry.Message.Usage.CacheCreationInputTokens
+					stats.CacheReadTokens += entry.Message.Usage.CacheReadInputTokens
+
+					// Model tracking (deduplicated, first-appearance order)
+					if m := entry.Message.Model; m != "" && !modelSeen[m] {
+						modelSeen[m] = true
+						stats.Models = append(stats.Models, m)
+					}
+
+					// Tool usage from content blocks
+					if len(entry.Message.Content) > 0 && entry.Message.Content[0] == '[' {
+						var blocks []contentBlock
+						if json.Unmarshal(entry.Message.Content, &blocks) == nil {
+							for _, b := range blocks {
+								if b.Type == "tool_use" && b.Name != "" {
+									stats.ToolUses[b.Name]++
+								}
+							}
+						}
+					}
 				}
 			}
 		}
@@ -331,4 +379,66 @@ func ParseTranscriptStats(transcriptPath string) (*TranscriptStats, error) {
 	}
 
 	return stats, nil
+}
+
+// MergeTranscriptStats merges multiple transcript stats into one.
+// Sums counts (turns, tokens, tool uses, active time), takes earliest first
+// message and latest last message, unions model lists preserving first-appearance
+// order, and recomputes total time and average response time.
+// Nil entries in the slice are skipped.
+func MergeTranscriptStats(stats []*TranscriptStats) *TranscriptStats {
+	merged := &TranscriptStats{
+		ToolUses: make(map[string]int),
+	}
+	modelSeen := make(map[string]bool)
+
+	for _, s := range stats {
+		if s == nil {
+			continue
+		}
+
+		merged.Turns += s.Turns
+		merged.ActiveTime += s.ActiveTime
+		merged.InputTokens += s.InputTokens
+		merged.OutputTokens += s.OutputTokens
+		merged.CacheCreationTokens += s.CacheCreationTokens
+		merged.CacheReadTokens += s.CacheReadTokens
+
+		// Earliest first message
+		if !s.FirstMessage.IsZero() {
+			if merged.FirstMessage.IsZero() || s.FirstMessage.Before(merged.FirstMessage) {
+				merged.FirstMessage = s.FirstMessage
+			}
+		}
+
+		// Latest last message
+		if !s.LastMessage.IsZero() {
+			if merged.LastMessage.IsZero() || s.LastMessage.After(merged.LastMessage) {
+				merged.LastMessage = s.LastMessage
+			}
+		}
+
+		// Union models preserving first-appearance order
+		for _, m := range s.Models {
+			if !modelSeen[m] {
+				modelSeen[m] = true
+				merged.Models = append(merged.Models, m)
+			}
+		}
+
+		// Sum tool uses
+		for tool, count := range s.ToolUses {
+			merged.ToolUses[tool] += count
+		}
+	}
+
+	// Recompute derived fields
+	if !merged.FirstMessage.IsZero() && !merged.LastMessage.IsZero() {
+		merged.TotalTime = merged.LastMessage.Sub(merged.FirstMessage)
+	}
+	if merged.Turns > 0 {
+		merged.AvgResponseTime = merged.ActiveTime / time.Duration(merged.Turns)
+	}
+
+	return merged
 }

@@ -390,3 +390,233 @@ func TestParseTranscriptStats_OversizedLine(t *testing.T) {
 		t.Errorf("expected 2 turns (before and after giant line), got %d", stats.Turns)
 	}
 }
+
+func TestParseTranscriptStats_TokenCounts(t *testing.T) {
+	transcript := `{"type":"progress","timestamp":"2025-01-01T10:00:00Z"}
+{"type":"user","timestamp":"2025-01-01T10:00:10Z","message":{"content":"hello"}}
+{"type":"assistant","timestamp":"2025-01-01T10:00:15Z","message":{"model":"claude-sonnet-4-5-20250929","content":"hi","usage":{"input_tokens":100,"output_tokens":50,"cache_creation_input_tokens":10,"cache_read_input_tokens":80}}}
+{"type":"user","timestamp":"2025-01-01T10:01:00Z","message":{"content":"more"}}
+{"type":"assistant","timestamp":"2025-01-01T10:01:10Z","message":{"model":"claude-sonnet-4-5-20250929","content":"sure","usage":{"input_tokens":200,"output_tokens":75,"cache_creation_input_tokens":0,"cache_read_input_tokens":150}}}
+`
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "transcript.jsonl")
+	if err := os.WriteFile(path, []byte(transcript), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	stats, err := claude.ParseTranscriptStats(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if stats.InputTokens != 300 {
+		t.Errorf("InputTokens: got %d, want 300", stats.InputTokens)
+	}
+	if stats.OutputTokens != 125 {
+		t.Errorf("OutputTokens: got %d, want 125", stats.OutputTokens)
+	}
+	if stats.CacheCreationTokens != 10 {
+		t.Errorf("CacheCreationTokens: got %d, want 10", stats.CacheCreationTokens)
+	}
+	if stats.CacheReadTokens != 230 {
+		t.Errorf("CacheReadTokens: got %d, want 230", stats.CacheReadTokens)
+	}
+}
+
+func TestParseTranscriptStats_Models(t *testing.T) {
+	transcript := `{"type":"progress","timestamp":"2025-01-01T10:00:00Z"}
+{"type":"user","timestamp":"2025-01-01T10:00:10Z","message":{"content":"hello"}}
+{"type":"assistant","timestamp":"2025-01-01T10:00:15Z","message":{"model":"claude-sonnet-4-5-20250929","content":"hi"}}
+{"type":"user","timestamp":"2025-01-01T10:01:00Z","message":{"content":"more"}}
+{"type":"assistant","timestamp":"2025-01-01T10:01:10Z","message":{"model":"claude-opus-4-20250514","content":"sure"}}
+{"type":"user","timestamp":"2025-01-01T10:02:00Z","message":{"content":"again"}}
+{"type":"assistant","timestamp":"2025-01-01T10:02:10Z","message":{"model":"claude-sonnet-4-5-20250929","content":"ok"}}
+`
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "transcript.jsonl")
+	if err := os.WriteFile(path, []byte(transcript), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	stats, err := claude.ParseTranscriptStats(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Should be deduplicated, first-appearance order
+	if len(stats.Models) != 2 {
+		t.Fatalf("Models: got %d, want 2", len(stats.Models))
+	}
+	if stats.Models[0] != "claude-sonnet-4-5-20250929" {
+		t.Errorf("Models[0]: got %q, want %q", stats.Models[0], "claude-sonnet-4-5-20250929")
+	}
+	if stats.Models[1] != "claude-opus-4-20250514" {
+		t.Errorf("Models[1]: got %q, want %q", stats.Models[1], "claude-opus-4-20250514")
+	}
+}
+
+func TestParseTranscriptStats_ToolUses(t *testing.T) {
+	transcript := `{"type":"progress","timestamp":"2025-01-01T10:00:00Z"}
+{"type":"user","timestamp":"2025-01-01T10:00:10Z","message":{"content":"hello"}}
+{"type":"assistant","timestamp":"2025-01-01T10:00:15Z","message":{"model":"claude-sonnet-4-5-20250929","content":[{"type":"text","text":"let me check"},{"type":"tool_use","name":"Read"},{"type":"tool_use","name":"Bash"}]}}
+{"type":"user","timestamp":"2025-01-01T10:00:20Z","message":{"content":[{"type":"tool_result"}]}}
+{"type":"assistant","timestamp":"2025-01-01T10:00:25Z","message":{"model":"claude-sonnet-4-5-20250929","content":[{"type":"tool_use","name":"Read"},{"type":"tool_use","name":"Edit"}]}}
+`
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "transcript.jsonl")
+	if err := os.WriteFile(path, []byte(transcript), 0o644); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+
+	stats, err := claude.ParseTranscriptStats(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if stats.ToolUses["Read"] != 2 {
+		t.Errorf("ToolUses[Read]: got %d, want 2", stats.ToolUses["Read"])
+	}
+	if stats.ToolUses["Bash"] != 1 {
+		t.Errorf("ToolUses[Bash]: got %d, want 1", stats.ToolUses["Bash"])
+	}
+	if stats.ToolUses["Edit"] != 1 {
+		t.Errorf("ToolUses[Edit]: got %d, want 1", stats.ToolUses["Edit"])
+	}
+}
+
+func TestMergeTranscriptStats(t *testing.T) {
+	t.Run("sums tokens and tool uses across transcripts", func(t *testing.T) {
+		s1 := &claude.TranscriptStats{
+			Turns:               3,
+			ActiveTime:          30 * time.Second,
+			InputTokens:         100,
+			OutputTokens:        50,
+			CacheCreationTokens: 10,
+			CacheReadTokens:     80,
+			FirstMessage:        time.Date(2025, 1, 1, 10, 0, 0, 0, time.UTC),
+			LastMessage:         time.Date(2025, 1, 1, 10, 5, 0, 0, time.UTC),
+			Models:              []string{"claude-sonnet-4-5-20250929"},
+			ToolUses:            map[string]int{"Read": 5, "Bash": 2},
+		}
+		s2 := &claude.TranscriptStats{
+			Turns:               2,
+			ActiveTime:          20 * time.Second,
+			InputTokens:         200,
+			OutputTokens:        75,
+			CacheCreationTokens: 5,
+			CacheReadTokens:     150,
+			FirstMessage:        time.Date(2025, 1, 1, 11, 0, 0, 0, time.UTC),
+			LastMessage:         time.Date(2025, 1, 1, 11, 3, 0, 0, time.UTC),
+			Models:              []string{"claude-opus-4-20250514"},
+			ToolUses:            map[string]int{"Read": 3, "Edit": 1},
+		}
+
+		merged := claude.MergeTranscriptStats([]*claude.TranscriptStats{s1, s2})
+
+		if merged.Turns != 5 {
+			t.Errorf("Turns: got %d, want 5", merged.Turns)
+		}
+		if merged.ActiveTime != 50*time.Second {
+			t.Errorf("ActiveTime: got %v, want 50s", merged.ActiveTime)
+		}
+		if merged.InputTokens != 300 {
+			t.Errorf("InputTokens: got %d, want 300", merged.InputTokens)
+		}
+		if merged.OutputTokens != 125 {
+			t.Errorf("OutputTokens: got %d, want 125", merged.OutputTokens)
+		}
+		if merged.CacheCreationTokens != 15 {
+			t.Errorf("CacheCreationTokens: got %d, want 15", merged.CacheCreationTokens)
+		}
+		if merged.CacheReadTokens != 230 {
+			t.Errorf("CacheReadTokens: got %d, want 230", merged.CacheReadTokens)
+		}
+		if merged.ToolUses["Read"] != 8 {
+			t.Errorf("ToolUses[Read]: got %d, want 8", merged.ToolUses["Read"])
+		}
+		if merged.ToolUses["Bash"] != 2 {
+			t.Errorf("ToolUses[Bash]: got %d, want 2", merged.ToolUses["Bash"])
+		}
+		if merged.ToolUses["Edit"] != 1 {
+			t.Errorf("ToolUses[Edit]: got %d, want 1", merged.ToolUses["Edit"])
+		}
+	})
+
+	t.Run("unions model lists preserving order", func(t *testing.T) {
+		s1 := &claude.TranscriptStats{
+			Models:   []string{"claude-sonnet-4-5-20250929", "claude-opus-4-20250514"},
+			ToolUses: map[string]int{},
+		}
+		s2 := &claude.TranscriptStats{
+			Models:   []string{"claude-opus-4-20250514", "claude-3-5-haiku-20250219"},
+			ToolUses: map[string]int{},
+		}
+
+		merged := claude.MergeTranscriptStats([]*claude.TranscriptStats{s1, s2})
+
+		if len(merged.Models) != 3 {
+			t.Fatalf("Models: got %d, want 3", len(merged.Models))
+		}
+		if merged.Models[0] != "claude-sonnet-4-5-20250929" {
+			t.Errorf("Models[0]: got %q, want sonnet", merged.Models[0])
+		}
+		if merged.Models[1] != "claude-opus-4-20250514" {
+			t.Errorf("Models[1]: got %q, want opus", merged.Models[1])
+		}
+		if merged.Models[2] != "claude-3-5-haiku-20250219" {
+			t.Errorf("Models[2]: got %q, want haiku", merged.Models[2])
+		}
+	})
+
+	t.Run("uses earliest first message and latest last message", func(t *testing.T) {
+		s1 := &claude.TranscriptStats{
+			FirstMessage: time.Date(2025, 1, 1, 10, 0, 0, 0, time.UTC),
+			LastMessage:  time.Date(2025, 1, 1, 10, 5, 0, 0, time.UTC),
+			ToolUses:     map[string]int{},
+		}
+		s2 := &claude.TranscriptStats{
+			FirstMessage: time.Date(2025, 1, 1, 9, 0, 0, 0, time.UTC),
+			LastMessage:  time.Date(2025, 1, 1, 11, 0, 0, 0, time.UTC),
+			ToolUses:     map[string]int{},
+		}
+
+		merged := claude.MergeTranscriptStats([]*claude.TranscriptStats{s1, s2})
+
+		if !merged.FirstMessage.Equal(s2.FirstMessage) {
+			t.Errorf("FirstMessage: got %v, want %v", merged.FirstMessage, s2.FirstMessage)
+		}
+		if !merged.LastMessage.Equal(s2.LastMessage) {
+			t.Errorf("LastMessage: got %v, want %v", merged.LastMessage, s2.LastMessage)
+		}
+		if merged.TotalTime != 2*time.Hour {
+			t.Errorf("TotalTime: got %v, want 2h", merged.TotalTime)
+		}
+	})
+
+	t.Run("skips nil entries", func(t *testing.T) {
+		s1 := &claude.TranscriptStats{
+			Turns:       3,
+			InputTokens: 100,
+			ToolUses:    map[string]int{"Read": 1},
+		}
+
+		merged := claude.MergeTranscriptStats([]*claude.TranscriptStats{nil, s1, nil})
+
+		if merged.Turns != 3 {
+			t.Errorf("Turns: got %d, want 3", merged.Turns)
+		}
+		if merged.InputTokens != 100 {
+			t.Errorf("InputTokens: got %d, want 100", merged.InputTokens)
+		}
+	})
+
+	t.Run("empty slice returns zero stats", func(t *testing.T) {
+		merged := claude.MergeTranscriptStats(nil)
+		if merged.Turns != 0 {
+			t.Errorf("Turns: got %d, want 0", merged.Turns)
+		}
+		if merged.ToolUses == nil {
+			t.Error("ToolUses should be initialized, got nil")
+		}
+	})
+}
