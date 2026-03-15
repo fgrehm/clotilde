@@ -9,6 +9,7 @@ import (
 	"github.com/fgrehm/clotilde/internal/claude"
 	"github.com/fgrehm/clotilde/internal/config"
 	"github.com/fgrehm/clotilde/internal/session"
+	"github.com/fgrehm/clotilde/internal/util"
 )
 
 func newStatsBackfillCmd() *cobra.Command {
@@ -47,6 +48,12 @@ existing project.`,
 				// that ConsolidateStatsFile can deduplicate later.
 			}
 
+			projectPath := config.ProjectRoot(clotildeRoot)
+			homeDir, err := util.HomeDir()
+			if err != nil {
+				return fmt.Errorf("resolving home directory: %w", err)
+			}
+
 			var wrote, skipped, errored int
 
 			for _, sess := range sessions {
@@ -62,7 +69,7 @@ existing project.`,
 					continue
 				}
 
-				stats, err := collectSessionStats(sess, clotildeRoot)
+				stats, err := collectSessionStatsWithHome(sess, clotildeRoot, homeDir)
 				if err != nil {
 					_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "  warning: %s: %v\n", name, err)
 					errored++
@@ -72,8 +79,6 @@ existing project.`,
 					skipped++
 					continue
 				}
-
-				projectPath := config.ProjectRoot(clotildeRoot)
 
 				record := claude.SessionStatsRecord{
 					SessionName:         name,

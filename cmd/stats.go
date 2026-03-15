@@ -211,7 +211,7 @@ func readStatsForPeriod(now time.Time, days int) ([]claude.SessionStatsRecord, e
 	var all []claude.SessionStatsRecord
 	for daysBack := days - 1; daysBack >= 0; daysBack-- {
 		date := now.AddDate(0, 0, -daysBack)
-		path := filepath.Join(statsDir, date.UTC().Format("2006-01-02")+".jsonl")
+		path := filepath.Join(statsDir, claude.DailyStatsFileName(date))
 		records, err := claude.ReadStatsFile(path)
 		if err != nil {
 			return nil, err
@@ -400,6 +400,8 @@ func collectSessionStats(sess *session.Session, clotildeRoot string) (*claude.Tr
 	return collectSessionStatsWithHome(sess, clotildeRoot, homeDir)
 }
 
+// collectSessionStatsWithHome is the inner implementation that accepts a pre-resolved
+// homeDir, allowing callers in loops to avoid repeated HomeDir syscalls.
 func collectSessionStatsWithHome(sess *session.Session, clotildeRoot, homeDir string) (*claude.TranscriptStats, error) {
 	paths := allTranscriptPaths(sess, clotildeRoot, homeDir)
 
