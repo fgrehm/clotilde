@@ -145,7 +145,7 @@ func handleResume(clotildeRoot string, hookData hookInput, store session.Store) 
 // This handler is defensive programming in case Claude Code's behavior changes in the future.
 func handleCompact(clotildeRoot string, hookData hookInput, store session.Store) error {
 	// Resolve session name using three-level fallback
-	sessionName, err := getSessionName("compact", hookData, store)
+	sessionName, err := resolveSessionName(hookData, store, true)
 	if err != nil {
 		// If we can't resolve the session name, silently continue
 		// This might be a non-clotilde session or first compact without env
@@ -189,61 +189,6 @@ func handleCompact(clotildeRoot string, hookData hookInput, store session.Store)
 // Unlike /compact, /clear DOES create a new session UUID in Claude Code.
 func handleClear(clotildeRoot string, hookData hookInput, store session.Store) error {
 	return handleCompact(clotildeRoot, hookData, store)
-}
-
-// getSessionName resolves the session name using a three-level fallback strategy.
-func getSessionName(source string, hookData hookInput, store session.Store) (string, error) {
-	// Priority 1: CLOTILDE_SESSION_NAME env var (set by clotilde start/resume)
-	if name := os.Getenv("CLOTILDE_SESSION_NAME"); name != "" {
-		return name, nil
-	}
-
-	// For compact/clear operations, try additional fallback methods
-	if source == "compact" || source == "clear" {
-		// Priority 2: Read from CLAUDE_ENV_FILE (persisted by previous hook)
-		if name := readSessionNameFromEnvFile(); name != "" {
-			return name, nil
-		}
-
-		// Priority 3: Reverse UUID lookup (last resort)
-		// Note: This uses the OLD session ID before compact/clear
-		// We need to search for sessions that might have this as current or previous ID
-		return findSessionByUUID(store, hookData.SessionID)
-	}
-
-	return "", nil
-}
-
-// readSessionNameFromEnvFile reads the session name from CLAUDE_ENV_FILE.
-func readSessionNameFromEnvFile() string {
-	return readLastEnvFileValue("CLOTILDE_SESSION")
-}
-
-// findSessionByUUID searches for a session with the given UUID.
-// Checks both current sessionId and previousSessionIds.
-func findSessionByUUID(store session.Store, uuid string) (string, error) {
-	sessions, err := store.List()
-	if err != nil {
-		return "", fmt.Errorf("failed to list sessions: %w", err)
-	}
-
-	// First check current sessionId
-	for _, sess := range sessions {
-		if sess.Metadata.SessionID == uuid {
-			return sess.Name, nil
-		}
-	}
-
-	// Then check previousSessionIds
-	for _, sess := range sessions {
-		for _, prevID := range sess.Metadata.PreviousSessionIDs {
-			if prevID == uuid {
-				return sess.Name, nil
-			}
-		}
-	}
-
-	return "", fmt.Errorf("no session found with UUID %s", uuid)
 }
 
 // registerFork updates the fork's metadata.json with the actual session UUID.

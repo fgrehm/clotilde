@@ -1,6 +1,9 @@
 package cmd
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/fgrehm/clotilde/internal/claude"
 	"github.com/fgrehm/clotilde/internal/session"
 )
@@ -28,4 +31,55 @@ func allTranscriptPaths(sess *session.Session, clotildeRoot, homeDir string) []s
 	}
 
 	return paths
+}
+
+// resolveSessionName resolves the session name using a multi-level fallback strategy.
+// Priority 1: CLOTILDE_SESSION_NAME env var (always checked).
+// When fullFallback is true, also tries:
+// Priority 2: Read from CLAUDE_ENV_FILE (persisted by previous hook).
+// Priority 3: Reverse UUID lookup in session store.
+func resolveSessionName(hookData hookInput, store session.Store, fullFallback bool) (string, error) {
+	if name := os.Getenv("CLOTILDE_SESSION_NAME"); name != "" {
+		return name, nil
+	}
+
+	if !fullFallback {
+		return "", nil
+	}
+
+	if name := readSessionNameFromEnvFile(); name != "" {
+		return name, nil
+	}
+
+	return findSessionByUUID(store, hookData.SessionID)
+}
+
+// readSessionNameFromEnvFile reads the session name from CLAUDE_ENV_FILE.
+func readSessionNameFromEnvFile() string {
+	return readLastEnvFileValue("CLOTILDE_SESSION")
+}
+
+// findSessionByUUID searches for a session with the given UUID.
+// Checks both current sessionId and previousSessionIds.
+func findSessionByUUID(store session.Store, uuid string) (string, error) {
+	sessions, err := store.List()
+	if err != nil {
+		return "", fmt.Errorf("failed to list sessions: %w", err)
+	}
+
+	for _, sess := range sessions {
+		if sess.Metadata.SessionID == uuid {
+			return sess.Name, nil
+		}
+	}
+
+	for _, sess := range sessions {
+		for _, prevID := range sess.Metadata.PreviousSessionIDs {
+			if prevID == uuid {
+				return sess.Name, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("no session found with UUID %s", uuid)
 }
