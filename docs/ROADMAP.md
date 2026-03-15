@@ -39,6 +39,7 @@ A power-user companion for Claude Code.
 
 ## Future Ideas
 
+- **Session stats**: Record session statistics (turns, time, tokens, tool usage) to daily JSONL files on session end. Opt-in via `clotilde setup --stats`. [Spec](specs/sessionend-stats.md)
 - **Zellij tab status**: Rename tab with emoji status during sessions. Blocked by `rename-tab` targeting focused tab and plugin off-by-one bug. Revisit when Zellij adds `--tab-index` support ([investigation](zellij-tab-status.md))
 - **`/fork` slash command support**: Auto-detect and register forks created via Claude Code's `/fork` command ([spec](specs/slash-fork-handling.md))
 - **`adopt` command**: Register existing Claude Code sessions into Clotilde
