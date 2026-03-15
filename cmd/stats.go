@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -78,10 +79,27 @@ func showSessionStats(cmd *cobra.Command, name string) error {
 func showAllStats(cmd *cobra.Command) error {
 	now := time.Now()
 
+	// Resolve project path for filtering (empty if not in a project)
+	var projectPath string
+	if root, err := config.FindClotildeRoot(); err == nil {
+		projectPath = filepath.Dir(filepath.Dir(root))
+	}
+
 	// Try reading from daily JSONL stats files first
 	records, err := readStatsForPeriod(now, 7)
 	if err != nil {
 		_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "warning: failed to read stats files: %v\n", err)
+	}
+
+	// Filter to current project (keep records with matching or empty project path)
+	if projectPath != "" && len(records) > 0 {
+		var filtered []claude.SessionStatsRecord
+		for _, rec := range records {
+			if rec.ProjectPath == "" || rec.ProjectPath == projectPath {
+				filtered = append(filtered, rec)
+			}
+		}
+		records = filtered
 	}
 
 	if len(records) > 0 {
