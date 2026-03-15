@@ -535,7 +535,6 @@ func captureOutput(fn func()) string {
 	_ = w.Close()
 	os.Stdout = oldStdout
 
-	bytes := make([]byte, 4096)
-	n, _ := r.Read(bytes)
-	return string(bytes[:n])
+	out, _ := io.ReadAll(r)
+	return string(out)
 }
