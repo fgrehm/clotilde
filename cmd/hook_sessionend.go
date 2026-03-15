@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
@@ -83,7 +82,7 @@ func buildStatsRecord(hookData hookInput, now time.Time) (claude.SessionStatsRec
 		name, _ := resolveSessionName(hookData, store, true)
 		sessionName = name
 
-		projectPath = filepath.Dir(filepath.Dir(clotildeRoot))
+		projectPath = config.ProjectRoot(clotildeRoot)
 
 		if sessionName != "" {
 			if sess, err := store.Get(sessionName); err == nil {

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -209,7 +208,7 @@ func attemptCrashRecovery(clotildeRoot, sessionName string, store session.Store)
 	record := claude.SessionStatsRecord{
 		SessionName:         sessionName,
 		SessionID:           sess.Metadata.SessionID,
-		ProjectPath:         filepath.Dir(filepath.Dir(clotildeRoot)),
+		ProjectPath:         config.ProjectRoot(clotildeRoot),
 		Turns:               merged.Turns,
 		ActiveTimeS:         int(merged.ActiveTime.Seconds()),
 		TotalTimeS:          int(merged.TotalTime.Seconds()),

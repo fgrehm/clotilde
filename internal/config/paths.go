@@ -65,6 +65,12 @@ func GetSessionDir(clotildeRoot, sessionName string) string {
 	return filepath.Join(GetSessionsDir(clotildeRoot), sessionName)
 }
 
+// ProjectRoot returns the project root directory from the clotilde root path.
+// The clotilde root is .claude/clotilde, so the project root is two levels up.
+func ProjectRoot(clotildeRoot string) string {
+	return filepath.Dir(filepath.Dir(clotildeRoot))
+}
+
 // GetConfigPath returns the path to the config.json file.
 func GetConfigPath(clotildeRoot string) string {
 	return filepath.Join(clotildeRoot, ConfigFile)

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -82,7 +81,7 @@ func showAllStats(cmd *cobra.Command) error {
 	// Resolve project path for filtering (empty if not in a project)
 	var projectPath string
 	if root, err := config.FindClotildeRoot(); err == nil {
-		projectPath = filepath.Dir(filepath.Dir(root))
+		projectPath = config.ProjectRoot(root)
 	}
 
 	// Try reading from daily JSONL stats files first
@@ -165,10 +164,15 @@ func showAggregateFromTranscripts(cmd *cobra.Command) error {
 		return nil
 	}
 
+	homeDir, err := util.HomeDir()
+	if err != nil {
+		return fmt.Errorf("resolving home directory: %w", err)
+	}
+
 	var rows []sessionBreakdownRow
 	var allStats []*claude.TranscriptStats
 	for _, sess := range recent {
-		s, err := collectSessionStats(sess, clotildeRoot)
+		s, err := collectSessionStatsWithHome(sess, clotildeRoot, homeDir)
 		if err != nil {
 			_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "warning: skipping session '%s': %v\n", sess.Name, err)
 			continue
@@ -375,6 +379,10 @@ func collectSessionStats(sess *session.Session, clotildeRoot string) (*claude.Tr
 	if err != nil {
 		return nil, fmt.Errorf("resolving home directory: %w", err)
 	}
+	return collectSessionStatsWithHome(sess, clotildeRoot, homeDir)
+}
+
+func collectSessionStatsWithHome(sess *session.Session, clotildeRoot, homeDir string) (*claude.TranscriptStats, error) {
 	paths := allTranscriptPaths(sess, clotildeRoot, homeDir)
 
 	var parsed []*claude.TranscriptStats

@@ -56,14 +56,13 @@ Use --stats to enable session statistics tracking (opt-in).`,
 				return fmt.Errorf("failed to create ~/.claude directory: %w", err)
 			}
 
-			// Resolve stats preference
-			statsEnabled := resolveStatsPreference(cmd)
-
-			// Persist stats preference in global config
+			// Load global config once (used for both preference lookup and persistence)
 			globalCfg, err := config.LoadGlobalOrDefault()
 			if err != nil {
 				return fmt.Errorf("failed to load global config: %w", err)
 			}
+
+			statsEnabled := resolveStatsPreference(cmd, globalCfg)
 			globalCfg.StatsTracking = &statsEnabled
 			if err := config.SaveGlobal(globalCfg); err != nil {
 				return fmt.Errorf("failed to save global config: %w", err)
@@ -102,7 +101,7 @@ Use --stats to enable session statistics tracking (opt-in).`,
 
 // resolveStatsPreference determines whether stats should be enabled.
 // --stats flag takes precedence, then --no-stats, then existing config, then interactive prompt.
-func resolveStatsPreference(cmd *cobra.Command) bool {
+func resolveStatsPreference(cmd *cobra.Command, globalCfg *config.Config) bool {
 	if cmd.Flags().Changed("stats") {
 		return true
 	}
@@ -111,8 +110,7 @@ func resolveStatsPreference(cmd *cobra.Command) bool {
 	}
 
 	// Preserve existing preference from global config (both true and false)
-	globalCfg, err := config.LoadGlobalOrDefault()
-	if err == nil && globalCfg.StatsTracking != nil {
+	if globalCfg.StatsTracking != nil {
 		return *globalCfg.StatsTracking
 	}
 

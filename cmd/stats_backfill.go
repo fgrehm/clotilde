@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"path/filepath"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -71,9 +70,7 @@ existing project.`,
 					continue
 				}
 
-				// Determine project path (clotilde root's grandparent)
-				// clotildeRoot is .claude/clotilde, grandparent is the project root
-				projectPath := filepath.Dir(filepath.Dir(clotildeRoot))
+				projectPath := config.ProjectRoot(clotildeRoot)
 
 				record := claude.SessionStatsRecord{
 					SessionName:         name,
