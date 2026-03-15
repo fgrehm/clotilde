@@ -43,6 +43,7 @@ A power-user companion for Claude Code.
 - **Zellij tab status**: Rename tab with emoji status during sessions. Blocked by `rename-tab` targeting focused tab and plugin off-by-one bug. Revisit when Zellij adds `--tab-index` support ([investigation](zellij-tab-status.md))
 - **`/fork` slash command support**: Auto-detect and register forks created via Claude Code's `/fork` command ([spec](specs/slash-fork-handling.md))
 - **`adopt` command**: Register existing Claude Code sessions into Clotilde
+- **Consolidate test framework**: Migrate to a single testing approach (standard `testing` or Ginkgo). Currently mixed: some packages use Ginkgo (`cmd/`, `internal/claude/hooks_test.go`), others use standard `testing` (`internal/claude/transcript_test.go`, `internal/claude/stats_file_test.go`). Both work with `go test` but the inconsistency adds friction.
 - **Session search**: Full-text search across transcripts
 - **Context templates**: Dynamic context (git branch, ticket info)
 - **Session tags**: Organize with labels
