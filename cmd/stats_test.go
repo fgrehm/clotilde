@@ -4,6 +4,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -66,6 +67,17 @@ var _ = Describe("Stats Command", func() {
 		err := rootCmd.Execute()
 		Expect(err).To(HaveOccurred())
 		Expect(err.Error()).To(ContainSubstring("not found"))
+	})
+
+	It("should return error when no name and no --all", func() {
+		rootCmd := cmd.NewRootCmd()
+		rootCmd.SetOut(io.Discard)
+		rootCmd.SetErr(io.Discard)
+		rootCmd.SetArgs([]string{"stats"})
+
+		err := rootCmd.Execute()
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("session name required"))
 	})
 
 	It("should show no transcript found for session without transcript", func() {
@@ -208,6 +220,114 @@ var _ = Describe("Stats Command", func() {
 		})
 
 		Expect(output).To(ContainSubstring("No transcript found"))
+	})
+
+	It("should show tokens, models, and tool usage", func() {
+		sess := session.NewSession("rich-stats", "uuid-rich-123")
+		err := store.Create(sess)
+		Expect(err).NotTo(HaveOccurred())
+
+		transcriptPath := filepath.Join(tempDir, "uuid-rich-123.jsonl")
+		transcriptData := `{"type":"progress","timestamp":"2025-02-17T20:35:00Z"}
+{"type":"user","timestamp":"2025-02-17T20:35:10Z","message":{"content":"hello"}}
+{"type":"assistant","timestamp":"2025-02-17T20:35:15Z","message":{"model":"claude-sonnet-4-5-20250929","content":[{"type":"text","text":"Let me check."},{"type":"tool_use","name":"Read","id":"t1"}],"usage":{"input_tokens":1500,"output_tokens":200,"cache_read_input_tokens":3000}}}`
+
+		err = os.WriteFile(transcriptPath, []byte(transcriptData), 0o644)
+		Expect(err).NotTo(HaveOccurred())
+
+		sess.Metadata.TranscriptPath = transcriptPath
+		err = store.Update(sess)
+		Expect(err).NotTo(HaveOccurred())
+
+		output := captureOutput(func() {
+			rootCmd := cmd.NewRootCmd()
+			rootCmd.SetOut(os.Stdout)
+			rootCmd.SetErr(io.Discard)
+			rootCmd.SetArgs([]string{"stats", "rich-stats"})
+			err := rootCmd.Execute()
+			Expect(err).NotTo(HaveOccurred())
+		})
+
+		Expect(output).To(ContainSubstring("Input tokens"))
+		Expect(output).To(ContainSubstring("Output tokens"))
+		Expect(output).To(ContainSubstring("Cache read"))
+		Expect(output).To(ContainSubstring("Models"))
+		Expect(output).To(ContainSubstring("sonnet"))
+		Expect(output).To(ContainSubstring("Tool usage:"))
+		Expect(output).To(ContainSubstring("Read"))
+	})
+
+	Context("--all flag", func() {
+		It("should aggregate stats across recent sessions", func() {
+			// Create two sessions with recent lastAccessed
+			sess1 := session.NewSession("session-1", "uuid-all-1")
+			sess1.Metadata.LastAccessed = time.Now().Add(-1 * time.Hour)
+			err := store.Create(sess1)
+			Expect(err).NotTo(HaveOccurred())
+
+			t1Path := filepath.Join(tempDir, "uuid-all-1.jsonl")
+			err = os.WriteFile(t1Path, []byte(`{"type":"progress","timestamp":"2025-02-17T10:00:00Z"}
+{"type":"user","timestamp":"2025-02-17T10:00:10Z","message":{"content":"hello"}}
+{"type":"assistant","timestamp":"2025-02-17T10:00:20Z","message":{"content":"hi","usage":{"input_tokens":100,"output_tokens":50}}}`), 0o644)
+			Expect(err).NotTo(HaveOccurred())
+			sess1.Metadata.TranscriptPath = t1Path
+			err = store.Update(sess1)
+			Expect(err).NotTo(HaveOccurred())
+
+			sess2 := session.NewSession("session-2", "uuid-all-2")
+			sess2.Metadata.LastAccessed = time.Now().Add(-2 * time.Hour)
+			err = store.Create(sess2)
+			Expect(err).NotTo(HaveOccurred())
+
+			t2Path := filepath.Join(tempDir, "uuid-all-2.jsonl")
+			err = os.WriteFile(t2Path, []byte(`{"type":"progress","timestamp":"2025-02-18T10:00:00Z"}
+{"type":"user","timestamp":"2025-02-18T10:00:10Z","message":{"content":"hello"}}
+{"type":"assistant","timestamp":"2025-02-18T10:00:20Z","message":{"content":"hi","usage":{"input_tokens":200,"output_tokens":100}}}`), 0o644)
+			Expect(err).NotTo(HaveOccurred())
+			sess2.Metadata.TranscriptPath = t2Path
+			err = store.Update(sess2)
+			Expect(err).NotTo(HaveOccurred())
+
+			output := captureOutput(func() {
+				rootCmd := cmd.NewRootCmd()
+				rootCmd.SetOut(os.Stdout)
+				rootCmd.SetErr(io.Discard)
+				rootCmd.SetArgs([]string{"stats", "--all"})
+				err := rootCmd.Execute()
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			Expect(output).To(ContainSubstring("Aggregate stats (2 sessions, last 7 days)"))
+			Expect(output).To(ContainSubstring("Turns         2"))
+		})
+
+		It("should exclude sessions older than 7 days", func() {
+			// Create a session with old lastAccessed
+			sess := session.NewSession("old-session", "uuid-old-1")
+			sess.Metadata.LastAccessed = time.Now().Add(-10 * 24 * time.Hour)
+			err := store.Create(sess)
+			Expect(err).NotTo(HaveOccurred())
+
+			t1Path := filepath.Join(tempDir, "uuid-old-1.jsonl")
+			err = os.WriteFile(t1Path, []byte(`{"type":"progress","timestamp":"2025-01-01T10:00:00Z"}
+{"type":"user","timestamp":"2025-01-01T10:00:10Z","message":{"content":"hello"}}
+{"type":"assistant","timestamp":"2025-01-01T10:00:20Z","message":{"content":"hi"}}`), 0o644)
+			Expect(err).NotTo(HaveOccurred())
+			sess.Metadata.TranscriptPath = t1Path
+			err = store.Update(sess)
+			Expect(err).NotTo(HaveOccurred())
+
+			output := captureOutput(func() {
+				rootCmd := cmd.NewRootCmd()
+				rootCmd.SetOut(os.Stdout)
+				rootCmd.SetErr(io.Discard)
+				rootCmd.SetArgs([]string{"stats", "--all"})
+				err := rootCmd.Execute()
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			Expect(output).To(ContainSubstring("No sessions active in the last 7 days"))
+		})
 	})
 })
 

@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -14,119 +16,229 @@ import (
 	"github.com/fgrehm/clotilde/internal/util"
 )
 
-var statsCmd = &cobra.Command{
-	Use:               "stats <name>",
-	Short:             "Show session activity statistics",
-	Long:              `Display activity statistics for a session including turn count, timing, and response times.`,
-	Args:              cobra.ExactArgs(1),
-	ValidArgsFunction: sessionNameCompletion,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		name := args[0]
+func newStatsCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:               "stats [name]",
+		Short:             "Show session activity statistics",
+		Long:              `Display activity statistics for a session including turn count, timing, tokens, models, and tool usage.`,
+		Args:              cobra.MaximumNArgs(1),
+		ValidArgsFunction: sessionNameCompletion,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			all, _ := cmd.Flags().GetBool("all")
 
-		// Find clotilde root
-		clotildeRoot, err := config.FindClotildeRoot()
-		if err != nil {
-			return fmt.Errorf("no sessions found (create one with 'clotilde start <name>')")
-		}
-
-		// Create store
-		store := session.NewFileStore(clotildeRoot)
-
-		// Load session
-		sess, err := store.Get(name)
-		if err != nil {
-			return fmt.Errorf("session '%s' not found", name)
-		}
-
-		// Collect stats across all transcripts (previous + current)
-		homeDir, err := util.HomeDir()
-		if err != nil {
-			return fmt.Errorf("resolving home directory: %w", err)
-		}
-		paths := allTranscriptPaths(sess, clotildeRoot, homeDir)
-
-		var stats *claude.TranscriptStats
-		for _, path := range paths {
-			s, err := claude.ParseTranscriptStats(path)
-			if err != nil {
-				var pathErr *os.PathError
-				if errors.As(err, &pathErr) && os.IsNotExist(pathErr) {
-					continue // previous transcript deleted or not yet written
-				}
-				return fmt.Errorf("reading transcript %s: %w", path, err)
+			if all {
+				return showAllStats(cmd)
 			}
-			stats = mergeTranscriptStats(stats, s)
-		}
 
-		// Print header
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Session stats: %s\n", name)
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "─────────────────────────────────\n")
+			if len(args) == 0 {
+				return fmt.Errorf("session name required (or use --all for aggregate stats)")
+			}
 
-		if stats == nil || (stats.Turns == 0 && stats.FirstMessage.IsZero()) {
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "No transcript found.\n")
-			return nil
-		}
+			return showSessionStats(cmd, args[0])
+		},
+	}
 
-		// Print turns
-		_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Turns         %d\n", stats.Turns)
+	cmd.Flags().Bool("all", false, "Show aggregate stats across sessions active in the last 7 days")
 
-		// Print started time if available
-		if !stats.FirstMessage.IsZero() {
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Started       %s\n", formatSessionDate(stats.FirstMessage))
-		}
-
-		// Print last active time if available
-		if !stats.LastMessage.IsZero() {
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Last active   %s\n", formatSessionDate(stats.LastMessage))
-		}
-
-		// Print total time if available
-		if !stats.FirstMessage.IsZero() && !stats.LastMessage.IsZero() {
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Total time    %s\n", util.FormatDuration(stats.TotalTime))
-		}
-
-		// Print active and average times only if there are turns
-		if stats.Turns > 0 {
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Active time   %s     (approx)\n", util.FormatDuration(stats.ActiveTime))
-			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Avg response  %s      (approx)\n", util.FormatDuration(stats.AvgResponseTime))
-		}
-
-		return nil
-	},
+	return cmd
 }
 
-// mergeTranscriptStats merges b into a, accumulating turns/times across multiple transcripts.
-// Either argument may be nil (treated as empty). Returns a new merged value.
-func mergeTranscriptStats(a, b *claude.TranscriptStats) *claude.TranscriptStats {
-	merged := &claude.TranscriptStats{}
+func showSessionStats(cmd *cobra.Command, name string) error {
+	clotildeRoot, err := config.FindClotildeRoot()
+	if err != nil {
+		return fmt.Errorf("no sessions found (create one with 'clotilde start <name>')")
+	}
 
-	for _, s := range []*claude.TranscriptStats{a, b} {
-		if s == nil {
+	store := session.NewFileStore(clotildeRoot)
+
+	sess, err := store.Get(name)
+	if err != nil {
+		return fmt.Errorf("session '%s' not found", name)
+	}
+
+	stats, err := collectSessionStats(sess, clotildeRoot)
+	if err != nil {
+		return err
+	}
+
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Session stats: %s\n", name)
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "─────────────────────────────────\n")
+
+	printStats(cmd, stats)
+	return nil
+}
+
+func showAllStats(cmd *cobra.Command) error {
+	clotildeRoot, err := config.FindClotildeRoot()
+	if err != nil {
+		return fmt.Errorf("no sessions found (create one with 'clotilde start <name>')")
+	}
+
+	store := session.NewFileStore(clotildeRoot)
+	sessions, err := store.List()
+	if err != nil {
+		return fmt.Errorf("failed to list sessions: %w", err)
+	}
+
+	if len(sessions) == 0 {
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No sessions found.")
+		return nil
+	}
+
+	// Filter to sessions active in the last 7 days
+	cutoff := time.Now().Add(-7 * 24 * time.Hour)
+	var recent []*session.Session
+	for _, sess := range sessions {
+		if sess.Metadata.LastAccessed.After(cutoff) {
+			recent = append(recent, sess)
+		}
+	}
+
+	if len(recent) == 0 {
+		_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No sessions active in the last 7 days.")
+		return nil
+	}
+
+	var allStats []*claude.TranscriptStats
+	for _, sess := range recent {
+		s, err := collectSessionStats(sess, clotildeRoot)
+		if err != nil {
+			_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "warning: skipping session '%s': %v\n", sess.Name, err)
 			continue
 		}
-		merged.Turns += s.Turns
-		merged.ActiveTime += s.ActiveTime
-
-		if !s.FirstMessage.IsZero() && (merged.FirstMessage.IsZero() || s.FirstMessage.Before(merged.FirstMessage)) {
-			merged.FirstMessage = s.FirstMessage
-		}
-		if s.LastMessage.After(merged.LastMessage) {
-			merged.LastMessage = s.LastMessage
+		if s != nil {
+			allStats = append(allStats, s)
 		}
 	}
 
-	if !merged.FirstMessage.IsZero() && !merged.LastMessage.IsZero() {
-		merged.TotalTime = merged.LastMessage.Sub(merged.FirstMessage)
+	merged := claude.MergeTranscriptStats(allStats)
+
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Aggregate stats (%d sessions, last 7 days)\n", len(recent))
+	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "─────────────────────────────────\n")
+
+	printStats(cmd, merged)
+	return nil
+}
+
+func collectSessionStats(sess *session.Session, clotildeRoot string) (*claude.TranscriptStats, error) {
+	homeDir, err := util.HomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("resolving home directory: %w", err)
 	}
-	if merged.Turns > 0 {
-		merged.AvgResponseTime = merged.ActiveTime / time.Duration(merged.Turns)
+	paths := allTranscriptPaths(sess, clotildeRoot, homeDir)
+
+	var parsed []*claude.TranscriptStats
+	for _, path := range paths {
+		s, err := claude.ParseTranscriptStats(path)
+		if err != nil {
+			var pathErr *os.PathError
+			if errors.As(err, &pathErr) && os.IsNotExist(pathErr) {
+				continue
+			}
+			return nil, fmt.Errorf("reading transcript %s: %w", path, err)
+		}
+		parsed = append(parsed, s)
 	}
 
-	return merged
+	if len(parsed) == 0 {
+		return nil, nil
+	}
+
+	return claude.MergeTranscriptStats(parsed), nil
+}
+
+func printStats(cmd *cobra.Command, stats *claude.TranscriptStats) {
+	w := cmd.OutOrStdout()
+
+	if stats == nil || (stats.Turns == 0 && stats.FirstMessage.IsZero()) {
+		_, _ = fmt.Fprintln(w, "No transcript found.")
+		return
+	}
+
+	// Activity
+	_, _ = fmt.Fprintf(w, "Turns         %d\n", stats.Turns)
+
+	if !stats.FirstMessage.IsZero() {
+		_, _ = fmt.Fprintf(w, "Started       %s\n", formatSessionDate(stats.FirstMessage))
+	}
+
+	if !stats.LastMessage.IsZero() {
+		_, _ = fmt.Fprintf(w, "Last active   %s\n", formatSessionDate(stats.LastMessage))
+	}
+
+	if !stats.FirstMessage.IsZero() && !stats.LastMessage.IsZero() {
+		_, _ = fmt.Fprintf(w, "Total time    %s\n", util.FormatDuration(stats.TotalTime))
+	}
+
+	if stats.Turns > 0 {
+		_, _ = fmt.Fprintf(w, "Active time   %s     (approx)\n", util.FormatDuration(stats.ActiveTime))
+		_, _ = fmt.Fprintf(w, "Avg response  %s      (approx)\n", util.FormatDuration(stats.AvgResponseTime))
+	}
+
+	// Tokens
+	if stats.InputTokens > 0 || stats.OutputTokens > 0 {
+		_, _ = fmt.Fprintln(w)
+		_, _ = fmt.Fprintf(w, "Input tokens  %s\n", formatTokenCount(stats.InputTokens))
+		_, _ = fmt.Fprintf(w, "Output tokens %s\n", formatTokenCount(stats.OutputTokens))
+		if stats.CacheReadTokens > 0 {
+			_, _ = fmt.Fprintf(w, "Cache read    %s\n", formatTokenCount(stats.CacheReadTokens))
+		}
+		if stats.CacheCreationTokens > 0 {
+			_, _ = fmt.Fprintf(w, "Cache write   %s\n", formatTokenCount(stats.CacheCreationTokens))
+		}
+	}
+
+	// Models
+	if len(stats.Models) > 0 {
+		_, _ = fmt.Fprintln(w)
+		families := make([]string, len(stats.Models))
+		for i, m := range stats.Models {
+			families[i] = claude.FormatModelFamily(m)
+		}
+		_, _ = fmt.Fprintf(w, "Models        %s\n", strings.Join(families, ", "))
+	}
+
+	// Tool usage
+	if len(stats.ToolUses) > 0 {
+		_, _ = fmt.Fprintln(w)
+		_, _ = fmt.Fprintln(w, "Tool usage:")
+		printToolUses(w, stats.ToolUses)
+	}
+}
+
+// printToolUses prints tool usage sorted by count (descending), then name.
+func printToolUses(w interface{ Write([]byte) (int, error) }, toolUses map[string]int) {
+	type toolCount struct {
+		name  string
+		count int
+	}
+	sorted := make([]toolCount, 0, len(toolUses))
+	for name, count := range toolUses {
+		sorted = append(sorted, toolCount{name, count})
+	}
+	sort.Slice(sorted, func(i, j int) bool {
+		if sorted[i].count != sorted[j].count {
+			return sorted[i].count > sorted[j].count
+		}
+		return sorted[i].name < sorted[j].name
+	})
+	for _, tc := range sorted {
+		_, _ = fmt.Fprintf(w, "  %-14s %d\n", tc.name, tc.count)
+	}
+}
+
+// formatTokenCount formats a token count with "k" suffix for readability.
+func formatTokenCount(count int) string {
+	if count < 1000 {
+		return fmt.Sprintf("%d", count)
+	}
+	if count < 10000 {
+		return fmt.Sprintf("%.1fk", float64(count)/1000)
+	}
+	return fmt.Sprintf("%dk", count/1000)
 }
 
 // formatSessionDate formats a time as "Month Day, Year HH:MM"
-// Example: "Feb 17, 2025 20:35"
 func formatSessionDate(t time.Time) string {
 	return t.Format("Jan 2, 2006 15:04")
 }

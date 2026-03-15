@@ -121,12 +121,12 @@ func ExtractLastModel(transcriptPath string) string {
 	if err != nil {
 		return ""
 	}
-	return formatModelFamily(lastModel)
+	return FormatModelFamily(lastModel)
 }
 
-// formatModelFamily extracts the model family name from the full model ID.
+// FormatModelFamily extracts the model family name from the full model ID.
 // e.g. "claude-sonnet-4-5-20250929" -> "sonnet"
-func formatModelFamily(fullModel string) string {
+func FormatModelFamily(fullModel string) string {
 	if fullModel == "" {
 		return ""
 	}
@@ -190,7 +190,7 @@ func ExtractModelAndLastTime(transcriptPath string) (string, time.Time) {
 	if err != nil {
 		return "", time.Time{}
 	}
-	return formatModelFamily(lastModel), lastTime
+	return FormatModelFamily(lastModel), lastTime
 }
 
 // TranscriptStats contains statistics about a session transcript.
