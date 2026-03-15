@@ -40,12 +40,11 @@ var sessionEndCmd = &cobra.Command{
 			_, _ = fmt.Fprintf(os.Stderr, "Warning: failed to log event: %v\n", err)
 		}
 
-		// Double-execution guard
+		// Double-execution guard (checked before work, marked after successful write)
 		marker := hookData.SessionID + ":sessionend"
 		if isHookExecuted(marker) {
 			return nil
 		}
-		markHookExecuted(marker)
 
 		now := time.Now().UTC()
 
@@ -62,6 +61,8 @@ var sessionEndCmd = &cobra.Command{
 
 		if err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "clotilde: failed to write stats: %v\n", err)
+		} else {
+			markHookExecuted(marker)
 		}
 
 		return nil

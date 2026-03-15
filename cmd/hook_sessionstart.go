@@ -139,8 +139,12 @@ func handleResume(clotildeRoot string, hookData hookInput, store session.Store) 
 	}
 
 	// Crash recovery: check if the prior invocation's stats were recorded
+	// Only run when stats tracking is enabled (opt-in)
 	if sessionName != "" {
-		attemptCrashRecovery(clotildeRoot, sessionName, store)
+		globalCfg, cfgErr := config.LoadGlobalOrDefault()
+		if cfgErr == nil && globalCfg.StatsTracking != nil && *globalCfg.StatsTracking {
+			attemptCrashRecovery(clotildeRoot, sessionName, store)
+		}
 	}
 
 	// Output session name, context, and global context

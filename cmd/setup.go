@@ -95,6 +95,7 @@ Use --stats to enable session statistics tracking (opt-in).`,
 	cmd.Flags().Bool("local", false, "Install hooks in ~/.claude/settings.local.json instead of settings.json")
 	cmd.Flags().Bool("stats", false, "Enable session statistics tracking")
 	cmd.Flags().Bool("no-stats", false, "Disable session statistics tracking")
+	cmd.MarkFlagsMutuallyExclusive("stats", "no-stats")
 
 	return cmd
 }

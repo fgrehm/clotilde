@@ -52,12 +52,13 @@ func StatsDir() (string, error) {
 }
 
 // DailyStatsFilePath returns the full path for the daily stats file for the given date.
+// Always normalizes to UTC to ensure consistent file naming across timezones.
 func DailyStatsFilePath(t time.Time) (string, error) {
 	dir, err := StatsDir()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(dir, t.Format("2006-01-02")+".jsonl"), nil
+	return filepath.Join(dir, t.UTC().Format("2006-01-02")+".jsonl"), nil
 }
 
 // AppendStatsRecord marshals the record to JSON and appends it to the daily stats file.
