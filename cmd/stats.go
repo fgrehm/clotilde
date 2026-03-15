@@ -130,6 +130,7 @@ func showAggregateFromRecords(cmd *cobra.Command, records []claude.SessionStatsR
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "─────────────────────────────────\n")
 
 	printAggregateStats(cmd, merged)
+	printRecordBreakdown(cmd, deduped)
 	return nil
 }
 
@@ -164,6 +165,7 @@ func showAggregateFromTranscripts(cmd *cobra.Command) error {
 		return nil
 	}
 
+	var rows []sessionBreakdownRow
 	var allStats []*claude.TranscriptStats
 	for _, sess := range recent {
 		s, err := collectSessionStats(sess, clotildeRoot)
@@ -172,6 +174,12 @@ func showAggregateFromTranscripts(cmd *cobra.Command) error {
 			continue
 		}
 		if s != nil {
+			rows = append(rows, sessionBreakdownRow{
+				name:        sess.Name,
+				turns:       s.Turns,
+				activeTimeS: int(s.ActiveTime.Seconds()),
+				tokens:      s.InputTokens + s.OutputTokens,
+			})
 			allStats = append(allStats, s)
 		}
 	}
@@ -183,6 +191,7 @@ func showAggregateFromTranscripts(cmd *cobra.Command) error {
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "(from transcripts, enable stats tracking with 'clotilde setup --stats')\n\n")
 
 	printStats(cmd, merged)
+	printBreakdownTable(cmd, rows)
 	return nil
 }
 
@@ -305,6 +314,60 @@ func printAggregateStats(cmd *cobra.Command, agg aggregateStats) {
 		_, _ = fmt.Fprintln(w)
 		_, _ = fmt.Fprintln(w, "Tool usage:")
 		printToolUses(w, agg.ToolUses)
+	}
+}
+
+// sessionBreakdownRow holds per-session data for the breakdown table.
+type sessionBreakdownRow struct {
+	name        string
+	turns       int
+	activeTimeS int
+	tokens      int
+}
+
+// printRecordBreakdown prints a per-session table from JSONL records, sorted by active time descending.
+func printRecordBreakdown(cmd *cobra.Command, records []claude.SessionStatsRecord) {
+	if len(records) < 2 {
+		return
+	}
+
+	rows := make([]sessionBreakdownRow, 0, len(records))
+	for _, rec := range records {
+		rows = append(rows, sessionBreakdownRow{
+			name:        rec.SessionName,
+			turns:       rec.Turns - rec.PrevTurns,
+			activeTimeS: rec.ActiveTimeS - rec.PrevActiveTimeS,
+			tokens:      (rec.InputTokens - rec.PrevInputTokens) + (rec.OutputTokens - rec.PrevOutputTokens),
+		})
+	}
+
+	printBreakdownTable(cmd, rows)
+}
+
+// printBreakdownTable prints a sorted per-session breakdown table.
+func printBreakdownTable(cmd *cobra.Command, rows []sessionBreakdownRow) {
+	// Sort by active time descending, then by name
+	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].activeTimeS != rows[j].activeTimeS {
+			return rows[i].activeTimeS > rows[j].activeTimeS
+		}
+		return rows[i].name < rows[j].name
+	})
+
+	// Find max name length for alignment
+	maxName := 7 // minimum "Session" header width
+	for _, r := range rows {
+		if len(r.name) > maxName {
+			maxName = len(r.name)
+		}
+	}
+
+	w := cmd.OutOrStdout()
+	_, _ = fmt.Fprintln(w)
+	_, _ = fmt.Fprintf(w, "  %-*s  %5s  %8s  %8s\n", maxName, "Session", "Turns", "Active", "Tokens")
+	for _, r := range rows {
+		active := util.FormatDuration(time.Duration(r.activeTimeS) * time.Second)
+		_, _ = fmt.Fprintf(w, "  %-*s  %5d  %8s  %8s\n", maxName, r.name, r.turns, active, formatTokenCount(r.tokens))
 	}
 }
 

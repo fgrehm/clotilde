@@ -263,7 +263,7 @@ var _ = Describe("Stats Command", func() {
 			GinkgoT().Setenv("XDG_DATA_HOME", filepath.Join(tempDir, "xdg-data"))
 		})
 
-		It("should aggregate from JSONL stats files", func() {
+		It("should aggregate from JSONL stats files with per-session breakdown", func() {
 			// Use minute offsets to avoid crossing day boundaries near midnight
 			now := time.Now()
 			err := claude.AppendStatsRecord(claude.SessionStatsRecord{
@@ -308,6 +308,35 @@ var _ = Describe("Stats Command", func() {
 			Expect(output).To(ContainSubstring("Input tokens"))
 			Expect(output).To(ContainSubstring("Models"))
 			Expect(output).To(ContainSubstring("Tool usage:"))
+
+			// Per-session breakdown (sorted by active time desc: session-2 first)
+			Expect(output).To(ContainSubstring("Session"))
+			Expect(output).To(ContainSubstring("session-2"))
+			Expect(output).To(ContainSubstring("session-1"))
+		})
+
+		It("should not show breakdown for single session", func() {
+			now := time.Now()
+			err := claude.AppendStatsRecord(claude.SessionStatsRecord{
+				SessionName: "only-one",
+				SessionID:   "uuid-single",
+				Turns:       5,
+				ActiveTimeS: 300,
+				EndedAt:     now.Add(-10 * time.Minute),
+			})
+			Expect(err).NotTo(HaveOccurred())
+
+			output := captureOutput(func() {
+				rootCmd := cmd.NewRootCmd()
+				rootCmd.SetOut(os.Stdout)
+				rootCmd.SetErr(io.Discard)
+				rootCmd.SetArgs([]string{"stats", "--all"})
+				err := rootCmd.Execute()
+				Expect(err).NotTo(HaveOccurred())
+			})
+
+			Expect(output).To(ContainSubstring("Aggregate stats (1 sessions"))
+			Expect(output).NotTo(ContainSubstring("Session"))
 		})
 
 		It("should deduplicate by session_id keeping latest", func() {
