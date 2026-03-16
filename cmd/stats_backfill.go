@@ -93,7 +93,7 @@ tracking on an existing project.`,
 					CacheReadTokens:     stats.CacheReadTokens,
 					Models:              stats.Models,
 					ToolUses:            stats.ToolUses,
-					EndedAt:             sess.Metadata.LastAccessed.UTC(),
+					EndedAt:             backfillEndedAt(stats, sess.Metadata.LastAccessed),
 				}
 
 				if err := claude.AppendStatsRecord(record); err != nil {
@@ -117,4 +117,13 @@ tracking on an existing project.`,
 			return nil
 		},
 	}
+}
+
+// backfillEndedAt returns the best available timestamp for a backfill record's
+// EndedAt: the transcript's last message time if present, otherwise LastAccessed.
+func backfillEndedAt(stats *claude.TranscriptStats, lastAccessed time.Time) time.Time {
+	if stats != nil && !stats.LastMessage.IsZero() {
+		return stats.LastMessage.UTC()
+	}
+	return lastAccessed.UTC()
 }
