@@ -30,7 +30,7 @@ If fork-name is not provided for incognito forks, a random name will be generate
 Pass additional flags to Claude Code after '--':
   clotilde fork my-session experiment -- --debug api,hooks
   clotilde fork my-session --incognito  # Random name like "happy-fox"`,
-		Args:              cobra.RangeArgs(1, 2),
+		Args:              rangePositionalArgs(1, 2),
 		ValidArgsFunction: sessionNameCompletion,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			parentName := args[0]

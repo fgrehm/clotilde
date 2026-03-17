@@ -27,7 +27,7 @@ If no session name is provided, an interactive picker will be shown
 
 Pass additional flags to Claude Code after '--':
   clotilde resume my-session -- --debug api,hooks`,
-		Args:              cobra.MaximumNArgs(1),
+		Args:              maxPositionalArgs(1),
 		ValidArgsFunction: sessionNameCompletion,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Find clotilde root

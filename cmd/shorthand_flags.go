@@ -6,6 +6,37 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// maxPositionalArgs returns a cobra.PositionalArgs validator that allows at most
+// max positional args before "--". Cobra's built-in MaximumNArgs counts args
+// after "--" too, which breaks commands that pass extra flags through to claude.
+func maxPositionalArgs(max int) cobra.PositionalArgs {
+	return func(cmd *cobra.Command, args []string) error {
+		n := len(args)
+		if dash := cmd.Flags().ArgsLenAtDash(); dash >= 0 {
+			n = dash
+		}
+		if n > max {
+			return fmt.Errorf("accepts at most %d arg(s), received %d", max, n)
+		}
+		return nil
+	}
+}
+
+// rangePositionalArgs returns a cobra.PositionalArgs validator that allows
+// between min and max positional args before "--".
+func rangePositionalArgs(min, max int) cobra.PositionalArgs {
+	return func(cmd *cobra.Command, args []string) error {
+		n := len(args)
+		if dash := cmd.Flags().ArgsLenAtDash(); dash >= 0 {
+			n = dash
+		}
+		if n < min || n > max {
+			return fmt.Errorf("accepts between %d and %d arg(s), received %d", min, max, n)
+		}
+		return nil
+	}
+}
+
 // registerShorthandFlags adds permission mode shortcuts and the --fast composite
 // preset to the given command.
 func registerShorthandFlags(cmd *cobra.Command) {

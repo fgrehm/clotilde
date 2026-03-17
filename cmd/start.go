@@ -36,7 +36,7 @@ Pass additional flags to Claude Code after '--':
   clotilde start my-session -- --debug api,hooks
   clotilde start test --model haiku -- --verbose
   clotilde start                       # auto-generated name`,
-		Args: cobra.MaximumNArgs(1),
+		Args: maxPositionalArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Extract additional args after '--'
 			var additionalArgs []string

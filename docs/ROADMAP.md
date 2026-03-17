@@ -2,7 +2,7 @@
 
 A power-user companion for Claude Code.
 
-## Current Status: v0.8.0
+## Current Status: v0.8.1
 
 ### What's Working
 

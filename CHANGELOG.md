@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-03-17
+
+### Fixed
+
+- **`--` passthrough with positional args**: Commands that support `-- <claude-flags>` (`start`, `resume`, `incognito`, `fork`) now correctly accept extra flags after `--`. Previously, Cobra's built-in arg validators counted args after `--` as positional args, causing an "accepts at most 1 arg(s), received 2" error (e.g. `clotilde start my-session -- LFG`).
+
 ## [0.8.0] - 2026-03-16
 
 ### Added
