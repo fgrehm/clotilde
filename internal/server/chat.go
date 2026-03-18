@@ -50,7 +50,7 @@ var InvokeStreamingFunc = claude.InvokeStreaming
 
 func (s *Server) chatHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-		OriginPatterns: []string{"*"},
+		OriginPatterns: []string{"localhost:*", "127.0.0.1:*"},
 	})
 	if err != nil {
 		return

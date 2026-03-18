@@ -114,7 +114,19 @@ func ValidateTourJSON(data []byte, repoDir string) (*Tour, error) {
 
 	// Validate files exist and lines are in range
 	for i, step := range t.Steps {
+		if filepath.IsAbs(step.File) {
+			return nil, fmt.Errorf("step %d: file path must be relative, got %q", i+1, step.File)
+		}
+		if step.Line < 1 {
+			return nil, fmt.Errorf("step %d: line must be >= 1, got %d", i+1, step.Line)
+		}
+
 		absPath := filepath.Join(repoDir, step.File)
+		rel, relErr := filepath.Rel(repoDir, absPath)
+		if relErr != nil || strings.HasPrefix(rel, "..") {
+			return nil, fmt.Errorf("step %d: file path %q escapes repo directory", i+1, step.File)
+		}
+
 		info, err := os.Stat(absPath)
 		if err != nil || info.IsDir() {
 			return nil, fmt.Errorf("step %d: file %q does not exist", i+1, step.File)
@@ -122,7 +134,7 @@ func ValidateTourJSON(data []byte, repoDir string) (*Tour, error) {
 
 		lineCount, err := util.CountLines(absPath)
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("step %d: failed to count lines in %s: %w", i+1, step.File, err)
 		}
 		if step.Line > lineCount {
 			return nil, fmt.Errorf("step %d: line %d exceeds file length (%d lines) in %s", i+1, step.Line, lineCount, step.File)

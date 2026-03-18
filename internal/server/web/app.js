@@ -376,6 +376,9 @@ resizeHandle.addEventListener("mousedown", (e) => {
   document.addEventListener("mouseup", onMouseUp);
 });
 
+// Strip raw HTML from markdown to prevent XSS
+marked.use({ renderer: { html() { return ""; } } });
+
 // Start
 connectChat();
 init();

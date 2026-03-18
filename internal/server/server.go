@@ -26,9 +26,13 @@ type Server struct {
 
 // New creates a new Server.
 func New(port int, repoDir string, model string, sess *session.Session, clotildeRoot string) *Server {
+	absRepoDir, err := filepath.Abs(repoDir)
+	if err != nil {
+		absRepoDir = filepath.Clean(repoDir)
+	}
 	return &Server{
 		port:         port,
-		repoDir:      repoDir,
+		repoDir:      absRepoDir,
 		model:        model,
 		session:      sess,
 		clotildeRoot: clotildeRoot,
@@ -116,16 +120,22 @@ func (s *Server) tourDetail(w http.ResponseWriter, r *http.Request) {
 func (s *Server) fileContent(w http.ResponseWriter, r *http.Request) {
 	relPath := r.PathValue("path")
 
-	if strings.Contains(relPath, "..") {
+	absPath, err := filepath.Abs(filepath.Join(s.repoDir, filepath.FromSlash(relPath)))
+	if err != nil {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
 
-	absPath := filepath.Join(s.repoDir, filepath.FromSlash(relPath))
+	// Ensure the resolved path is within the repo directory
+	rel, err := filepath.Rel(s.repoDir, absPath)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
 
-	// Ensure the resolved path is still within the repo directory
-	absPath, err := filepath.Abs(absPath)
-	if err != nil || !strings.HasPrefix(absPath, s.repoDir) {
+	// Block excluded directories (same policy as /api/tree)
+	topDir := strings.SplitN(rel, string(filepath.Separator), 2)[0]
+	if excludeDirs[topDir] {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
