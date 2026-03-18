@@ -277,6 +277,9 @@ func InvokeStreaming(opts InvokeOptions, prompt string, onLine func(line string)
 	args = append(args, opts.AdditionalArgs...)
 
 	claudeBin := ClaudeBinaryPathFunc()
+
+	displayCommand(claudeBin, args, opts.Env)
+
 	cmd := exec.Command(claudeBin, args...)
 	cmd.Stderr = os.Stderr
 
