@@ -98,9 +98,14 @@ async function loadTour(name) {
     if (!res.ok) throw new Error(`Failed to load tour: ${name}`);
     state.currentTour = await res.json();
     state.currentTour._name = name;
-    state.currentStep = 0;
     state.fileCache = {};
-    await showStep(0);
+
+    // Restore step from URL query parameter, default to 0
+    const params = new URLSearchParams(window.location.search);
+    const savedStep = parseInt(params.get("step") || "0", 10);
+    const validStep = Math.max(0, Math.min(savedStep, state.currentTour.steps.length - 1));
+
+    await showStep(validStep);
     hideLoading();
   } catch (err) {
     showError(err.message);
@@ -113,6 +118,11 @@ async function showStep(index) {
 
   state.currentStep = index;
   const step = tour.steps[index];
+
+  // Save step to URL
+  const url = new URL(window.location);
+  url.searchParams.set("step", index);
+  window.history.replaceState(null, "", url);
 
   // Update nav
   stepCounter.textContent = `Step ${index + 1} of ${tour.steps.length}`;
@@ -186,9 +196,27 @@ document.addEventListener("keydown", (e) => {
 const chatMessages = document.getElementById("chat-messages");
 const chatInput = document.getElementById("chat-input");
 const chatSend = document.getElementById("chat-send");
+const chatReset = document.getElementById("chat-reset");
 
 let ws = null;
 let currentAssistantEl = null;
+
+function resetChat() {
+  // Clear chat messages
+  chatMessages.innerHTML = "";
+  currentAssistantEl = null;
+  chatInput.disabled = false;
+  chatInput.focus();
+
+  // Close existing WebSocket
+  if (ws) {
+    ws.close();
+    ws = null;
+  }
+
+  // Reconnect (will start a fresh session on the server)
+  connectChat();
+}
 
 function connectChat() {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
@@ -260,6 +288,7 @@ chatSend.addEventListener("click", sendChat);
 chatInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") sendChat();
 });
+chatReset.addEventListener("click", resetChat);
 
 // Start
 connectChat();
