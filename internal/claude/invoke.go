@@ -2,7 +2,10 @@ package claude
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strings"
@@ -281,7 +284,8 @@ func InvokeStreaming(opts InvokeOptions, prompt string, onLine func(line string)
 	displayCommand(claudeBin, args, opts.Env)
 
 	cmd := exec.Command(claudeBin, args...)
-	cmd.Stderr = os.Stderr
+	var stderrBuf bytes.Buffer
+	cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
 
 	// Set environment variables
 	cmd.Env = os.Environ()
@@ -298,10 +302,20 @@ func InvokeStreaming(opts InvokeOptions, prompt string, onLine func(line string)
 		return fmt.Errorf("failed to start claude: %w", err)
 	}
 
+	var lastResult string
 	scanner := bufio.NewScanner(stdout)
 	scanner.Buffer(make([]byte, 0, 256*1024), 256*1024)
 	for scanner.Scan() {
-		onLine(scanner.Text())
+		line := scanner.Text()
+		// Capture any result event (error or success) for error reporting
+		var ev struct {
+			Type   string `json:"type"`
+			Result string `json:"result"`
+		}
+		if json.Unmarshal([]byte(line), &ev) == nil && ev.Type == "result" && ev.Result != "" {
+			lastResult = ev.Result
+		}
+		onLine(line)
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -309,6 +323,12 @@ func InvokeStreaming(opts InvokeOptions, prompt string, onLine func(line string)
 	}
 
 	if err := cmd.Wait(); err != nil {
+		if lastResult != "" {
+			return fmt.Errorf("claude error: %s", lastResult)
+		}
+		if stderr := strings.TrimSpace(stderrBuf.String()); stderr != "" {
+			return fmt.Errorf("claude exited with error: %w\n%s", err, stderr)
+		}
 		return fmt.Errorf("claude exited with error: %w", err)
 	}
 

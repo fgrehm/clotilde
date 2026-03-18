@@ -40,6 +40,7 @@ type chatResponse struct {
 // chatSession tracks Claude Code session state for a WebSocket connection.
 type chatSession struct {
 	sessionID string
+	started   bool // whether a successful call has been made (transcript exists)
 	mu        sync.Mutex
 	busy      bool
 }
@@ -108,11 +109,9 @@ func (s *Server) handleChat(conn *websocket.Conn, cs *chatSession, msg chatMessa
 	sessionDir := config.GetSessionDir(s.clotildeRoot, s.session.Name)
 	systemPromptPath := filepath.Join(sessionDir, "system-prompt.md")
 
-	// Always resume: the session was created when tour serve started, so every
-	// chat message (including the first) resumes an existing session
 	opts := claude.InvokeOptions{
 		SessionID:        cs.sessionID,
-		Resume:           true,
+		Resume:           cs.started, // first message uses --session-id to create transcript
 		SystemPromptFile: systemPromptPath,
 		SystemPromptMode: s.session.Metadata.GetSystemPromptMode(),
 		AdditionalArgs:   []string{"--model", s.model},
@@ -153,6 +152,10 @@ func (s *Server) handleChat(conn *websocket.Conn, cs *chatSession, msg chatMessa
 		writeWS(conn, chatResponse{Type: "error", Message: fmt.Sprintf("Claude error: %v", err)})
 		return
 	}
+
+	cs.mu.Lock()
+	cs.started = true
+	cs.mu.Unlock()
 
 	writeWS(conn, chatResponse{Type: "done"})
 }
