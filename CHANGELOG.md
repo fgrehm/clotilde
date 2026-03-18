@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Interactive Codebase Tours (experimental)**: New `clotilde tour` subcommand for browser-based interactive codebase walkthroughs with integrated Claude chat.
+  - `clotilde tour list` — List available tours in `.tours/` directory
+  - `clotilde tour serve [--port] [--model]` — Start interactive tour web server with code viewer, tour navigation, and chat sidebar
+  - `clotilde tour generate [--focus] [--model]` — Generate tours automatically by analyzing the codebase with Claude
+- **Tour features**:
+  - **Persistent chat sessions** — Tours create a persistent `tour-<repo-name>` Clotilde session, preserving chat history across browser refreshes
+  - **System prompt replacement** — Tour guide role fully replaces Claude's default system prompt (not appended) for focused, tour-specific context
+  - **URL persistence** — Current step is saved to URL query parameter (`?step=N`) for bookmarking and resumability
+  - **Chat reset** — Button to clear chat history and start a fresh conversation
+  - **Tour format** — Supports CodeTour JSON format (`.tours/<name>.tour`)
+- **Streaming JSON output** — New `InvokeStreaming()` function in `internal/claude/` for non-interactive Claude invocations with streaming JSON output capture
+
 ## [0.8.1] - 2026-03-17
 
 ### Fixed
