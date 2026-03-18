@@ -166,6 +166,7 @@ func newTourGenerateCmd() *cobra.Command {
 			sessionName := fmt.Sprintf("tour-generate-%s", name)
 
 			var sess *session.Session
+			isNewSession := false
 			if store.Exists(sessionName) {
 				// Load existing session
 				sess, err = store.Get(sessionName)
@@ -182,6 +183,7 @@ func newTourGenerateCmd() *cobra.Command {
 				if err := store.Create(sess); err != nil {
 					return fmt.Errorf("failed to create session: %w", err)
 				}
+				isNewSession = true
 			}
 
 			// Save settings with permissions (deny Write to prevent Claude from writing files)
@@ -214,6 +216,7 @@ func newTourGenerateCmd() *cobra.Command {
 			args := []string{"--model", model}
 			opts := claude.InvokeOptions{
 				SessionID:      sess.Metadata.SessionID,
+				Resume:         !isNewSession,
 				AdditionalArgs: args,
 			}
 
