@@ -303,23 +303,32 @@ func InvokeStreaming(opts InvokeOptions, prompt string, onLine func(line string)
 	}
 
 	var lastResult string
-	scanner := bufio.NewScanner(stdout)
-	scanner.Buffer(make([]byte, 0, 256*1024), 256*1024)
-	for scanner.Scan() {
-		line := scanner.Text()
-		// Capture any result event (error or success) for error reporting
-		var ev struct {
-			Type   string `json:"type"`
-			Result string `json:"result"`
+	reader := bufio.NewReader(stdout)
+	var readErr error
+	for {
+		line, err := reader.ReadString('\n')
+		line = strings.TrimRight(line, "\r\n")
+		if line != "" {
+			// Capture any result event (error or success) for error reporting
+			var ev struct {
+				Type   string `json:"type"`
+				Result string `json:"result"`
+			}
+			if json.Unmarshal([]byte(line), &ev) == nil && ev.Type == "result" && ev.Result != "" {
+				lastResult = ev.Result
+			}
+			onLine(line)
 		}
-		if json.Unmarshal([]byte(line), &ev) == nil && ev.Type == "result" && ev.Result != "" {
-			lastResult = ev.Result
+		if err != nil {
+			if err != io.EOF {
+				readErr = err
+			}
+			break
 		}
-		onLine(line)
 	}
 
-	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("error reading stdout: %w", err)
+	if readErr != nil {
+		return fmt.Errorf("error reading stdout: %w", readErr)
 	}
 
 	if err := cmd.Wait(); err != nil {

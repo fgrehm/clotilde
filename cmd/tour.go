@@ -184,13 +184,10 @@ func newTourGenerateCmd() *cobra.Command {
 			fmt.Fprintln(os.Stderr, "Generating tour via Claude Code...")
 			var output strings.Builder
 
-			// Use a fresh UUID for each generation to avoid state pollution from failed attempts
-			// bypassPermissions ensures Claude runs non-interactively (no permission prompts)
-			generationUUID := util.GenerateUUID()
 			sessionDir := config.GetSessionDir(clotildeRoot, sessionName)
 			args := []string{"--model", model, "--permission-mode", "bypassPermissions"}
 			opts := claude.InvokeOptions{
-				SessionID:      generationUUID,
+				SessionID:      sess.Metadata.SessionID,
 				SettingsFile:   filepath.Join(sessionDir, "settings.json"),
 				AdditionalArgs: args,
 			}

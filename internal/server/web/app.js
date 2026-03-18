@@ -178,7 +178,7 @@ async function showStep(index) {
 }
 
 async function loadFile(path) {
-  if (state.fileCache[path]) return state.fileCache[path];
+  if (path in state.fileCache) return state.fileCache[path];
 
   const res = await fetch(`/api/files/${path}`);
   if (!res.ok) return `// Failed to load ${path}`;

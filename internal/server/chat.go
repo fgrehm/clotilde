@@ -57,7 +57,9 @@ func (s *Server) chatHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.CloseNow() //nolint:errcheck
 
-	cs := &chatSession{}
+	cs := &chatSession{
+		started: claude.DefaultSessionUsed(s.clotildeRoot, s.session),
+	}
 	ctx := r.Context()
 
 	for {
