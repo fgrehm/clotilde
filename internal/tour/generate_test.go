@@ -10,6 +10,33 @@ import (
 	"github.com/fgrehm/clotilde/internal/tour"
 )
 
+var _ = Describe("ExtractJSON", func() {
+	It("returns raw JSON if no code fence", func() {
+		input := `{"title": "Test", "steps": []}`
+		Expect(tour.ExtractJSON(input)).To(Equal(input))
+	})
+
+	It("extracts JSON from bare code fence", func() {
+		input := "```\n{\"title\": \"Test\"}\n```"
+		Expect(tour.ExtractJSON(input)).To(Equal(`{"title": "Test"}`))
+	})
+
+	It("extracts JSON from json-tagged code fence", func() {
+		input := "```json\n{\"title\": \"Test\"}\n```"
+		Expect(tour.ExtractJSON(input)).To(Equal(`{"title": "Test"}`))
+	})
+
+	It("extracts JSON when there is preamble text before the fence", func() {
+		input := "Now I have everything I need. Let me write it:\n\n```json\n{\"title\": \"Test\"}\n```"
+		Expect(tour.ExtractJSON(input)).To(Equal(`{"title": "Test"}`))
+	})
+
+	It("trims surrounding whitespace", func() {
+		input := "  \n  {\"title\": \"Test\"}  \n  "
+		Expect(tour.ExtractJSON(input)).To(Equal(`{"title": "Test"}`))
+	})
+})
+
 var _ = Describe("ValidateTourJSON", func() {
 	var repoDir string
 
