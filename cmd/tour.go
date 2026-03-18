@@ -173,15 +173,8 @@ func newTourGenerateCmd() *cobra.Command {
 				return fmt.Errorf("failed to create session: %w", err)
 			}
 
-			// Save settings with permissions (deny Write to prevent Claude from writing files)
-			// We'll handle the file writing ourselves
-			settings := &session.Settings{
-				Model: model,
-				Permissions: session.Permissions{
-					Deny:        []string{"Write"},
-					DefaultMode: "accept",
-				},
-			}
+			// Save settings
+			settings := &session.Settings{Model: model}
 			if err := store.SaveSettings(sessionName, settings); err != nil {
 				return fmt.Errorf("failed to save settings: %w", err)
 			}
@@ -201,11 +194,13 @@ func newTourGenerateCmd() *cobra.Command {
 			var output strings.Builder
 
 			// Use a fresh UUID for each generation to avoid state pollution from failed attempts
-			// The named session (tour-generate-<name>) tracks all generation attempts
+			// bypassPermissions ensures Claude runs non-interactively (no permission prompts)
 			generationUUID := util.GenerateUUID()
-			args := []string{"--model", model}
+			sessionDir := config.GetSessionDir(clotildeRoot, sessionName)
+			args := []string{"--model", model, "--permission-mode", "bypassPermissions"}
 			opts := claude.InvokeOptions{
 				SessionID:      generationUUID,
+				SettingsFile:   filepath.Join(sessionDir, "settings.json"),
 				AdditionalArgs: args,
 			}
 

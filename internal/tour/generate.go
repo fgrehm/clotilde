@@ -10,9 +10,9 @@ import (
 )
 
 // GenerationPrompt is the system prompt for tour generation.
-const GenerationPrompt = `You are generating a CodeTour file for a codebase walkthrough.
+const GenerationPrompt = `IMPORTANT: Your ENTIRE response must be a single JSON object. No preamble, no explanation, no markdown fences, no asking for permissions. Just the raw JSON.
 
-Analyze this repository and produce a JSON file in CodeTour format.
+You are analyzing a codebase to produce a CodeTour JSON object (printed in your response).
 
 Requirements:
 - Start at the entry point
@@ -24,9 +24,7 @@ Requirements:
 - Start each description with a ## heading
 %s
 
-Output ONLY valid JSON. No markdown fences, no preamble.
-
-Schema:
+Output format (raw JSON, nothing else):
 {
   "$schema": "https://aka.ms/codetour-schema",
   "title": "<descriptive title>",
