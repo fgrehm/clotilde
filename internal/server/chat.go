@@ -39,6 +39,7 @@ type chatResponse struct {
 // chatSession tracks Claude Code session state for a WebSocket connection.
 type chatSession struct {
 	sessionID string
+	started   bool // true after first successful invocation
 	mu        sync.Mutex
 	busy      bool
 }
@@ -105,12 +106,9 @@ func (s *Server) handleChat(conn *websocket.Conn, cs *chatSession, msg chatMessa
 
 	opts := claude.InvokeOptions{
 		SessionID:      cs.sessionID,
-		Resume:         cs.sessionID != "",
+		Resume:         cs.started,
 		AdditionalArgs: []string{"--model", "haiku"},
 	}
-	// First message uses --session-id, subsequent use --resume
-	// After first invocation, the session exists and we always resume
-	firstCall := true
 
 	err := InvokeStreamingFunc(opts, prompt, func(line string) {
 		// Parse streaming JSON to extract text content
@@ -141,9 +139,6 @@ func (s *Server) handleChat(conn *websocket.Conn, cs *chatSession, msg chatMessa
 			}
 		}
 
-		if firstCall {
-			firstCall = false
-		}
 	})
 
 	if err != nil {
@@ -151,7 +146,7 @@ func (s *Server) handleChat(conn *websocket.Conn, cs *chatSession, msg chatMessa
 		return
 	}
 
-	// After first successful call, switch to resume mode for subsequent calls
+	cs.started = true
 	writeWS(conn, chatResponse{Type: "done"})
 }
 
