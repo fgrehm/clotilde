@@ -165,10 +165,72 @@ button:disabled {
   margin-bottom: 12px;
 }
 
-/* Chat panel (placeholder for Phase 6) */
+/* Chat panel */
 #chat-panel {
   border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  height: 280px;
   flex-shrink: 0;
+}
+
+#chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.chat-msg {
+  margin-bottom: 8px;
+}
+
+.chat-msg-user {
+  color: var(--accent);
+}
+
+.chat-msg-assistant {
+  color: var(--text);
+}
+
+.chat-msg-error {
+  color: #f38ba8;
+}
+
+.chat-msg-label {
+  font-weight: bold;
+  margin-right: 4px;
+}
+
+#chat-input-area {
+  display: flex;
+  padding: 8px;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+}
+
+#chat-input {
+  flex: 1;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 13px;
+  outline: none;
+}
+
+#chat-input:focus {
+  border-color: var(--accent);
+}
+
+#chat-input:disabled {
+  opacity: 0.5;
+}
+
+#chat-send {
+  padding: 6px 16px;
 }
 
 /* Loading/error */

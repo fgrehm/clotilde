@@ -232,6 +232,7 @@ require (
 	honnef.co/go/tools v0.7.0 // indirect
 	mvdan.cc/gofumpt v0.9.2 // indirect
 	mvdan.cc/unparam v0.0.0-20251027182757-5beb8c8f8f15 // indirect
+	nhooyr.io/websocket v1.8.17 // indirect
 )
 
 tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint

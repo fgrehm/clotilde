@@ -36,16 +36,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/tours/{name}", s.tourDetail)
 	mux.HandleFunc("GET /api/files/{path...}", s.fileContent)
 	mux.HandleFunc("GET /api/tree", s.fileTree)
+	mux.HandleFunc("GET /ws/chat", s.chatHandler)
 	mux.Handle("GET /static/", http.StripPrefix("/static/", static))
-	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			http.NotFound(w, r)
-			return
-		}
-		r.URL.Path = "/index.html"
-		static.ServeHTTP(w, r)
-	})
-	return mux
+	mux.HandleFunc("GET /{$}", s.serveIndex)
+	return logRequests(mux)
 }
 
 // Start loads tours and starts the HTTP server on localhost.
@@ -169,6 +163,23 @@ func (s *Server) fileTree(w http.ResponseWriter, _ *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, files)
+}
+
+func logRequests(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(os.Stderr, "%s %s\n", r.Method, r.URL.Path)
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (s *Server) serveIndex(w http.ResponseWriter, _ *http.Request) {
+	data, err := webFS.ReadFile("web/index.html")
+	if err != nil {
+		http.Error(w, "index.html not found", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write(data)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

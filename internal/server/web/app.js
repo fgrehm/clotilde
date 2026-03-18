@@ -182,5 +182,85 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
+// Chat
+const chatMessages = document.getElementById("chat-messages");
+const chatInput = document.getElementById("chat-input");
+const chatSend = document.getElementById("chat-send");
+
+let ws = null;
+let currentAssistantEl = null;
+
+function connectChat() {
+  const proto = location.protocol === "https:" ? "wss:" : "ws:";
+  ws = new WebSocket(`${proto}//${location.host}/ws/chat`);
+
+  ws.onmessage = (event) => {
+    const msg = JSON.parse(event.data);
+
+    if (msg.type === "token") {
+      if (!currentAssistantEl) {
+        currentAssistantEl = addChatMessage("assistant", "");
+      }
+      currentAssistantEl.querySelector(".chat-msg-text").textContent += msg.content;
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    } else if (msg.type === "done") {
+      currentAssistantEl = null;
+      chatInput.disabled = false;
+      chatInput.focus();
+    } else if (msg.type === "error") {
+      addChatMessage("error", msg.message);
+      currentAssistantEl = null;
+      chatInput.disabled = false;
+      chatInput.focus();
+    }
+  };
+
+  ws.onclose = () => {
+    // Reconnect after a short delay
+    setTimeout(connectChat, 2000);
+  };
+}
+
+function addChatMessage(role, text) {
+  const el = document.createElement("div");
+  el.className = `chat-msg chat-msg-${role}`;
+
+  const label = role === "error" ? "Error" : role === "assistant" ? "Claude" : "You";
+  el.innerHTML = `<span class="chat-msg-label">${label}:</span><span class="chat-msg-text"></span>`;
+  el.querySelector(".chat-msg-text").textContent = text;
+
+  chatMessages.appendChild(el);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  return el;
+}
+
+function sendChat() {
+  const text = chatInput.value.trim();
+  if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+
+  const step = state.currentTour?.steps[state.currentStep];
+
+  addChatMessage("user", text);
+  chatInput.value = "";
+  chatInput.disabled = true;
+
+  ws.send(JSON.stringify({
+    type: "chat",
+    message: text,
+    context: {
+      tour: state.currentTour?._name || "",
+      step: state.currentStep,
+      file: step?.file || "",
+      line: step?.line || 0,
+    },
+  }));
+}
+
+chatSend.addEventListener("click", sendChat);
+chatInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") sendChat();
+});
+
 // Start
+connectChat();
 init();
