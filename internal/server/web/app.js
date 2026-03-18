@@ -62,6 +62,17 @@ const errorEl = document.getElementById("error");
 
 async function init() {
   try {
+    // Load session info
+    const sessRes = await fetch("/api/session");
+    if (sessRes.ok) {
+      const sessData = await sessRes.json();
+      const sessionNameEl = document.getElementById("session-name");
+      if (sessionNameEl) {
+        sessionNameEl.textContent = `Session: ${sessData.name}`;
+        sessionNameEl.title = sessData.id;
+      }
+    }
+
     const res = await fetch("/api/tours");
     if (!res.ok) throw new Error("Failed to load tours");
     state.tours = await res.json();

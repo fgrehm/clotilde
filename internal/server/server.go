@@ -45,6 +45,7 @@ func (s *Server) Handler() http.Handler {
 	static := staticHandler()
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/session", s.sessionInfo)
 	mux.HandleFunc("GET /api/tours", s.tourList)
 	mux.HandleFunc("GET /api/tours/{name}", s.tourDetail)
 	mux.HandleFunc("GET /api/files/{path...}", s.fileContent)
@@ -75,6 +76,15 @@ func (s *Server) loadTours() {
 		return
 	}
 	s.tours = tours
+}
+
+func (s *Server) sessionInfo(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	data := map[string]string{
+		"name": s.session.Name,
+		"id":   s.session.Metadata.SessionID,
+	}
+	json.NewEncoder(w).Encode(data)
 }
 
 func (s *Server) tourList(w http.ResponseWriter, _ *http.Request) {

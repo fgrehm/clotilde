@@ -187,6 +187,13 @@ button:disabled {
   padding: 8px 12px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  gap: 8px;
+}
+
+#chat-header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 #chat-header h3 {
@@ -194,6 +201,10 @@ button:disabled {
   font-size: 14px;
   color: var(--text);
   font-weight: 600;
+}
+
+#session-name {
+  display: block;
 }
 
 #chat-reset {
