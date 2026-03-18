@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -161,29 +162,15 @@ func newTourGenerateCmd() *cobra.Command {
 				return fmt.Errorf("failed to initialize session storage: %w", err)
 			}
 
-			// Create or load generation session
+			// Create unique named session for this generation attempt
 			store := session.NewFileStore(clotildeRoot)
-			sessionName := fmt.Sprintf("tour-generate-%s", name)
+			// Use timestamp-based naming so each attempt gets its own session
+			sessionName := fmt.Sprintf("tour-generate-%s-%d", name, time.Now().UnixMilli())
 
-			var sess *session.Session
-			isNewSession := false
-			if store.Exists(sessionName) {
-				// Load existing session
-				sess, err = store.Get(sessionName)
-				if err != nil {
-					return fmt.Errorf("failed to load session: %w", err)
-				}
-				sess.UpdateLastAccessed()
-				if err := store.Update(sess); err != nil {
-					return fmt.Errorf("failed to update session: %w", err)
-				}
-			} else {
-				// Create new session
-				sess = session.NewSession(sessionName, util.GenerateUUID())
-				if err := store.Create(sess); err != nil {
-					return fmt.Errorf("failed to create session: %w", err)
-				}
-				isNewSession = true
+			// Create new session for this specific generation attempt
+			sess := session.NewSession(sessionName, util.GenerateUUID())
+			if err := store.Create(sess); err != nil {
+				return fmt.Errorf("failed to create session: %w", err)
 			}
 
 			// Save settings with permissions (deny Write to prevent Claude from writing files)
@@ -213,10 +200,12 @@ func newTourGenerateCmd() *cobra.Command {
 			fmt.Fprintln(os.Stderr, "Generating tour via Claude Code...")
 			var output strings.Builder
 
+			// Use a fresh UUID for each generation to avoid state pollution from failed attempts
+			// The named session (tour-generate-<name>) tracks all generation attempts
+			generationUUID := util.GenerateUUID()
 			args := []string{"--model", model}
 			opts := claude.InvokeOptions{
-				SessionID:      sess.Metadata.SessionID,
-				Resume:         !isNewSession,
+				SessionID:      generationUUID,
 				AdditionalArgs: args,
 			}
 
