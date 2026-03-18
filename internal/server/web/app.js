@@ -159,6 +159,11 @@ async function showStep(index) {
 
   // Render step description as markdown
   stepDescription.innerHTML = marked.parse(step.description);
+
+  // Highlight code blocks in the markdown
+  stepDescription.querySelectorAll("pre code").forEach((block) => {
+    Prism.highlightElement(block);
+  });
 }
 
 async function loadFile(path) {
@@ -234,9 +239,22 @@ function connectChat() {
       if (!currentAssistantEl) {
         currentAssistantEl = addChatMessage("assistant", "");
       }
-      currentAssistantEl.querySelector(".chat-msg-text").textContent += msg.content;
+      const textEl = currentAssistantEl.querySelector(".chat-msg-text");
+      // Store raw text in data attribute, append visible content
+      textEl.dataset.rawContent = (textEl.dataset.rawContent || "") + msg.content;
+      textEl.textContent = textEl.dataset.rawContent;
       chatMessages.scrollTop = chatMessages.scrollHeight;
     } else if (msg.type === "done") {
+      // Render markdown when message is complete
+      if (currentAssistantEl) {
+        const textEl = currentAssistantEl.querySelector(".chat-msg-text");
+        const rawContent = textEl.dataset.rawContent || "";
+        textEl.innerHTML = marked.parse(rawContent);
+        // Highlight code blocks in chat
+        textEl.querySelectorAll("pre code").forEach((block) => {
+          Prism.highlightElement(block);
+        });
+      }
       currentAssistantEl = null;
       chatInput.disabled = false;
       chatInput.focus();
