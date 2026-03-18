@@ -46,7 +46,7 @@ var _ = Describe("Server", func() {
 		Expect(os.MkdirAll(filepath.Join(repoDir, ".git", "objects"), 0o755)).To(Succeed())
 		Expect(os.MkdirAll(filepath.Join(repoDir, "node_modules", "foo"), 0o755)).To(Succeed())
 
-		srv = server.New(0, repoDir)
+		srv = server.New(0, repoDir, "haiku")
 		handler = srv.Handler()
 	})
 

@@ -44,3 +44,5 @@ CLAUDE.local.md
 # Clotilde (ephemeral per-user session management)
 .claude/clotilde/
 .claude/output-styles/clotilde/
+
+.tours/

@@ -49,6 +49,7 @@ function getLang(filename) {
 
 // DOM elements
 const tourSelect = document.getElementById("tour-select");
+const tourTitle = document.getElementById("tour-title");
 const stepCounter = document.getElementById("step-counter");
 const prevBtn = document.getElementById("prev-btn");
 const nextBtn = document.getElementById("next-btn");
@@ -79,9 +80,10 @@ async function init() {
       tourSelect.appendChild(opt);
     }
 
-    // Hide selector if only one tour
+    // Hide selector and show title if only one tour
     if (state.tours.length === 1) {
       tourSelect.style.display = "none";
+      tourTitle.hidden = false;
     }
 
     tourSelect.addEventListener("change", () => loadTour(tourSelect.value));
@@ -124,7 +126,10 @@ async function showStep(index) {
   url.searchParams.set("step", index);
   window.history.replaceState(null, "", url);
 
-  // Update nav
+  // Update header
+  if (tourTitle.hidden === false) {
+    tourTitle.textContent = tour.title;
+  }
   stepCounter.textContent = `Step ${index + 1} of ${tour.steps.length}`;
   prevBtn.disabled = index === 0;
   nextBtn.disabled = index === tour.steps.length - 1;

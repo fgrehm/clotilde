@@ -33,7 +33,7 @@ var _ = Describe("WebSocket Chat", func() {
 		tourJSON := `{"title": "Test Tour", "steps": [{"file": "main.go", "line": 1, "description": "Entry"}]}`
 		Expect(os.WriteFile(filepath.Join(toursDir, "test.tour"), []byte(tourJSON), 0o644)).To(Succeed())
 
-		srv = server.New(0, repoDir)
+		srv = server.New(0, repoDir, "haiku")
 		ts = httptest.NewServer(srv.Handler())
 	})
 

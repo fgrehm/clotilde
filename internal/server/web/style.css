@@ -56,6 +56,12 @@ body {
   font-size: 14px;
 }
 
+#tour-title {
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 500;
+}
+
 #step-counter {
   font-size: 14px;
   color: var(--text-dim);

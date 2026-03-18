@@ -69,8 +69,9 @@ func newTourServeCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			dir, _ := cmd.Flags().GetString("dir")
 			port, _ := cmd.Flags().GetInt("port")
+			model, _ := cmd.Flags().GetString("model")
 
-			srv := server.New(port, dir)
+			srv := server.New(port, dir, model)
 			return srv.Start()
 		},
 	}
@@ -78,6 +79,7 @@ func newTourServeCmd() *cobra.Command {
 	cwd, _ := os.Getwd()
 	cmd.Flags().String("dir", cwd, "Directory containing .tours/ folder")
 	cmd.Flags().Int("port", 3333, "Port to listen on")
+	cmd.Flags().String("model", "haiku", "Claude model to use for chat (haiku, sonnet, opus)")
 
 	return cmd
 }

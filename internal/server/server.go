@@ -17,12 +17,13 @@ import (
 type Server struct {
 	port    int
 	repoDir string
+	model   string
 	tours   map[string]*tour.Tour
 }
 
 // New creates a new Server.
-func New(port int, repoDir string) *Server {
-	return &Server{port: port, repoDir: repoDir}
+func New(port int, repoDir string, model string) *Server {
+	return &Server{port: port, repoDir: repoDir, model: model}
 }
 
 // Handler returns the HTTP handler for the server.

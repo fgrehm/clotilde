@@ -96,8 +96,9 @@ func (s *Server) handleChat(conn *websocket.Conn, cs *chatSession, msg chatMessa
 		cs.mu.Unlock()
 	}()
 
-	// Build prompt with tour context
-	prompt := buildPrompt(s.tours, msg)
+	// Build prompt with system context and tour context
+	userPrompt := buildPrompt(s.tours, msg)
+	prompt := systemPrompt + "\n\n" + userPrompt
 
 	// Create session ID on first message
 	if cs.sessionID == "" {
@@ -107,7 +108,7 @@ func (s *Server) handleChat(conn *websocket.Conn, cs *chatSession, msg chatMessa
 	opts := claude.InvokeOptions{
 		SessionID:      cs.sessionID,
 		Resume:         cs.started,
-		AdditionalArgs: []string{"--model", "haiku"},
+		AdditionalArgs: []string{"--model", s.model},
 	}
 
 	err := InvokeStreamingFunc(opts, prompt, func(line string) {
@@ -149,6 +150,15 @@ func (s *Server) handleChat(conn *websocket.Conn, cs *chatSession, msg chatMessa
 	cs.started = true
 	writeWS(conn, chatResponse{Type: "done"})
 }
+
+const systemPrompt = `You are a codebase tour guide. Your role is to explain code, architecture, and design decisions to developers exploring a codebase.
+
+When answering questions about the code:
+- Reference the specific file and line numbers when relevant
+- Explain the context and purpose of the code
+- Connect to the broader architecture when helpful
+- Be concise but thorough
+- If asked about code outside the tour context, acknowledge it but try to relate it back to the tour`
 
 func buildPrompt(tours map[string]*tour.Tour, msg chatMessage) string {
 	var context string
