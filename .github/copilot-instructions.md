@@ -12,11 +12,15 @@ internal/
   session/              -> Session data structures, storage (FileStore), validation
   config/               -> Config management, path resolution
   claude/               -> Claude CLI invocation, path conversion, hook generation
+                           Includes InvokeStreaming for non-interactive calls
   export/               -> Session transcript export to self-contained HTML
   outputstyle/          -> Output style management
   ui/                   -> TUI components (dashboard, picker, table, confirm)
   util/                 -> UUID generation, filesystem helpers
   testutil/             -> Test utilities (fake claude binary)
+  tour/                 -> Interactive codebase tours (CodeTour format)
+                           Tour loading, generation, context gathering, validation
+  server/               -> HTTP server for tour browser UI, WebSocket chat, REST API
 ```
 
 All packages are under `internal/`; this is a binary, not a library.
@@ -32,6 +36,27 @@ All packages are under `internal/`; this is a binary, not a library.
 - Session-reading commands return friendly messages when no sessions exist.
 - Double-hook execution guard via `CLOTILDE_HOOK_EXECUTED` env var prevents
   duplicate output when both global and per-project hooks exist.
+
+## Interactive Codebase Tours (Experimental)
+
+Tours are browser-based walkthroughs that combine code viewing with Claude chat.
+Key patterns:
+
+- **Non-interactive Claude invocation** (`InvokeStreaming`): Spawns `claude` CLI
+  with `--output-format stream-json --verbose`, captures line-delimited JSON on
+  stdout, calls callback for each line. No TTY needed.
+
+- **WebSocket chat**: Browser sends message + context (tour, step, file, line) to
+  `/ws/chat`. Server builds prompt with context, invokes claude via InvokeStreaming,
+  streams tokens back as JSON over WebSocket, renders as markdown with syntax highlighting.
+
+- **Persistent tour session**: `tour serve` creates `tour-<repo-name>` Clotilde
+  session with system prompt replacement (full tour guide role). Chat uses `--resume`
+  for multi-turn continuity, same approach as regular sessions.
+
+- **Tour generation**: `tour generate` gathers repo context (respects .gitignore),
+  builds Claude prompt, invokes via InvokeStreaming, validates JSON, saves to
+  `.tours/<name>.tour`. Invalid output saved to `.tour.invalid` for debugging.
 
 ## Session Hooks
 

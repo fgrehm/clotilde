@@ -37,12 +37,15 @@ cmd/                    # Cobra command implementations
   delete.go             # Delete session and Claude data
   hook.go               # Hidden hook parent command
   hook_sessionstart.go  # Unified SessionStart hook handler (startup/resume/compact/clear)
+  tour.go               # Tour subcommands (list, serve, generate)
 internal/
   session/              # Session data structures, storage (FileStore), validation
   config/               # Config management, path resolution
   claude/               # Claude CLI invocation, path conversion, hook generation, cleanup
   util/                 # UUID generation, filesystem helpers
   testutil/             # Test utilities (fake claude binary)
+  tour/                 # Tour file loading, generation, context gathering, validation
+  server/               # HTTP server, WebSocket chat, static assets, REST API
 main.go                 # Entry point
 ```
 
@@ -237,6 +240,70 @@ When deleting a session, remove:
 - Agent logs: `~/.claude/projects/<project-dir>/agent-*.jsonl` (grep for all sessionIds)
 
 This ensures complete cleanup even after multiple `/clear` operations (and `/compact`, if Claude Code's behavior changes to create new UUIDs for compaction).
+
+## Interactive Codebase Tours (Experimental)
+
+Tours are browser-based interactive walkthroughs of a codebase, integrating a code viewer with a Claude Code chat sidebar. Tours enable developers to explore unfamiliar code while asking questions to Claude with full context awareness.
+
+### Tour Architecture
+
+**Three main subsystems:**
+
+1. **Tour file format** (`internal/tour/`)
+   - CodeTour JSON format: `{title, steps: [{file, line, description}]}`
+   - `LoadFile()` / `LoadFromDir()` — Parse and validate tour files
+   - `GatherContext()` — Collect repo context for generation (respects .gitignore)
+   - `ValidateTourJSON()` — Validate generated tours against actual repo
+   - `BuildGenerationPrompt()` — Construct Claude prompt for tour generation
+
+2. **Non-interactive Claude invocation** (`internal/claude/invoke.go`)
+   - `InvokeStreaming(opts, prompt, onLine)` — Spawn claude CLI, capture streaming JSON
+   - Used by tour generation (`tour generate`) and chat sidebar
+   - Handles `--session-id` (first call) and `--resume` (continuation)
+   - Captures stream-json output line-by-line, no user interaction
+
+3. **HTTP server + browser UI** (`internal/server/`)
+   - REST API: `/api/tours`, `/api/files/{path}`, `/api/tree`, `/api/session`
+   - WebSocket: `/ws/chat` — bidirectional chat with streaming response
+   - Static assets: embedded HTML/CSS/JS via `embed.FS`
+   - Persistent session management: tour chat uses `tour-<repo-name>` session with full system prompt replacement
+
+### Tour Generation Flow
+
+1. User runs `clotilde tour generate --focus "auth"`
+2. `GatherContext()` walks repo, collects file tree + README + key snippets
+3. `BuildGenerationPrompt()` constructs system/user prompt with context
+4. `InvokeStreaming()` runs claude non-interactively, captures JSON output
+5. `ValidateTourJSON()` checks: valid JSON, files exist, lines in range
+6. Writes `.tours/<name>.tour` or `.tours/<name>.tour.invalid` on failure
+7. Prints summary to stderr
+
+### Tour Serving Flow
+
+1. `clotilde tour serve` starts HTTP server on localhost
+2. Creates/loads `tour-<repo-name>` Clotilde session with:
+   - System prompt replacement (tour guide role)
+   - Output style "explanatory"
+   - Model from `--model` flag (default: haiku)
+3. Browser loads tour list, displays code viewer + tour nav + chat panel
+4. Chat messages include context: tour name, step, file, line, description
+5. Each message resumes the same session (full continuity)
+6. Chat responses rendered as markdown with syntax highlighting
+
+### Key Design Decisions
+
+- **System prompt replacement (not append)** — Full control over tour guide role
+- **Non-interactive invocation** — `InvokeStreaming()` captures output cleanly, no TTY needed
+- **Persistent sessions** — Tour chat uses Clotilde infrastructure for full history
+- **Context injection in prompt** — No special backend logic; Claude sees tour context inline
+- **Streaming JSON capture** — Works line-by-line, no buffering, low memory
+
+### Test Infrastructure
+
+- Fake claude binary (`internal/testutil/`) for integration tests
+- `server.InvokeStreamingFunc` injectable for testing chat without real claude
+- Mock tour files + source code for server tests
+- WebSocket tests via `nhooyr.io/websocket`
 
 ## Build & Test
 
