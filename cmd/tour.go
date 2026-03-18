@@ -10,7 +10,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/fgrehm/clotilde/internal/claude"
+	"github.com/fgrehm/clotilde/internal/config"
 	"github.com/fgrehm/clotilde/internal/server"
+	"github.com/fgrehm/clotilde/internal/session"
 	"github.com/fgrehm/clotilde/internal/tour"
 	"github.com/fgrehm/clotilde/internal/util"
 )
@@ -71,7 +73,66 @@ func newTourServeCmd() *cobra.Command {
 			port, _ := cmd.Flags().GetInt("port")
 			model, _ := cmd.Flags().GetString("model")
 
-			srv := server.New(port, dir, model)
+			// Find or create clotilde root
+			clotildeRoot, err := config.FindOrCreateClotildeRoot()
+			if err != nil {
+				return fmt.Errorf("failed to initialize session storage: %w", err)
+			}
+
+			// Create or load tour session
+			store := session.NewFileStore(clotildeRoot)
+			repoName := filepath.Base(dir)
+			sessionName := fmt.Sprintf("tour-%s", repoName)
+
+			var sess *session.Session
+			if store.Exists(sessionName) {
+				// Load existing session
+				sess, err = store.Get(sessionName)
+				if err != nil {
+					return fmt.Errorf("failed to load session: %w", err)
+				}
+				sess.UpdateLastAccessed()
+				if err := store.Update(sess); err != nil {
+					return fmt.Errorf("failed to update session: %w", err)
+				}
+			} else {
+				// Create new session
+				sess = session.NewSession(sessionName, util.GenerateUUID())
+				if err := store.Create(sess); err != nil {
+					return fmt.Errorf("failed to create session: %w", err)
+				}
+			}
+
+			// Write system prompt to session (full replacement, not append)
+			tourGuidePrompt := `You are a code tour guide. Explain code, architecture, and design decisions.
+
+Guidelines:
+- Reference file and line numbers from the code being discussed
+- Start with the "why" before diving into the "how"
+- Connect steps to broader patterns when relevant
+- Be direct and concise
+- When asked about code outside the tour, relate it back if possible`
+
+			if err := store.SaveSystemPrompt(sessionName, tourGuidePrompt); err != nil {
+				return fmt.Errorf("failed to save system prompt: %w", err)
+			}
+
+			// Mark session to use full system prompt replacement (not append)
+			sess.Metadata.SystemPromptMode = "replace"
+			if err := store.Update(sess); err != nil {
+				return fmt.Errorf("failed to update session: %w", err)
+			}
+
+			// Save settings with output style and model
+			settings := &session.Settings{
+				Model:       model,
+				OutputStyle: "explanatory",
+			}
+			if err := store.SaveSettings(sessionName, settings); err != nil {
+				return fmt.Errorf("failed to save settings: %w", err)
+			}
+
+			srv := server.New(port, dir, model, sess)
 			return srv.Start()
 		},
 	}

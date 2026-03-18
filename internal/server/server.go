@@ -10,20 +10,32 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/fgrehm/clotilde/internal/config"
+	"github.com/fgrehm/clotilde/internal/session"
 	"github.com/fgrehm/clotilde/internal/tour"
 )
 
 // Server serves the tour web UI and REST API.
 type Server struct {
-	port    int
-	repoDir string
-	model   string
-	tours   map[string]*tour.Tour
+	port          int
+	repoDir       string
+	model         string
+	session       *session.Session
+	clotildeRoot  string
+	tours         map[string]*tour.Tour
 }
 
 // New creates a new Server.
-func New(port int, repoDir string, model string) *Server {
-	return &Server{port: port, repoDir: repoDir, model: model}
+func New(port int, repoDir string, model string, sess *session.Session) *Server {
+	// Find clotildeRoot (should match what was used to create the session)
+	clotildeRoot, _ := config.FindOrCreateClotildeRoot()
+	return &Server{
+		port:         port,
+		repoDir:      repoDir,
+		model:        model,
+		session:      sess,
+		clotildeRoot: clotildeRoot,
+	}
 }
 
 // Handler returns the HTTP handler for the server.

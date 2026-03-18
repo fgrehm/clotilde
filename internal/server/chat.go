@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"sync"
 
 	"nhooyr.io/websocket"
 
 	"github.com/fgrehm/clotilde/internal/claude"
+	"github.com/fgrehm/clotilde/internal/config"
 	"github.com/fgrehm/clotilde/internal/tour"
-	"github.com/fgrehm/clotilde/internal/util"
 )
 
 // chatMessage is sent from the browser to the server.
@@ -96,19 +97,24 @@ func (s *Server) handleChat(conn *websocket.Conn, cs *chatSession, msg chatMessa
 		cs.mu.Unlock()
 	}()
 
-	// Build prompt with system context and tour context
-	userPrompt := buildPrompt(s.tours, msg)
-	prompt := systemPrompt + "\n\n" + userPrompt
+	// Build prompt with tour context (system prompt will come from session)
+	prompt := buildPrompt(s.tours, msg)
 
-	// Create session ID on first message
+	// Use the server's persistent session ID
 	if cs.sessionID == "" {
-		cs.sessionID = util.GenerateUUID()
+		cs.sessionID = s.session.Metadata.SessionID
 	}
 
+	// Build path to system prompt file
+	sessionDir := config.GetSessionDir(s.clotildeRoot, s.session.Name)
+	systemPromptPath := filepath.Join(sessionDir, "system-prompt.md")
+
 	opts := claude.InvokeOptions{
-		SessionID:      cs.sessionID,
-		Resume:         cs.started,
-		AdditionalArgs: []string{"--model", s.model},
+		SessionID:        cs.sessionID,
+		Resume:           cs.started,
+		SystemPromptFile: systemPromptPath,
+		SystemPromptMode: s.session.Metadata.GetSystemPromptMode(),
+		AdditionalArgs:   []string{"--model", s.model},
 	}
 
 	err := InvokeStreamingFunc(opts, prompt, func(line string) {
@@ -150,15 +156,6 @@ func (s *Server) handleChat(conn *websocket.Conn, cs *chatSession, msg chatMessa
 	cs.started = true
 	writeWS(conn, chatResponse{Type: "done"})
 }
-
-const systemPrompt = `You are a codebase tour guide. Your role is to explain code, architecture, and design decisions to developers exploring a codebase.
-
-When answering questions about the code:
-- Reference the specific file and line numbers when relevant
-- Explain the context and purpose of the code
-- Connect to the broader architecture when helpful
-- Be concise but thorough
-- If asked about code outside the tour context, acknowledge it but try to relate it back to the tour`
 
 func buildPrompt(tours map[string]*tour.Tour, msg chatMessage) string {
 	var context string

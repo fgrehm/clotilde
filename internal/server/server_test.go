@@ -11,6 +11,8 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/fgrehm/clotilde/internal/server"
+	"github.com/fgrehm/clotilde/internal/session"
+	"github.com/fgrehm/clotilde/internal/util"
 )
 
 var _ = Describe("Server", func() {
@@ -46,7 +48,8 @@ var _ = Describe("Server", func() {
 		Expect(os.MkdirAll(filepath.Join(repoDir, ".git", "objects"), 0o755)).To(Succeed())
 		Expect(os.MkdirAll(filepath.Join(repoDir, "node_modules", "foo"), 0o755)).To(Succeed())
 
-		srv = server.New(0, repoDir, "haiku")
+		sess := session.NewSession("test-tour", util.GenerateUUID())
+	srv = server.New(0, repoDir, "haiku", sess)
 		handler = srv.Handler()
 	})
 

@@ -15,6 +15,8 @@ import (
 
 	"github.com/fgrehm/clotilde/internal/claude"
 	"github.com/fgrehm/clotilde/internal/server"
+	"github.com/fgrehm/clotilde/internal/session"
+	"github.com/fgrehm/clotilde/internal/util"
 )
 
 var _ = Describe("WebSocket Chat", func() {
@@ -33,7 +35,8 @@ var _ = Describe("WebSocket Chat", func() {
 		tourJSON := `{"title": "Test Tour", "steps": [{"file": "main.go", "line": 1, "description": "Entry"}]}`
 		Expect(os.WriteFile(filepath.Join(toursDir, "test.tour"), []byte(tourJSON), 0o644)).To(Succeed())
 
-		srv = server.New(0, repoDir, "haiku")
+		sess := session.NewSession("test-tour", util.GenerateUUID())
+		srv = server.New(0, repoDir, "haiku", sess)
 		ts = httptest.NewServer(srv.Handler())
 	})
 
