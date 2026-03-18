@@ -29,11 +29,22 @@ func New(port int, repoDir string) *Server {
 func (s *Server) Handler() http.Handler {
 	s.loadTours()
 
+	static := staticHandler()
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/tours", s.tourList)
 	mux.HandleFunc("GET /api/tours/{name}", s.tourDetail)
 	mux.HandleFunc("GET /api/files/{path...}", s.fileContent)
 	mux.HandleFunc("GET /api/tree", s.fileTree)
+	mux.Handle("GET /static/", http.StripPrefix("/static/", static))
+	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			http.NotFound(w, r)
+			return
+		}
+		r.URL.Path = "/index.html"
+		static.ServeHTTP(w, r)
+	})
 	return mux
 }
 

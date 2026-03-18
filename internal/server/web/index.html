@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CodeTour</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-highlight/prism-line-highlight.min.css">
+</head>
+<body>
+  <header id="tour-header">
+    <div class="header-left">
+      <select id="tour-select"></select>
+      <span id="step-counter"></span>
+    </div>
+    <div class="header-right">
+      <button id="prev-btn" title="Previous step (Left arrow)">&#9664; prev</button>
+      <button id="next-btn" title="Next step (Right arrow)">next &#9654;</button>
+    </div>
+  </header>
+
+  <main id="app">
+    <section id="code-panel">
+      <div id="file-header"></div>
+      <div id="code-container">
+        <pre id="code-pre" class="line-numbers"><code id="code-block"></code></pre>
+      </div>
+    </section>
+
+    <section id="side-panel">
+      <div id="step-description"></div>
+      <div id="chat-panel"></div>
+    </section>
+  </main>
+
+  <div id="loading">Loading tour...</div>
+  <div id="error" hidden></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-highlight/prism-line-highlight.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.1/marked.min.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
