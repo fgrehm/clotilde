@@ -184,6 +184,19 @@ func newTourGenerateCmd() *cobra.Command {
 				}
 			}
 
+			// Save settings with permissions (deny Write to prevent Claude from writing files)
+			// We'll handle the file writing ourselves
+			settings := &session.Settings{
+				Model: model,
+				Permissions: session.Permissions{
+					Deny:        []string{"Write"},
+					DefaultMode: "accept",
+				},
+			}
+			if err := store.SaveSettings(sessionName, settings); err != nil {
+				return fmt.Errorf("failed to save settings: %w", err)
+			}
+
 			// Gather repo context
 			fmt.Fprintln(os.Stderr, "Gathering repo context...")
 			ctx, err := tour.GatherContext(dir, tour.ContextOptions{Focus: focus})
