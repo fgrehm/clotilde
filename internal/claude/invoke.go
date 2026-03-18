@@ -1,6 +1,7 @@
 package claude
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"os/exec"
@@ -258,6 +259,57 @@ func cleanupEmptySession(clotildeRoot string, sess *session.Session) {
 		}
 		fmt.Fprintln(os.Stderr, ui.Info(fmt.Sprintf("Removed empty session '%s' (no messages were sent)", current.Name)))
 	}
+}
+
+// InvokeStreaming runs claude in non-interactive mode, streaming output to a callback.
+// Each line of stdout is passed to onLine. Returns when the process exits.
+func InvokeStreaming(opts InvokeOptions, prompt string, onLine func(line string)) error {
+	var args []string
+
+	if opts.Resume {
+		args = append(args, "--resume", opts.SessionID)
+	} else {
+		args = append(args, "--session-id", opts.SessionID)
+	}
+
+	args = appendCommonArgs(args, opts.SettingsFile, opts.SystemPromptFile, opts.SystemPromptMode)
+	args = append(args, "-p", prompt, "--output-format", "stream-json", "--verbose")
+	args = append(args, opts.AdditionalArgs...)
+
+	claudeBin := ClaudeBinaryPathFunc()
+	cmd := exec.Command(claudeBin, args...)
+	cmd.Stderr = os.Stderr
+
+	// Set environment variables
+	cmd.Env = os.Environ()
+	for key, value := range opts.Env {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", key, value))
+	}
+
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("failed to create stdout pipe: %w", err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start claude: %w", err)
+	}
+
+	scanner := bufio.NewScanner(stdout)
+	scanner.Buffer(make([]byte, 0, 256*1024), 256*1024)
+	for scanner.Scan() {
+		onLine(scanner.Text())
+	}
+
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("error reading stdout: %w", err)
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return fmt.Errorf("claude exited with error: %w", err)
+	}
+
+	return nil
 }
 
 // Invoke executes claude CLI with custom options (for advanced use cases).
