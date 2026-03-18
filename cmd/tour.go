@@ -155,6 +155,35 @@ func newTourGenerateCmd() *cobra.Command {
 			focus, _ := cmd.Flags().GetString("focus")
 			model, _ := cmd.Flags().GetString("model")
 
+			// Find or create clotilde root for named generation session
+			clotildeRoot, err := config.FindOrCreateClotildeRoot()
+			if err != nil {
+				return fmt.Errorf("failed to initialize session storage: %w", err)
+			}
+
+			// Create or load generation session
+			store := session.NewFileStore(clotildeRoot)
+			sessionName := fmt.Sprintf("tour-generate-%s", name)
+
+			var sess *session.Session
+			if store.Exists(sessionName) {
+				// Load existing session
+				sess, err = store.Get(sessionName)
+				if err != nil {
+					return fmt.Errorf("failed to load session: %w", err)
+				}
+				sess.UpdateLastAccessed()
+				if err := store.Update(sess); err != nil {
+					return fmt.Errorf("failed to update session: %w", err)
+				}
+			} else {
+				// Create new session
+				sess = session.NewSession(sessionName, util.GenerateUUID())
+				if err := store.Create(sess); err != nil {
+					return fmt.Errorf("failed to create session: %w", err)
+				}
+			}
+
 			// Gather repo context
 			fmt.Fprintln(os.Stderr, "Gathering repo context...")
 			ctx, err := tour.GatherContext(dir, tour.ContextOptions{Focus: focus})
@@ -167,12 +196,12 @@ func newTourGenerateCmd() *cobra.Command {
 
 			// Invoke Claude
 			fmt.Fprintln(os.Stderr, "Generating tour via Claude Code...")
-			sessionID := util.GenerateUUID()
 			var output strings.Builder
 
 			args := []string{"--model", model}
 			opts := claude.InvokeOptions{
-				SessionID:      sessionID,
+				SessionID:      sess.Metadata.SessionID,
+				Resume:         true,
 				AdditionalArgs: args,
 			}
 
@@ -224,6 +253,9 @@ func newTourGenerateCmd() *cobra.Command {
 				}
 				fmt.Fprintf(os.Stderr, "  %2d. %-25s %s\n", i+1, fmt.Sprintf("%s:%d", step.File, step.Line), desc)
 			}
+
+			fmt.Fprintf(os.Stderr, "\nGeneration session: %s\n", sessionName)
+			fmt.Fprintf(os.Stderr, "View transcript: clotilde inspect %s\n", sessionName)
 
 			return nil
 		},

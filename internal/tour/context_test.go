@@ -3,6 +3,7 @@ package tour_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -101,5 +102,49 @@ var _ = Describe("GatherContext", func() {
 		ctx, err := tour.GatherContext(repoDir, tour.ContextOptions{})
 		Expect(err).NotTo(HaveOccurred())
 		Expect(len(ctx)).To(BeNumerically("<", 35000))
+	})
+
+	It("respects .gitignore patterns", func() {
+		// Create a .gitignore file
+		gitignore := `*.log
+build/
+*.tmp
+`
+		Expect(os.WriteFile(filepath.Join(repoDir, ".gitignore"), []byte(gitignore), 0o644)).To(Succeed())
+
+		// Create files that should be ignored
+		Expect(os.WriteFile(filepath.Join(repoDir, "debug.log"), []byte("log content"), 0o644)).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(repoDir, "cache.tmp"), []byte("temp"), 0o644)).To(Succeed())
+		Expect(os.MkdirAll(filepath.Join(repoDir, "build"), 0o755)).To(Succeed())
+		Expect(os.WriteFile(filepath.Join(repoDir, "build", "artifact"), []byte("built"), 0o644)).To(Succeed())
+
+		ctx, err := tour.GatherContext(repoDir, tour.ContextOptions{})
+		Expect(err).NotTo(HaveOccurred())
+
+		// Ignored files should not appear in file tree
+		lines := strings.Split(ctx, "\n")
+		var fileTreeSection []string
+		inFileTree := false
+		for _, line := range lines {
+			if strings.Contains(line, "## File tree") {
+				inFileTree = true
+				continue
+			}
+			if inFileTree && strings.HasPrefix(line, "##") {
+				break
+			}
+			if inFileTree {
+				fileTreeSection = append(fileTreeSection, line)
+			}
+		}
+
+		fileTreeContent := strings.Join(fileTreeSection, "\n")
+		Expect(fileTreeContent).NotTo(ContainSubstring("debug.log"))
+		Expect(fileTreeContent).NotTo(ContainSubstring("cache.tmp"))
+		Expect(fileTreeContent).NotTo(ContainSubstring("build/artifact"))
+
+		// But included files should be in file tree
+		Expect(fileTreeContent).To(ContainSubstring("main.go"))
+		Expect(fileTreeContent).To(ContainSubstring("src/lib.rs"))
 	})
 })

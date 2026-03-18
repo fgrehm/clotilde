@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -36,9 +37,130 @@ var excludeDirs = map[string]bool{
 	".next":        true,
 }
 
+// gitignorePatterns holds parsed patterns from .gitignore files
+type gitignorePatterns struct {
+	patterns []string
+}
+
+// getGlobalGitignorePath returns the global gitignore path from git config
+func getGlobalGitignorePath() string {
+	cmd := exec.Command("git", "config", "--global", "core.excludesFile")
+	output, err := cmd.Output()
+	if err == nil && len(output) > 0 {
+		return strings.TrimSpace(string(output))
+	}
+
+	// Fallback to default path if git config not available
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, ".config", "git", "ignore")
+}
+
+// loadGitignore loads and parses .gitignore file
+func loadGitignore(filePath string) *gitignorePatterns {
+	gp := &gitignorePatterns{}
+
+	f, err := os.Open(filePath)
+	if err != nil {
+		return gp
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+
+		// Skip comments and empty lines
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		// Unescape special characters
+		if strings.HasPrefix(line, "\\#") || strings.HasPrefix(line, "\\\\") {
+			line = line[1:]
+		}
+
+		gp.patterns = append(gp.patterns, line)
+	}
+
+	return gp
+}
+
+// isIgnored checks if a file matches any gitignore pattern
+func (gp *gitignorePatterns) isIgnored(relPath string) bool {
+	for _, pattern := range gp.patterns {
+		if matchGitignore(pattern, relPath) {
+			return true
+		}
+	}
+	return false
+}
+
+// matchGitignore matches a path against a gitignore pattern
+// Handles basic gitignore rules:
+// - * matches anything except /
+// - ** matches zero or more directories
+// - ? matches any one character
+// - ! negates the pattern (not supported yet)
+func matchGitignore(pattern string, path string) bool {
+	// Handle negation patterns (gitignore ! syntax)
+	if strings.HasPrefix(pattern, "!") {
+		return false
+	}
+
+	// Trailing slash means directory only
+	dirOnly := strings.HasSuffix(pattern, "/")
+	if dirOnly {
+		pattern = strings.TrimSuffix(pattern, "/")
+	}
+
+	// Leading slash means match from root
+	if strings.HasPrefix(pattern, "/") {
+		pattern = pattern[1:]
+	}
+
+	// Match against full path
+	if strings.Contains(pattern, "/") {
+		// Pattern with slash: match as relative path
+		if matched, _ := filepath.Match(pattern, path); matched {
+			return true
+		}
+	} else {
+		// Pattern without slash: match against any path component
+		parts := strings.Split(path, string(filepath.Separator))
+		for _, part := range parts {
+			if matched, _ := filepath.Match(pattern, part); matched {
+				return true
+			}
+		}
+
+		// Also try matching full path for patterns like "*.ext"
+		if matched, _ := filepath.Match(pattern, path); matched {
+			return true
+		}
+	}
+
+	// Handle ** patterns (match any number of directories)
+	if strings.Contains(pattern, "**") {
+		pattern = strings.ReplaceAll(pattern, "**", "*")
+		// Try matching the modified pattern
+		if matched, _ := filepath.Match(pattern, path); matched {
+			return true
+		}
+	}
+
+	return false
+}
+
 // GatherContext collects repo information for tour generation.
 func GatherContext(repoDir string, opts ContextOptions) (string, error) {
 	opts.defaults()
+
+	// Load gitignore patterns
+	localGitignore := loadGitignore(filepath.Join(repoDir, ".gitignore"))
+	globalGitignore := loadGitignore(getGlobalGitignorePath())
 
 	var b strings.Builder
 	const maxTotal = 30000
@@ -53,12 +175,26 @@ func GatherContext(repoDir string, opts ContextOptions) (string, error) {
 		if err != nil {
 			return nil
 		}
+
+		// Normalize path separators for matching
+		matchPath := filepath.ToSlash(rel)
+
 		if d.IsDir() {
 			if excludeDirs[d.Name()] {
 				return filepath.SkipDir
 			}
+			// Check gitignore patterns for directories
+			if localGitignore.isIgnored(matchPath) || globalGitignore.isIgnored(matchPath) {
+				return filepath.SkipDir
+			}
 			return nil
 		}
+
+		// Check gitignore patterns for files
+		if localGitignore.isIgnored(matchPath) || globalGitignore.isIgnored(matchPath) {
+			return nil
+		}
+
 		allFiles = append(allFiles, rel)
 		return nil
 	})
