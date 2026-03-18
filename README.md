@@ -288,6 +288,101 @@ clotilde start myfeature --output-style-file ./my-style.md
 
 **Storage:** Session-specific custom styles are stored in `.claude/output-styles/clotilde/<session-name>.md` and should be gitignored (much like `.claude/clotilde`, they're ephemeral per-user customizations). Team members can share output styles by placing them in `.claude/output-styles/` (without the `clotilde/` subdirectory) and committing them to git.
 
+## Interactive Codebase Tours (Experimental)
+
+Clotilde includes an experimental tour system for interactive, browser-based codebase walkthroughs. Tours are CodeTour JSON files that guide users through architecture, design decisions, and key files with an integrated chat sidebar powered by Claude.
+
+**Note:** This feature is experimental and APIs may change. Feedback is welcome!
+
+### Creating Tours
+
+**Generate tours automatically** using Claude to analyze your codebase:
+
+```bash
+# Generate a tour of the entire codebase
+clotilde tour generate
+
+# Generate a focused tour of a specific area
+clotilde tour generate --focus "authentication" --name auth-flow
+
+# Use a specific Claude model for generation
+clotilde tour generate --model sonnet
+
+# Specify output location
+clotilde tour generate --name my-tour --dir /path/to/repo
+```
+
+Generated tours are saved to `.tours/<name>.tour` in CodeTour format (JSON). You can edit them manually afterward.
+
+### Browsing Tours
+
+**List available tours:**
+
+```bash
+clotilde tour list
+```
+
+**Start the interactive tour server:**
+
+```bash
+# Default: haiku model, port 3333
+clotilde tour serve
+
+# Custom model and port
+clotilde tour serve --model sonnet --port 8080
+
+# Specify repository directory
+clotilde tour serve --dir /path/to/repo
+```
+
+The tour server opens a local web app at `http://localhost:3333` (or your specified port) with:
+
+- **Code viewer** — Syntax-highlighted source code with line numbers
+- **Tour navigation** — Step-by-step tour with descriptions
+- **Chat sidebar** — Ask Claude Code about the code at the current tour step
+- **URL persistence** — Step selections are saved in the URL (`?step=N`)
+- **Persistent sessions** — Chat history persists across browser refreshes
+
+### Tour Format
+
+Tours are stored as `.tour` files in CodeTour format:
+
+```json
+{
+  "title": "Authentication Flow",
+  "steps": [
+    {
+      "file": "pkg/auth/auth.go",
+      "line": 42,
+      "description": "## Entry point\n\nThe `Login` function..."
+    },
+    {
+      "file": "pkg/auth/jwt.go",
+      "line": 1,
+      "description": "## Token generation\n\nJWT tokens are..."
+    }
+  ]
+}
+```
+
+**Fields:**
+- `title` — Tour title (displayed in the browser)
+- `steps` — Array of tour steps
+  - `file` — Relative path to source file
+  - `line` — Starting line number (required for highlighting)
+  - `description` — Step description (markdown format)
+
+### Chat in Tours
+
+When you ask a question in the tour's chat sidebar:
+
+- Claude sees the current **tour context** — tour name, step number, file path, line number, and step description
+- A **persistent Claude Code session** named `tour-<repo-name>` is created and reused across browser sessions
+- **System prompt replacement** — Claude's default system prompt is replaced with the tour guide role to focus on code explanation
+- Chat history is **preserved** across page refreshes and browser restarts
+
+**Reset chat** — Click the "Reset" button in the chat header to clear history and start a fresh conversation (creates a new Claude session).
+
 ## Commands
 
 ### `clotilde setup [--local] [--stats] [--no-stats]`
@@ -511,6 +606,72 @@ clotilde export auth-feature --stdout | wc -c
 **Keyboard shortcuts** (in the exported HTML):
 - `Ctrl+T` - Toggle all thinking blocks
 - `Ctrl+O` - Toggle all tool outputs
+
+### `clotilde tour list [--dir PATH]`
+
+List all available tours in a project's `.tours/` directory.
+
+**Options:**
+- `--dir PATH` - Repository directory (default: current directory)
+
+```bash
+clotilde tour list
+clotilde tour list --dir /path/to/repo
+```
+
+### `clotilde tour serve [--dir PATH] [--port PORT] [--model MODEL]`
+
+Start the interactive tour web server. Opens a browser-based codebase walkthrough with integrated Claude chat.
+
+**Options:**
+- `--dir PATH` - Repository directory (default: current directory)
+- `--port PORT` - Listen port (default: 3333)
+- `--model MODEL` - Claude model for chat (default: haiku; options: haiku, sonnet, opus)
+
+```bash
+# Default settings
+clotilde tour serve
+
+# Custom port and model
+clotilde tour serve --port 8080 --model sonnet
+
+# Specific repository
+clotilde tour serve --dir /path/to/repo
+```
+
+The server:
+- Creates a persistent `tour-<repo-name>` Clotilde session for chat history
+- Injects a tour guide system prompt (replaces Claude's default)
+- Serves a local web app with code viewer, tour navigation, and chat
+- Persists step selections in the URL query string
+
+### `clotilde tour generate [--dir PATH] [--name NAME] [--focus FOCUS] [--model MODEL]`
+
+Generate a tour file by analyzing the codebase with Claude. Tours are useful for onboarding, documentation, or understanding unfamiliar code.
+
+**Options:**
+- `--dir PATH` - Repository directory (default: current directory)
+- `--name NAME` - Tour name (output: `.tours/<name>.tour`; default: overview)
+- `--focus FOCUS` - Focus on a specific area (e.g. "authentication", "database layer")
+- `--model MODEL` - Claude model for generation (default: sonnet; options: haiku, sonnet, opus)
+
+```bash
+# Generate a tour of the full codebase
+clotilde tour generate
+
+# Focus on a specific area
+clotilde tour generate --focus "authentication flow" --name auth
+
+# Faster generation with haiku
+clotilde tour generate --name quick --model haiku
+
+# Custom output location
+clotilde tour generate --dir /path/to/repo
+```
+
+Generated tours are saved as `.tours/<name>.tour` in CodeTour format and can be edited manually or served immediately with `clotilde tour serve`.
+
+If generation fails (e.g. invalid JSON from Claude), the raw output is saved to `.tours/<name>.tour.invalid` for inspection.
 
 ### `clotilde delete <name> [--force]`
 
