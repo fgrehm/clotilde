@@ -1,0 +1,167 @@
+package server
+
+import (
+	"encoding/json"
+	"fmt"
+	"io/fs"
+	"net"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/fgrehm/clotilde/internal/tour"
+)
+
+// Server serves the tour web UI and REST API.
+type Server struct {
+	port    int
+	repoDir string
+	tours   map[string]*tour.Tour
+}
+
+// New creates a new Server.
+func New(port int, repoDir string) *Server {
+	return &Server{port: port, repoDir: repoDir}
+}
+
+// Handler returns the HTTP handler for the server.
+func (s *Server) Handler() http.Handler {
+	s.loadTours()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/tours", s.tourList)
+	mux.HandleFunc("GET /api/tours/{name}", s.tourDetail)
+	mux.HandleFunc("GET /api/files/{path...}", s.fileContent)
+	mux.HandleFunc("GET /api/tree", s.fileTree)
+	return mux
+}
+
+// Start loads tours and starts the HTTP server on localhost.
+func (s *Server) Start() error {
+	handler := s.Handler()
+	addr := fmt.Sprintf("127.0.0.1:%d", s.port)
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		return fmt.Errorf("failed to listen on %s: %w", addr, err)
+	}
+	fmt.Fprintf(os.Stderr, "Tour server listening on http://%s\n", listener.Addr())
+	return http.Serve(listener, handler)
+}
+
+func (s *Server) loadTours() {
+	toursDir := filepath.Join(s.repoDir, ".tours")
+	tours, err := tour.LoadFromDir(toursDir)
+	if err != nil {
+		s.tours = make(map[string]*tour.Tour)
+		return
+	}
+	s.tours = tours
+}
+
+func (s *Server) tourList(w http.ResponseWriter, _ *http.Request) {
+	type tourSummary struct {
+		Name  string `json:"name"`
+		Title string `json:"title"`
+		Steps int    `json:"steps"`
+	}
+
+	var list []tourSummary
+	for name, t := range s.tours {
+		list = append(list, tourSummary{
+			Name:  name,
+			Title: t.Title,
+			Steps: len(t.Steps),
+		})
+	}
+
+	writeJSON(w, http.StatusOK, list)
+}
+
+func (s *Server) tourDetail(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	t, ok := s.tours[name]
+	if !ok {
+		http.Error(w, "tour not found", http.StatusNotFound)
+		return
+	}
+	writeJSON(w, http.StatusOK, t)
+}
+
+func (s *Server) fileContent(w http.ResponseWriter, r *http.Request) {
+	relPath := r.PathValue("path")
+
+	if strings.Contains(relPath, "..") {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
+	absPath := filepath.Join(s.repoDir, filepath.FromSlash(relPath))
+
+	// Ensure the resolved path is still within the repo directory
+	absPath, err := filepath.Abs(absPath)
+	if err != nil || !strings.HasPrefix(absPath, s.repoDir) {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
+	data, err := os.ReadFile(absPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			http.Error(w, "file not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "failed to read file", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Write(data)
+}
+
+// excludeDirs lists directories to skip in the file tree.
+var excludeDirs = map[string]bool{
+	".git":         true,
+	"node_modules": true,
+	"target":       true,
+	".tours":       true,
+	"dist":         true,
+	"vendor":       true,
+}
+
+func (s *Server) fileTree(w http.ResponseWriter, _ *http.Request) {
+	var files []string
+	err := filepath.WalkDir(s.repoDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+
+		rel, err := filepath.Rel(s.repoDir, path)
+		if err != nil {
+			return nil
+		}
+
+		if d.IsDir() {
+			if excludeDirs[d.Name()] {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		files = append(files, filepath.ToSlash(rel))
+		return nil
+	})
+
+	if err != nil {
+		http.Error(w, "failed to walk directory", http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, files)
+}
+
+func writeJSON(w http.ResponseWriter, status int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(v)
+}
