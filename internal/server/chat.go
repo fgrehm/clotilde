@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"nhooyr.io/websocket"
+	"github.com/coder/websocket"
 
 	"github.com/fgrehm/clotilde/internal/claude"
 	"github.com/fgrehm/clotilde/internal/config"

@@ -28,9 +28,6 @@ linters:
   exclusions:
     paths:
       - vendor
-    rules:
-      - linters: [staticcheck]
-        text: "coder/websocket"
 
 formatters:
   enable:
