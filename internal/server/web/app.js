@@ -324,6 +324,40 @@ chatInput.addEventListener("keydown", (e) => {
 });
 chatReset.addEventListener("click", resetChat);
 
+// Chat panel resizing
+const chatPanel = document.getElementById("chat-panel");
+const resizeHandle = document.getElementById("chat-resize-handle");
+let isResizing = false;
+
+resizeHandle.addEventListener("mousedown", (e) => {
+  isResizing = true;
+  const startY = e.clientY;
+  const startHeight = chatPanel.offsetHeight;
+
+  const onMouseMove = (moveEvent) => {
+    if (!isResizing) return;
+    const delta = moveEvent.clientY - startY;
+    const newHeight = Math.max(100, startHeight - delta);
+    chatPanel.style.height = newHeight + "px";
+    localStorage.setItem("chatPanelHeight", newHeight);
+  };
+
+  const onMouseUp = () => {
+    isResizing = false;
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+  };
+
+  document.addEventListener("mousemove", onMouseMove);
+  document.addEventListener("mouseup", onMouseUp);
+});
+
+// Restore chat panel height from localStorage
+const savedHeight = localStorage.getItem("chatPanelHeight");
+if (savedHeight) {
+  chatPanel.style.height = savedHeight + "px";
+}
+
 // Start
 connectChat();
 init();

@@ -171,9 +171,23 @@ button:disabled {
   margin-bottom: 12px;
 }
 
+/* Chat resize handle */
+#chat-resize-handle {
+  height: 4px;
+  background: linear-gradient(to right, transparent, var(--accent), transparent);
+  cursor: ns-resize;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+#chat-resize-handle:hover {
+  background: linear-gradient(to right, transparent, #a6e3a1, transparent);
+}
+
 /* Chat panel */
 #chat-panel {
   border-top: 1px solid var(--border);
+  background: linear-gradient(135deg, rgba(88, 91, 112, 0.15) 0%, transparent 100%);
   display: flex;
   flex-direction: column;
   height: 280px;
