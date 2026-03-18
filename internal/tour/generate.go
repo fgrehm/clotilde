@@ -9,41 +9,95 @@ import (
 	"strings"
 )
 
-// GenerationPrompt is the system prompt for tour generation.
-const GenerationPrompt = `IMPORTANT: Your ENTIRE response must be a single JSON object. No preamble, no explanation, no markdown fences, no asking for permissions. Just the raw JSON.
+// StreamEvent represents a parsed stream-json event from Claude.
+type StreamEvent struct {
+	Type    string         `json:"type"`
+	Message *StreamMessage `json:"message,omitempty"`
+	Result  string         `json:"result,omitempty"`
+}
 
-You are analyzing a codebase to produce a CodeTour JSON object (printed in your response).
+// StreamMessage is the message payload in an "assistant" stream event.
+type StreamMessage struct {
+	Content []StreamContent `json:"content"`
+}
 
-Requirements:
-- Start at the entry point
-- Walk through the architecture module by module
-- Explain key design decisions and patterns
-- Be useful for someone unfamiliar with the codebase
-- 8-15 steps (not too many, not too few)
-- Each step: file (relative path), line (specific line number), description (2-4 sentences, markdown)
-- Start each description with a ## heading
+// StreamContent is one content block in an assistant message.
+type StreamContent struct {
+	Type  string         `json:"type"`
+	Name  string         `json:"name,omitempty"`
+	Input map[string]any `json:"input,omitempty"`
+}
+
+// ParseStreamEvent parses one stream-json line into a StreamEvent.
+func ParseStreamEvent(line string) (StreamEvent, error) {
+	var ev StreamEvent
+	if err := json.Unmarshal([]byte(line), &ev); err != nil {
+		return ev, err
+	}
+	return ev, nil
+}
+
+// ToolCallSummary returns a short human-readable description of what tool Claude
+// is calling, for progress display. Returns empty string if not a tool call.
+func ToolCallSummary(ev StreamEvent) string {
+	if ev.Type != "assistant" || ev.Message == nil {
+		return ""
+	}
+	for _, c := range ev.Message.Content {
+		if c.Type != "tool_use" {
+			continue
+		}
+		switch c.Name {
+		case "Read":
+			if path, ok := c.Input["file_path"].(string); ok {
+				return fmt.Sprintf("Reading %s", path)
+			}
+		case "Glob":
+			if pattern, ok := c.Input["pattern"].(string); ok {
+				return fmt.Sprintf("Globbing %s", pattern)
+			}
+		case "Grep":
+			if pattern, ok := c.Input["pattern"].(string); ok {
+				return fmt.Sprintf("Grepping for %q", pattern)
+			}
+		default:
+			return fmt.Sprintf("Using %s", c.Name)
+		}
+	}
+	return ""
+}
+
+// GenerationPrompt is the prompt for tour generation via autonomous repo crawl.
+const GenerationPrompt = `Explore the repository at %s using your file tools (Glob, Read, Grep).
+
+Your goal: produce a CodeTour that walks an unfamiliar developer through the codebase architecture.
+
+Rules:
+- Read at most 20 files total. Start with entry points and README, then follow the most important paths.
+- Produce exactly 8-15 steps. Do not produce more.
+- Each step: file path relative to repo root, a specific line number, 2-4 sentence description.
+- Start each description with a ## heading.
+- Steps must follow logical reading order (entry point → core modules → periphery).
 %s
 
-Output format (raw JSON, nothing else):
+When you are done exploring, output ONLY a raw JSON object. No preamble, no explanation, no markdown fences.
+
+Output format:
 {
   "$schema": "https://aka.ms/codetour-schema",
   "title": "<descriptive title>",
   "steps": [
     { "file": "<relative/path>", "line": <number>, "description": "<markdown>" }
   ]
-}
-
-Repository context:
-
-%s`
+}`
 
 // BuildGenerationPrompt constructs the prompt for tour generation.
-func BuildGenerationPrompt(context, focus string) string {
+func BuildGenerationPrompt(repoDir, focus string) string {
 	var focusLine string
 	if focus != "" {
-		focusLine = fmt.Sprintf("Focus specifically on: %s", focus)
+		focusLine = fmt.Sprintf("\nFocus specifically on: %s", focus)
 	}
-	return fmt.Sprintf(GenerationPrompt, focusLine, context)
+	return fmt.Sprintf(GenerationPrompt, repoDir, focusLine)
 }
 
 // ValidateTourJSON parses and validates generated tour JSON against the repo.

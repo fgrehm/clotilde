@@ -179,15 +179,12 @@ func newTourGenerateCmd() *cobra.Command {
 				return fmt.Errorf("failed to save settings: %w", err)
 			}
 
-			// Gather repo context
-			fmt.Fprintln(os.Stderr, "Gathering repo context...")
-			ctx, err := tour.GatherContext(dir, tour.ContextOptions{Focus: focus})
+			// Build prompt - Claude will crawl the repo itself using its file tools
+			absDir, err := filepath.Abs(dir)
 			if err != nil {
-				return fmt.Errorf("failed to gather context: %w", err)
+				return fmt.Errorf("failed to resolve dir: %w", err)
 			}
-
-			// Build prompt
-			prompt := tour.BuildGenerationPrompt(ctx, focus)
+			prompt := tour.BuildGenerationPrompt(absDir, focus)
 
 			// Invoke Claude
 			fmt.Fprintln(os.Stderr, "Generating tour via Claude Code...")
@@ -205,15 +202,17 @@ func newTourGenerateCmd() *cobra.Command {
 			}
 
 			err = claude.InvokeStreaming(opts, prompt, func(line string) {
-				// Extract result text from stream-json
-				var parsed map[string]any
-				if err := json.Unmarshal([]byte(line), &parsed); err != nil {
+				ev, parseErr := tour.ParseStreamEvent(line)
+				if parseErr != nil {
 					return
 				}
-				if parsed["type"] == "result" {
-					if result, ok := parsed["result"].(string); ok {
-						output.WriteString(result)
-					}
+				// Show progress for tool calls
+				if summary := tour.ToolCallSummary(ev); summary != "" {
+					fmt.Fprintf(os.Stderr, "  %s\n", summary)
+				}
+				// Capture final result
+				if ev.Type == "result" {
+					output.WriteString(ev.Result)
 				}
 			})
 			if err != nil {
