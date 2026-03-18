@@ -46,14 +46,14 @@ func newTourListCmd() *cobra.Command {
 			}
 
 			if len(tours) == 0 {
-				fmt.Fprintln(cmd.OutOrStdout(), "No tours found.")
-				fmt.Fprintf(cmd.OutOrStdout(), "\nCreate a tour file in %s/\n", toursDir)
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No tours found.")
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\nCreate a tour file in %s/\n", toursDir)
 				return nil
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "Tours (%d):\n", len(tours))
+			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Tours (%d):\n", len(tours))
 			for name, t := range tours {
-				fmt.Fprintf(cmd.OutOrStdout(), "  %-20s %s (%d steps)\n", name, t.Title, len(t.Steps))
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  %-20s %s (%d steps)\n", name, t.Title, len(t.Steps))
 			}
 			return nil
 		},
@@ -87,18 +87,18 @@ func newTourServeCmd() *cobra.Command {
 
 			var sess *session.Session
 			if store.Exists(sessionName) {
-				// Load existing session
 				sess, err = store.Get(sessionName)
 				if err != nil {
 					return fmt.Errorf("failed to load session: %w", err)
 				}
 				sess.UpdateLastAccessed()
+				sess.Metadata.SystemPromptMode = "replace"
 				if err := store.Update(sess); err != nil {
 					return fmt.Errorf("failed to update session: %w", err)
 				}
 			} else {
-				// Create new session
 				sess = session.NewSession(sessionName, util.GenerateUUID())
+				sess.Metadata.SystemPromptMode = "replace"
 				if err := store.Create(sess); err != nil {
 					return fmt.Errorf("failed to create session: %w", err)
 				}
@@ -118,12 +118,6 @@ Guidelines:
 				return fmt.Errorf("failed to save system prompt: %w", err)
 			}
 
-			// Mark session to use full system prompt replacement (not append)
-			sess.Metadata.SystemPromptMode = "replace"
-			if err := store.Update(sess); err != nil {
-				return fmt.Errorf("failed to update session: %w", err)
-			}
-
 			// Save settings with output style and model
 			settings := &session.Settings{
 				Model:       model,
@@ -133,7 +127,7 @@ Guidelines:
 				return fmt.Errorf("failed to save settings: %w", err)
 			}
 
-			srv := server.New(port, dir, model, sess)
+			srv := server.New(port, dir, model, sess, clotildeRoot)
 			return srv.Start()
 		},
 	}
@@ -222,7 +216,7 @@ func newTourGenerateCmd() *cobra.Command {
 			// Extract and validate JSON
 			raw := tour.ExtractJSON(output.String())
 			toursDir := filepath.Join(dir, ".tours")
-			if err := os.MkdirAll(toursDir, 0o755); err != nil {
+			if err := util.EnsureDir(toursDir); err != nil {
 				return fmt.Errorf("failed to create .tours directory: %w", err)
 			}
 
@@ -230,15 +224,15 @@ func newTourGenerateCmd() *cobra.Command {
 
 			t, err := tour.ValidateTourJSON([]byte(raw), dir)
 			if err != nil {
-				// Save invalid output for debugging
+				// Save invalid output for debugging (best-effort)
 				invalidPath := outputPath + ".invalid"
-				os.WriteFile(invalidPath, []byte(raw), 0o644)
+				_ = os.WriteFile(invalidPath, []byte(raw), 0o644)
 				return fmt.Errorf("generated tour failed validation: %w\nRaw output saved to %s", err, invalidPath)
 			}
 
 			// Write validated tour
 			formatted, _ := json.MarshalIndent(t, "", "  ")
-			if err := os.WriteFile(outputPath, formatted, 0o644); err != nil {
+			if err := util.WriteFile(outputPath, formatted); err != nil {
 				return fmt.Errorf("failed to write tour file: %w", err)
 			}
 

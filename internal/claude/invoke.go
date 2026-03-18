@@ -348,19 +348,7 @@ func Invoke(opts InvokeOptions) error {
 		args = append(args, "--session-id", opts.SessionID)
 	}
 
-	if opts.SettingsFile != "" && util.FileExists(opts.SettingsFile) {
-		args = append(args, "--settings", opts.SettingsFile)
-	}
-
-	if opts.SystemPromptFile != "" && util.FileExists(opts.SystemPromptFile) {
-		// Use correct flag based on mode (default to append)
-		if opts.SystemPromptMode == "replace" {
-			args = append(args, "--system-prompt-file", opts.SystemPromptFile)
-		} else {
-			args = append(args, "--append-system-prompt-file", opts.SystemPromptFile)
-		}
-	}
-
+	args = appendCommonArgs(args, opts.SettingsFile, opts.SystemPromptFile, opts.SystemPromptMode)
 	args = append(args, opts.AdditionalArgs...)
 
 	return invokeInteractive(args, opts.Env)

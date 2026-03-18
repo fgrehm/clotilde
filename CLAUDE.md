@@ -44,7 +44,7 @@ internal/
   claude/               # Claude CLI invocation, path conversion, hook generation, cleanup
   util/                 # UUID generation, filesystem helpers
   testutil/             # Test utilities (fake claude binary)
-  tour/                 # Tour file loading, generation, context gathering, validation
+  tour/                 # Tour file loading, generation, validation, prompt construction
   server/               # HTTP server, WebSocket chat, static assets, REST API
 main.go                 # Entry point
 ```
@@ -252,9 +252,8 @@ Tours are browser-based interactive walkthroughs of a codebase, integrating a co
 1. **Tour file format** (`internal/tour/`)
    - CodeTour JSON format: `{title, steps: [{file, line, description}]}`
    - `LoadFile()` / `LoadFromDir()` — Parse and validate tour files
-   - `GatherContext()` — Collect repo context for generation (respects .gitignore)
    - `ValidateTourJSON()` — Validate generated tours against actual repo
-   - `BuildGenerationPrompt()` — Construct Claude prompt for tour generation
+   - `BuildGenerationPrompt()` — Construct prompt telling Claude to crawl the repo autonomously
 
 2. **Non-interactive Claude invocation** (`internal/claude/invoke.go`)
    - `InvokeStreaming(opts, prompt, onLine)` — Spawn claude CLI, capture streaming JSON
@@ -271,12 +270,11 @@ Tours are browser-based interactive walkthroughs of a codebase, integrating a co
 ### Tour Generation Flow
 
 1. User runs `clotilde tour generate --focus "auth"`
-2. `GatherContext()` walks repo, collects file tree + README + key snippets
-3. `BuildGenerationPrompt()` constructs system/user prompt with context
-4. `InvokeStreaming()` runs claude non-interactively, captures JSON output
-5. `ValidateTourJSON()` checks: valid JSON, files exist, lines in range
-6. Writes `.tours/<name>.tour` or `.tours/<name>.tour.invalid` on failure
-7. Prints summary to stderr
+2. `BuildGenerationPrompt()` builds a prompt telling Claude to crawl the repo with its own tools (max 20 files, 8-15 steps)
+3. `InvokeStreaming()` runs claude with `--permission-mode bypassPermissions`, capturing JSON output; tool calls are streamed as progress to stderr
+4. `ValidateTourJSON()` checks: valid JSON, files exist, lines in range
+5. Writes `.tours/<name>.tour` or `.tours/<name>.tour.invalid` on failure
+6. Prints summary to stderr
 
 ### Tour Serving Flow
 

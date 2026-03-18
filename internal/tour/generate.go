@@ -1,12 +1,13 @@
 package tour
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/fgrehm/clotilde/internal/util"
 )
 
 // StreamEvent represents a parsed stream-json event from Claude.
@@ -119,7 +120,7 @@ func ValidateTourJSON(data []byte, repoDir string) (*Tour, error) {
 			return nil, fmt.Errorf("step %d: file %q does not exist", i+1, step.File)
 		}
 
-		lineCount, err := countLines(absPath)
+		lineCount, err := util.CountLines(absPath)
 		if err != nil {
 			continue
 		}
@@ -159,19 +160,4 @@ func ExtractJSON(output string) string {
 	}
 
 	return output
-}
-
-func countLines(path string) (int, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return 0, err
-	}
-	defer f.Close()
-
-	count := 0
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		count++
-	}
-	return count, scanner.Err()
 }

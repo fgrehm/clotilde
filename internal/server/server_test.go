@@ -49,7 +49,7 @@ var _ = Describe("Server", func() {
 		Expect(os.MkdirAll(filepath.Join(repoDir, "node_modules", "foo"), 0o755)).To(Succeed())
 
 		sess := session.NewSession("test-tour", util.GenerateUUID())
-	srv = server.New(0, repoDir, "haiku", sess)
+		srv = server.New(0, repoDir, "haiku", sess, "")
 		handler = srv.Handler()
 	})
 

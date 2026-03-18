@@ -21,8 +21,8 @@ import (
 
 var _ = Describe("WebSocket Chat", func() {
 	var (
-		srv    *server.Server
-		ts     *httptest.Server
+		srv     *server.Server
+		ts      *httptest.Server
 		repoDir string
 	)
 
@@ -36,7 +36,7 @@ var _ = Describe("WebSocket Chat", func() {
 		Expect(os.WriteFile(filepath.Join(toursDir, "test.tour"), []byte(tourJSON), 0o644)).To(Succeed())
 
 		sess := session.NewSession("test-tour", util.GenerateUUID())
-		srv = server.New(0, repoDir, "haiku", sess)
+		srv = server.New(0, repoDir, "haiku", sess, "")
 		ts = httptest.NewServer(srv.Handler())
 	})
 
@@ -51,7 +51,7 @@ var _ = Describe("WebSocket Chat", func() {
 		wsURL := "ws" + ts.URL[4:] + "/ws/chat"
 		conn, _, err := websocket.Dial(ctx, wsURL, nil)
 		Expect(err).NotTo(HaveOccurred())
-		conn.Close(websocket.StatusNormalClosure, "")
+		Expect(conn.Close(websocket.StatusNormalClosure, "")).To(Succeed())
 	})
 
 	It("calls InvokeStreaming and streams response", func() {
@@ -73,7 +73,7 @@ var _ = Describe("WebSocket Chat", func() {
 		wsURL := "ws" + ts.URL[4:] + "/ws/chat"
 		conn, _, err := websocket.Dial(ctx, wsURL, nil)
 		Expect(err).NotTo(HaveOccurred())
-		defer conn.Close(websocket.StatusNormalClosure, "")
+		defer func() { _ = conn.Close(websocket.StatusNormalClosure, "") }()
 
 		// Send chat message
 		msg := map[string]any{
@@ -132,7 +132,7 @@ var _ = Describe("WebSocket Chat", func() {
 		wsURL := "ws" + ts.URL[4:] + "/ws/chat"
 		conn, _, err := websocket.Dial(ctx, wsURL, nil)
 		Expect(err).NotTo(HaveOccurred())
-		defer conn.Close(websocket.StatusNormalClosure, "")
+		defer func() { _ = conn.Close(websocket.StatusNormalClosure, "") }()
 
 		msg := map[string]any{
 			"type":    "chat",
@@ -145,14 +145,14 @@ var _ = Describe("WebSocket Chat", func() {
 			},
 		}
 		data, _ := json.Marshal(msg)
-		conn.Write(ctx, websocket.MessageText, data)
+		Expect(conn.Write(ctx, websocket.MessageText, data)).To(Succeed())
 
 		// Read until done
 		for {
 			_, respData, err := conn.Read(ctx)
 			Expect(err).NotTo(HaveOccurred())
 			var resp map[string]any
-			json.Unmarshal(respData, &resp)
+			Expect(json.Unmarshal(respData, &resp)).To(Succeed())
 			if resp["type"] == "done" {
 				break
 			}
@@ -178,7 +178,7 @@ var _ = Describe("WebSocket Chat", func() {
 		wsURL := "ws" + ts.URL[4:] + "/ws/chat"
 		conn, _, err := websocket.Dial(ctx, wsURL, nil)
 		Expect(err).NotTo(HaveOccurred())
-		defer conn.Close(websocket.StatusNormalClosure, "")
+		defer func() { _ = conn.Close(websocket.StatusNormalClosure, "") }()
 
 		msg := map[string]any{
 			"type":    "chat",
@@ -186,7 +186,7 @@ var _ = Describe("WebSocket Chat", func() {
 			"context": map[string]any{},
 		}
 		data, _ := json.Marshal(msg)
-		conn.Write(ctx, websocket.MessageText, data)
+		Expect(conn.Write(ctx, websocket.MessageText, data)).To(Succeed())
 
 		_, respData, err := conn.Read(ctx)
 		Expect(err).NotTo(HaveOccurred())

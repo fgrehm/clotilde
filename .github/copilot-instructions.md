@@ -19,7 +19,7 @@ internal/
   util/                 -> UUID generation, filesystem helpers
   testutil/             -> Test utilities (fake claude binary)
   tour/                 -> Interactive codebase tours (CodeTour format)
-                           Tour loading, generation, context gathering, validation
+                           Tour loading, generation, validation; prompt construction
   server/               -> HTTP server for tour browser UI, WebSocket chat, REST API
 ```
 
@@ -54,9 +54,11 @@ Key patterns:
   session with system prompt replacement (full tour guide role). Chat uses `--resume`
   for multi-turn continuity, same approach as regular sessions.
 
-- **Tour generation**: `tour generate` gathers repo context (respects .gitignore),
-  builds Claude prompt, invokes via InvokeStreaming, validates JSON, saves to
-  `.tours/<name>.tour`. Invalid output saved to `.tour.invalid` for debugging.
+- **Tour generation**: `tour generate` builds a prompt telling Claude to crawl the
+  repo autonomously using its own file tools (Glob, Read, Grep), invokes via
+  InvokeStreaming with `--permission-mode bypassPermissions`, streams tool progress
+  to stderr, validates JSON output, saves to `.tours/<name>.tour`. Invalid output
+  saved to `.tour.invalid` for debugging. `--focus` narrows the topic.
 
 ## Session Hooks
 

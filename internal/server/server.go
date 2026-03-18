@@ -10,25 +10,22 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/fgrehm/clotilde/internal/config"
 	"github.com/fgrehm/clotilde/internal/session"
 	"github.com/fgrehm/clotilde/internal/tour"
 )
 
 // Server serves the tour web UI and REST API.
 type Server struct {
-	port          int
-	repoDir       string
-	model         string
-	session       *session.Session
-	clotildeRoot  string
-	tours         map[string]*tour.Tour
+	port         int
+	repoDir      string
+	model        string
+	session      *session.Session
+	clotildeRoot string
+	tours        map[string]*tour.Tour
 }
 
 // New creates a new Server.
-func New(port int, repoDir string, model string, sess *session.Session) *Server {
-	// Find clotildeRoot (should match what was used to create the session)
-	clotildeRoot, _ := config.FindOrCreateClotildeRoot()
+func New(port int, repoDir string, model string, sess *session.Session, clotildeRoot string) *Server {
 	return &Server{
 		port:         port,
 		repoDir:      repoDir,
@@ -84,7 +81,7 @@ func (s *Server) sessionInfo(w http.ResponseWriter, _ *http.Request) {
 		"name": s.session.Name,
 		"id":   s.session.Metadata.SessionID,
 	}
-	json.NewEncoder(w).Encode(data)
+	_ = json.NewEncoder(w).Encode(data)
 }
 
 func (s *Server) tourList(w http.ResponseWriter, _ *http.Request) {
@@ -144,7 +141,7 @@ func (s *Server) fileContent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Write(data)
+	_, _ = w.Write(data)
 }
 
 // excludeDirs lists directories to skip in the file tree.
@@ -161,12 +158,12 @@ func (s *Server) fileTree(w http.ResponseWriter, _ *http.Request) {
 	var files []string
 	err := filepath.WalkDir(s.repoDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return nil
+			return nil //nolint:nilerr // skip inaccessible entries, continue walk
 		}
 
 		rel, err := filepath.Rel(s.repoDir, path)
 		if err != nil {
-			return nil
+			return nil //nolint:nilerr // skip entries with path errors, continue walk
 		}
 
 		if d.IsDir() {
@@ -179,7 +176,6 @@ func (s *Server) fileTree(w http.ResponseWriter, _ *http.Request) {
 		files = append(files, filepath.ToSlash(rel))
 		return nil
 	})
-
 	if err != nil {
 		http.Error(w, "failed to walk directory", http.StatusInternalServerError)
 		return
@@ -202,11 +198,11 @@ func (s *Server) serveIndex(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Write(data)
+	_, _ = w.Write(data)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v)
+	_ = json.NewEncoder(w).Encode(v)
 }
