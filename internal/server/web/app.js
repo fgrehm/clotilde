@@ -329,6 +329,30 @@ const chatPanel = document.getElementById("chat-panel");
 const resizeHandle = document.getElementById("chat-resize-handle");
 let isResizing = false;
 
+// Set initial chat panel height: use saved value or default to 50% of viewport
+function initializeChatHeight() {
+  const savedHeight = localStorage.getItem("chatPanelHeight");
+  if (savedHeight) {
+    chatPanel.style.height = savedHeight + "px";
+  } else {
+    // Default to 50% of viewport height
+    const defaultHeight = window.innerHeight * 0.5;
+    chatPanel.style.height = defaultHeight + "px";
+  }
+}
+
+initializeChatHeight();
+
+// Re-initialize on window resize to keep proportions
+window.addEventListener("resize", () => {
+  const savedHeight = localStorage.getItem("chatPanelHeight");
+  if (!savedHeight) {
+    // Only reset to 50% if no custom height was saved
+    const defaultHeight = window.innerHeight * 0.5;
+    chatPanel.style.height = defaultHeight + "px";
+  }
+});
+
 resizeHandle.addEventListener("mousedown", (e) => {
   isResizing = true;
   const startY = e.clientY;
@@ -351,12 +375,6 @@ resizeHandle.addEventListener("mousedown", (e) => {
   document.addEventListener("mousemove", onMouseMove);
   document.addEventListener("mouseup", onMouseUp);
 });
-
-// Restore chat panel height from localStorage
-const savedHeight = localStorage.getItem("chatPanelHeight");
-if (savedHeight) {
-  chatPanel.style.height = savedHeight + "px";
-}
 
 // Start
 connectChat();

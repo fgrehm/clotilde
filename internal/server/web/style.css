@@ -190,8 +190,8 @@ button:disabled {
   background: linear-gradient(135deg, rgba(88, 91, 112, 0.15) 0%, transparent 100%);
   display: flex;
   flex-direction: column;
-  height: 280px;
   flex-shrink: 0;
+  /* Height is set dynamically by JavaScript (defaults to 50% viewport) */
 }
 
 #chat-header {
