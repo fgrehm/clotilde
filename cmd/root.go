@@ -319,6 +319,7 @@ func registerSubcommands(root *cobra.Command) {
 	root.AddCommand(deleteCmd)
 	root.AddCommand(newExportCmd())
 	root.AddCommand(hookCmd)
+	root.AddCommand(newTourCmd())
 	root.AddCommand(versionCmd)
 	root.AddCommand(newCompletionCmd())
 
