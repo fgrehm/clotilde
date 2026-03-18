@@ -79,13 +79,14 @@ func ValidateTourJSON(data []byte, repoDir string) (*Tour, error) {
 	return &t, nil
 }
 
-// ExtractJSON tries to extract JSON from Claude's output, handling markdown fences.
+// ExtractJSON tries to extract JSON from Claude's output, handling markdown fences
+// and preamble text before the fence.
 func ExtractJSON(output string) string {
 	output = strings.TrimSpace(output)
 
-	// Try to extract from markdown code fence
-	if strings.HasPrefix(output, "```") {
-		lines := strings.Split(output, "\n")
+	// Try to extract from markdown code fence (handles preamble text before the fence)
+	if idx := strings.Index(output, "```"); idx >= 0 {
+		lines := strings.Split(output[idx:], "\n")
 		var jsonLines []string
 		inBlock := false
 		for _, line := range lines {
