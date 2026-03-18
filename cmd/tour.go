@@ -201,7 +201,6 @@ func newTourGenerateCmd() *cobra.Command {
 			args := []string{"--model", model}
 			opts := claude.InvokeOptions{
 				SessionID:      sess.Metadata.SessionID,
-				Resume:         true,
 				AdditionalArgs: args,
 			}
 
