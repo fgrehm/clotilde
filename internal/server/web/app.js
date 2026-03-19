@@ -180,7 +180,8 @@ async function showStep(index) {
 async function loadFile(path) {
   if (path in state.fileCache) return state.fileCache[path];
 
-  const res = await fetch(`/api/files/${path}`);
+  const encoded = path.split("/").map(encodeURIComponent).join("/");
+  const res = await fetch(`/api/files/${encoded}`);
   if (!res.ok) return `// Failed to load ${path}`;
 
   const text = await res.text();
@@ -221,6 +222,7 @@ const chatReset = document.getElementById("chat-reset");
 
 let ws = null;
 let currentAssistantEl = null;
+let intentionalClose = false;
 
 function resetChat() {
   // Clear chat messages
@@ -231,11 +233,11 @@ function resetChat() {
 
   // Close existing WebSocket
   if (ws) {
+    intentionalClose = true;
     ws.close();
     ws = null;
   }
 
-  // Reconnect (will start a fresh session on the server)
   connectChat();
 }
 
@@ -278,8 +280,10 @@ function connectChat() {
   };
 
   ws.onclose = () => {
-    // Reconnect after a short delay
-    setTimeout(connectChat, 2000);
+    if (!intentionalClose) {
+      setTimeout(connectChat, 2000);
+    }
+    intentionalClose = false;
   };
 }
 

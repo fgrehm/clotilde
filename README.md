@@ -381,7 +381,7 @@ When you ask a question in the tour's chat sidebar:
 - **System prompt replacement** — Claude's default system prompt is replaced with the tour guide role to focus on code explanation
 - Chat history is **preserved** across page refreshes and browser restarts
 
-**Reset chat** — Click the "Reset" button in the chat header to clear history and start a fresh conversation (creates a new Claude session).
+**Reset chat** — Click the "Reset" button in the chat header to clear the visible chat history. The underlying Claude session is preserved, so context from previous messages persists on the server.
 
 ## Commands
 

@@ -1,6 +1,7 @@
 package claude_test
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -59,7 +60,7 @@ var _ = Describe("InvokeStreaming", func() {
 		opts := claude.InvokeOptions{
 			SessionID: "test-uuid",
 		}
-		err = claude.InvokeStreaming(opts, "Hello", func(_ string) {})
+		err = claude.InvokeStreaming(context.Background(), opts, "Hello", func(_ string) {})
 		Expect(err).NotTo(HaveOccurred())
 
 		args, err := os.ReadFile(argsFile)
@@ -81,7 +82,7 @@ var _ = Describe("InvokeStreaming", func() {
 			SessionID: "test-uuid",
 			Resume:    true,
 		}
-		err = claude.InvokeStreaming(opts, "Hello", func(_ string) {})
+		err = claude.InvokeStreaming(context.Background(), opts, "Hello", func(_ string) {})
 		Expect(err).NotTo(HaveOccurred())
 
 		args, err := os.ReadFile(argsFile)
@@ -104,7 +105,7 @@ var _ = Describe("InvokeStreaming", func() {
 
 		var received []string
 		opts := claude.InvokeOptions{SessionID: "test-uuid"}
-		err = claude.InvokeStreaming(opts, "test", func(line string) {
+		err = claude.InvokeStreaming(context.Background(), opts, "test", func(line string) {
 			received = append(received, line)
 		})
 		Expect(err).NotTo(HaveOccurred())
@@ -120,7 +121,7 @@ var _ = Describe("InvokeStreaming", func() {
 		claude.ClaudeBinaryPathFunc = func() string { return binPath }
 
 		opts := claude.InvokeOptions{SessionID: "test-uuid"}
-		err = claude.InvokeStreaming(opts, "test", func(_ string) {})
+		err = claude.InvokeStreaming(context.Background(), opts, "test", func(_ string) {})
 		Expect(err).To(HaveOccurred())
 	})
 
@@ -128,7 +129,7 @@ var _ = Describe("InvokeStreaming", func() {
 		claude.ClaudeBinaryPathFunc = func() string { return "/nonexistent/claude" }
 
 		opts := claude.InvokeOptions{SessionID: "test-uuid"}
-		err := claude.InvokeStreaming(opts, "test", func(_ string) {})
+		err := claude.InvokeStreaming(context.Background(), opts, "test", func(_ string) {})
 		Expect(err).To(HaveOccurred())
 	})
 
@@ -148,7 +149,7 @@ var _ = Describe("InvokeStreaming", func() {
 			SettingsFile:     settingsPath,
 			SystemPromptFile: promptPath,
 		}
-		err = claude.InvokeStreaming(opts, "test", func(_ string) {})
+		err = claude.InvokeStreaming(context.Background(), opts, "test", func(_ string) {})
 		Expect(err).NotTo(HaveOccurred())
 
 		args, err := os.ReadFile(argsFile)
@@ -168,7 +169,7 @@ var _ = Describe("InvokeStreaming", func() {
 			SessionID:      "test-uuid",
 			AdditionalArgs: []string{"--model", "haiku"},
 		}
-		err = claude.InvokeStreaming(opts, "test", func(_ string) {})
+		err = claude.InvokeStreaming(context.Background(), opts, "test", func(_ string) {})
 		Expect(err).NotTo(HaveOccurred())
 
 		args, err := os.ReadFile(argsFile)

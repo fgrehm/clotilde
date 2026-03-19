@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/fgrehm/clotilde/internal/session"
@@ -29,6 +30,10 @@ func New(port int, repoDir string, model string, sess *session.Session, clotilde
 	absRepoDir, err := filepath.Abs(repoDir)
 	if err != nil {
 		absRepoDir = filepath.Clean(repoDir)
+	}
+	// Resolve symlinks so containment checks in fileContent are reliable
+	if real, err := filepath.EvalSymlinks(absRepoDir); err == nil {
+		absRepoDir = real
 	}
 	return &Server{
 		port:         port,
@@ -103,6 +108,7 @@ func (s *Server) tourList(w http.ResponseWriter, _ *http.Request) {
 			Steps: len(t.Steps),
 		})
 	}
+	sort.Slice(list, func(i, j int) bool { return list[i].Name < list[j].Name })
 
 	writeJSON(w, http.StatusOK, list)
 }
@@ -126,8 +132,19 @@ func (s *Server) fileContent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Resolve symlinks to prevent escaping the repo via symlinks inside it
+	realPath, err := filepath.EvalSymlinks(absPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			http.Error(w, "file not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
 	// Ensure the resolved path is within the repo directory
-	rel, err := filepath.Rel(s.repoDir, absPath)
+	rel, err := filepath.Rel(s.repoDir, realPath)
 	if err != nil || strings.HasPrefix(rel, "..") {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
@@ -140,7 +157,7 @@ func (s *Server) fileContent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := os.ReadFile(absPath)
+	data, err := os.ReadFile(realPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			http.Error(w, "file not found", http.StatusNotFound)

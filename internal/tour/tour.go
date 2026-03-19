@@ -49,7 +49,7 @@ func validate(t *Tour) error {
 		if t.Steps[i].File == "" {
 			return fmt.Errorf("step %d: file field is required", i+1)
 		}
-		if t.Steps[i].Line == 0 {
+		if t.Steps[i].Line < 1 {
 			t.Steps[i].Line = 1
 		}
 	}

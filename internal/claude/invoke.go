@@ -3,6 +3,7 @@ package claude
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -266,7 +267,8 @@ func cleanupEmptySession(clotildeRoot string, sess *session.Session) {
 
 // InvokeStreaming runs claude in non-interactive mode, streaming output to a callback.
 // Each line of stdout is passed to onLine. Returns when the process exits.
-func InvokeStreaming(opts InvokeOptions, prompt string, onLine func(line string)) error {
+// Canceling ctx kills the claude process.
+func InvokeStreaming(ctx context.Context, opts InvokeOptions, prompt string, onLine func(line string)) error {
 	var args []string
 
 	if opts.Resume {
@@ -283,7 +285,7 @@ func InvokeStreaming(opts InvokeOptions, prompt string, onLine func(line string)
 
 	displayCommand(claudeBin, args, opts.Env)
 
-	cmd := exec.Command(claudeBin, args...)
+	cmd := exec.CommandContext(ctx, claudeBin, args...)
 	var stderrBuf bytes.Buffer
 	cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
 

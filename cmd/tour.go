@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -17,6 +18,9 @@ import (
 	"github.com/fgrehm/clotilde/internal/tour"
 	"github.com/fgrehm/clotilde/internal/util"
 )
+
+// tourNameRe validates tour names: lowercase letters, digits, hyphens; starts/ends with alnum.
+var tourNameRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$`)
 
 func newTourCmd() *cobra.Command {
 	tourCmd := &cobra.Command{
@@ -82,8 +86,11 @@ func newTourServeCmd() *cobra.Command {
 
 			// Create or load tour session
 			store := session.NewFileStore(clotildeRoot)
-			repoName := filepath.Base(dir)
-			sessionName := fmt.Sprintf("tour-%s", repoName)
+			sanitized := util.SanitizeBranchName(filepath.Base(dir))
+			if sanitized == "" {
+				sanitized = "default"
+			}
+			sessionName := "tour-" + sanitized
 
 			var sess *session.Session
 			if store.Exists(sessionName) {
@@ -150,6 +157,12 @@ func newTourGenerateCmd() *cobra.Command {
 			focus, _ := cmd.Flags().GetString("focus")
 			model, _ := cmd.Flags().GetString("model")
 
+			// Validate name: must be lowercase alnum+hyphens, max 30 chars to leave room
+			// for the "tour-generate-<name>-<timestamp>" session name (≤64 chars total).
+			if len(name) > 30 || !tourNameRe.MatchString(name) {
+				return fmt.Errorf("invalid tour name %q: use lowercase letters, digits, and hyphens only, max 30 characters (e.g. \"overview\", \"auth-flow\")", name)
+			}
+
 			// Find or create clotilde root for named generation session
 			clotildeRoot, err := config.FindOrCreateClotildeRoot()
 			if err != nil {
@@ -192,7 +205,7 @@ func newTourGenerateCmd() *cobra.Command {
 				AdditionalArgs: args,
 			}
 
-			err = claude.InvokeStreaming(opts, prompt, func(line string) {
+			err = claude.InvokeStreaming(cmd.Context(), opts, prompt, func(line string) {
 				ev, parseErr := tour.ParseStreamEvent(line)
 				if parseErr != nil {
 					return

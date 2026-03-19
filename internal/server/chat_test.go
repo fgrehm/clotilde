@@ -59,7 +59,7 @@ var _ = Describe("WebSocket Chat", func() {
 		origFunc := server.InvokeStreamingFunc
 		defer func() { server.InvokeStreamingFunc = origFunc }()
 
-		server.InvokeStreamingFunc = func(opts claude.InvokeOptions, prompt string, onLine func(string)) error {
+		server.InvokeStreamingFunc = func(_ context.Context, opts claude.InvokeOptions, prompt string, onLine func(string)) error {
 			// Simulate stream-json output
 			onLine(`{"type":"assistant","message":{"content":[{"type":"text","text":"Hello "}]}}`)
 			onLine(`{"type":"assistant","message":{"content":[{"type":"text","text":"world"}]}}`)
@@ -120,7 +120,7 @@ var _ = Describe("WebSocket Chat", func() {
 		origFunc := server.InvokeStreamingFunc
 		defer func() { server.InvokeStreamingFunc = origFunc }()
 
-		server.InvokeStreamingFunc = func(opts claude.InvokeOptions, prompt string, onLine func(string)) error {
+		server.InvokeStreamingFunc = func(_ context.Context, opts claude.InvokeOptions, prompt string, onLine func(string)) error {
 			capturedPrompt = prompt
 			onLine(`{"type":"result","subtype":"success","result":"ok"}`)
 			return nil
@@ -168,7 +168,7 @@ var _ = Describe("WebSocket Chat", func() {
 		origFunc := server.InvokeStreamingFunc
 		defer func() { server.InvokeStreamingFunc = origFunc }()
 
-		server.InvokeStreamingFunc = func(_ claude.InvokeOptions, _ string, _ func(string)) error {
+		server.InvokeStreamingFunc = func(_ context.Context, _ claude.InvokeOptions, _ string, _ func(string)) error {
 			return context.DeadlineExceeded
 		}
 

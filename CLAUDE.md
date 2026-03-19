@@ -301,7 +301,7 @@ Tours are browser-based interactive walkthroughs of a codebase, integrating a co
 - Fake claude binary (`internal/testutil/`) for integration tests
 - `server.InvokeStreamingFunc` injectable for testing chat without real claude
 - Mock tour files + source code for server tests
-- WebSocket tests via `nhooyr.io/websocket`
+- WebSocket tests via `github.com/coder/websocket`
 
 ## Build & Test
 

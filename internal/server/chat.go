@@ -42,6 +42,13 @@ type chatSession struct {
 	started bool // whether a successful call has been made (transcript exists)
 	mu      sync.Mutex
 	busy    bool
+	writeMu sync.Mutex // serializes all WebSocket writes
+}
+
+func (cs *chatSession) write(ctx context.Context, conn *websocket.Conn, resp chatResponse) error {
+	cs.writeMu.Lock()
+	defer cs.writeMu.Unlock()
+	return writeWS(ctx, conn, resp)
 }
 
 // InvokeStreamingFunc is the function used to invoke Claude Code in streaming mode.
@@ -81,7 +88,7 @@ func (s *Server) chatHandler(w http.ResponseWriter, r *http.Request) {
 		cs.mu.Lock()
 		if cs.busy {
 			cs.mu.Unlock()
-			_ = writeWS(ctx, conn, chatResponse{Type: "error", Message: "still processing previous message"})
+			_ = cs.write(ctx, conn, chatResponse{Type: "error", Message: "still processing previous message"})
 			continue
 		}
 		cs.busy = true
@@ -106,20 +113,22 @@ func (s *Server) handleChat(ctx context.Context, conn *websocket.Conn, cs *chatS
 	resume := cs.started
 	cs.mu.Unlock()
 
-	// Build path to system prompt file
+	// Build paths to session files
 	sessionDir := config.GetSessionDir(s.clotildeRoot, s.session.Name)
 	systemPromptPath := filepath.Join(sessionDir, "system-prompt.md")
+	settingsPath := filepath.Join(sessionDir, "settings.json")
 
 	opts := claude.InvokeOptions{
 		SessionID:        s.session.Metadata.SessionID,
 		Resume:           resume, // first message uses --session-id to create transcript
+		SettingsFile:     settingsPath,
 		SystemPromptFile: systemPromptPath,
 		SystemPromptMode: s.session.Metadata.GetSystemPromptMode(),
 		AdditionalArgs:   []string{"--model", s.model},
 	}
 
 	var aborted bool
-	err := InvokeStreamingFunc(opts, prompt, func(line string) {
+	err := InvokeStreamingFunc(ctx, opts, prompt, func(line string) {
 		if aborted {
 			return
 		}
@@ -145,7 +154,7 @@ func (s *Server) handleChat(ctx context.Context, conn *websocket.Conn, cs *chatS
 				}
 				if blockMap["type"] == "text" {
 					if text, ok := blockMap["text"].(string); ok {
-						if err := writeWS(ctx, conn, chatResponse{Type: "token", Content: text}); err != nil {
+						if err := cs.write(ctx, conn, chatResponse{Type: "token", Content: text}); err != nil {
 							aborted = true
 							return
 						}
@@ -155,7 +164,7 @@ func (s *Server) handleChat(ctx context.Context, conn *websocket.Conn, cs *chatS
 		}
 	})
 	if err != nil {
-		writeWS(ctx, conn, chatResponse{Type: "error", Message: fmt.Sprintf("Claude error: %v", err)}) //nolint:errcheck
+		cs.write(ctx, conn, chatResponse{Type: "error", Message: fmt.Sprintf("Claude error: %v", err)}) //nolint:errcheck
 		return
 	}
 
@@ -163,7 +172,7 @@ func (s *Server) handleChat(ctx context.Context, conn *websocket.Conn, cs *chatS
 	cs.started = true
 	cs.mu.Unlock()
 
-	writeWS(ctx, conn, chatResponse{Type: "done"}) //nolint:errcheck
+	cs.write(ctx, conn, chatResponse{Type: "done"}) //nolint:errcheck
 }
 
 func buildPrompt(tours map[string]*tour.Tour, msg chatMessage) string {
