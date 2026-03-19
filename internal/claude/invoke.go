@@ -283,7 +283,9 @@ func InvokeStreaming(ctx context.Context, opts InvokeOptions, prompt string, onL
 
 	claudeBin := ClaudeBinaryPathFunc()
 
-	displayCommand(claudeBin, args, opts.Env)
+	if VerboseFunc() {
+		displayCommand(claudeBin, args, opts.Env)
+	}
 
 	cmd := exec.CommandContext(ctx, claudeBin, args...)
 	var stderrBuf bytes.Buffer

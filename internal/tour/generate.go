@@ -117,9 +117,6 @@ func ValidateTourJSON(data []byte, repoDir string) (*Tour, error) {
 		if filepath.IsAbs(step.File) {
 			return nil, fmt.Errorf("step %d: file path must be relative, got %q", i+1, step.File)
 		}
-		if step.Line < 1 {
-			return nil, fmt.Errorf("step %d: line must be >= 1, got %d", i+1, step.Line)
-		}
 
 		absPath := filepath.Join(repoDir, step.File)
 		rel, relErr := filepath.Rel(repoDir, absPath)

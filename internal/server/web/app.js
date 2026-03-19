@@ -381,7 +381,15 @@ resizeHandle.addEventListener("mousedown", (e) => {
 });
 
 // Strip raw HTML from markdown to prevent XSS
-marked.use({ renderer: { html() { return ""; } } });
+marked.use({
+  renderer: { html() { return ""; } },
+  // Strip javascript: URLs from links and images to prevent XSS
+  walkTokens(token) {
+    if ((token.type === "link" || token.type === "image") && /^javascript:/i.test((token.href || "").trim())) {
+      token.href = "";
+    }
+  },
+});
 
 // Start
 connectChat();

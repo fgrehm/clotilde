@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -56,7 +57,13 @@ func newTourListCmd() *cobra.Command {
 			}
 
 			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Tours (%d):\n", len(tours))
-			for name, t := range tours {
+			names := make([]string, 0, len(tours))
+			for name := range tours {
+				names = append(names, name)
+			}
+			sort.Strings(names)
+			for _, name := range names {
+				t := tours[name]
 				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "  %-20s %s (%d steps)\n", name, t.Title, len(t.Steps))
 			}
 			return nil

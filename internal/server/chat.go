@@ -180,12 +180,16 @@ func buildPrompt(tours map[string]*tour.Tour, msg chatMessage) string {
 	if t, ok := tours[msg.Context.Tour]; ok {
 		stepNum := msg.Context.Step + 1
 		total := len(t.Steps)
-		var stepDesc string
+		var stepDesc, file string
+		var line int
 		if msg.Context.Step >= 0 && msg.Context.Step < len(t.Steps) {
-			stepDesc = t.Steps[msg.Context.Step].Description
+			step := t.Steps[msg.Context.Step]
+			stepDesc = step.Description
+			file = step.File
+			line = step.Line
 		}
 		context = fmt.Sprintf("[Tour: %q - Step %d/%d]\n[File: %s:%d]\n[Step description: %s]\n\n",
-			t.Title, stepNum, total, msg.Context.File, msg.Context.Line, stepDesc)
+			t.Title, stepNum, total, file, line, stepDesc)
 	}
 	return context + msg.Message
 }
