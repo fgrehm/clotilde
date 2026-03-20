@@ -116,7 +116,7 @@ async function loadTour(name) {
     if (!res.ok) throw new Error(`Failed to load tour: ${name}`);
     state.currentTour = await res.json();
     state.currentTour._name = name;
-    state.fileCache = {};
+    state.fileCache = Object.create(null);
 
     // Restore step from URL query parameter, default to 0
     const params = new URLSearchParams(window.location.search);
@@ -177,7 +177,7 @@ async function showStep(index) {
   requestAnimationFrame(() => {
     const lineEl = codePre.querySelector(".line-highlight");
     if (lineEl) {
-      lineEl.scrollIntoView({ block: "center", behavior: "instant" });
+      lineEl.scrollIntoView({ block: "center", behavior: "auto" });
     }
     positionPopover();
   });

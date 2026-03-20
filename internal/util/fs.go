@@ -1,9 +1,9 @@
 package util
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -93,16 +93,34 @@ func WriteJSON(path string, v any) error {
 // CountLines counts the number of lines in a file.
 // Returns the line count and any error encountered.
 func CountLines(path string) (int, error) {
-	data, err := os.ReadFile(path)
+	file, err := os.Open(path)
 	if err != nil {
 		return 0, err
 	}
-	if len(data) == 0 {
-		return 0, nil
+	defer func() { _ = file.Close() }()
+
+	count := 0
+	buf := make([]byte, 32*1024)
+	lastByte := byte('\n') // treat start-of-file as after a newline
+	for {
+		n, err := file.Read(buf)
+		for i := range n {
+			if buf[i] == '\n' {
+				count++
+			}
+		}
+		if n > 0 {
+			lastByte = buf[n-1]
+		}
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return 0, err
+		}
 	}
-	count := bytes.Count(data, []byte{'\n'})
-	// If the file doesn't end with a newline, count the last line
-	if data[len(data)-1] != '\n' {
+	// If the file is non-empty and doesn't end with a newline, count the last line
+	if lastByte != '\n' {
 		count++
 	}
 	return count, nil
