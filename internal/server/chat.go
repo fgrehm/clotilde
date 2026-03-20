@@ -168,7 +168,7 @@ func (s *Server) handleChat(ctx context.Context, conn *websocket.Conn, cs *chatS
 			}
 		}
 	})
-	if err != nil {
+	if err != nil && !aborted {
 		cs.write(ctx, conn, chatResponse{Type: "error", Message: fmt.Sprintf("Claude error: %v", err)}) //nolint:errcheck
 		return
 	}

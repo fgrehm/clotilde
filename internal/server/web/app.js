@@ -417,6 +417,7 @@ function sendChat() {
 
   addChatMessage("user", text);
   chatInput.value = "";
+  chatInput.style.height = "auto";
   chatInput.disabled = true;
   showTyping();
 

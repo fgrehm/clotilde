@@ -62,6 +62,36 @@ var _ = Describe("LoadFile", func() {
 		Expect(err.Error()).To(ContainSubstring("parse"))
 	})
 
+	It("returns error for empty title", func() {
+		tourJSON := `{"title": "", "steps": [{"file": "x.go", "line": 1, "description": "x"}]}`
+		path := filepath.Join(tempDir, "notitle.tour")
+		Expect(os.WriteFile(path, []byte(tourJSON), 0o644)).To(Succeed())
+
+		_, err := tour.LoadFile(path)
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("title is required"))
+	})
+
+	It("returns error for empty step description", func() {
+		tourJSON := `{"title": "T", "steps": [{"file": "x.go", "line": 1, "description": ""}]}`
+		path := filepath.Join(tempDir, "nodesc.tour")
+		Expect(os.WriteFile(path, []byte(tourJSON), 0o644)).To(Succeed())
+
+		_, err := tour.LoadFile(path)
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("description is required"))
+	})
+
+	It("returns error for negative line number", func() {
+		tourJSON := `{"title": "T", "steps": [{"file": "x.go", "line": -3, "description": "x"}]}`
+		path := filepath.Join(tempDir, "negline.tour")
+		Expect(os.WriteFile(path, []byte(tourJSON), 0o644)).To(Succeed())
+
+		_, err := tour.LoadFile(path)
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("line must be positive"))
+	})
+
 	It("returns error for empty steps array", func() {
 		tourJSON := `{"title": "Empty", "steps": []}`
 		path := filepath.Join(tempDir, "empty.tour")
