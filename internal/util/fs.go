@@ -1,7 +1,7 @@
 package util
 
 import (
-	"bufio"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"os"
@@ -93,22 +93,18 @@ func WriteJSON(path string, v any) error {
 // CountLines counts the number of lines in a file.
 // Returns the line count and any error encountered.
 func CountLines(path string) (int, error) {
-	file, err := os.Open(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return 0, err
 	}
-	defer func() { _ = file.Close() }()
-
-	scanner := bufio.NewScanner(file)
-	count := 0
-	for scanner.Scan() {
+	if len(data) == 0 {
+		return 0, nil
+	}
+	count := bytes.Count(data, []byte{'\n'})
+	// If the file doesn't end with a newline, count the last line
+	if data[len(data)-1] != '\n' {
 		count++
 	}
-
-	if err := scanner.Err(); err != nil {
-		return 0, err
-	}
-
 	return count, nil
 }
 

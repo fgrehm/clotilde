@@ -77,7 +77,7 @@ func (s *Server) chatHandler(w http.ResponseWriter, r *http.Request) {
 
 		var msg chatMessage
 		if err := json.Unmarshal(data, &msg); err != nil {
-			_ = writeWS(ctx, conn, chatResponse{Type: "error", Message: "invalid message format"})
+			_ = cs.write(ctx, conn, chatResponse{Type: "error", Message: "invalid message format"})
 			continue
 		}
 

@@ -125,6 +125,10 @@ func (s *Server) tourDetail(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) fileContent(w http.ResponseWriter, r *http.Request) {
 	relPath := r.PathValue("path")
+	if relPath == "" {
+		http.Error(w, "file path required", http.StatusBadRequest)
+		return
+	}
 
 	absPath, err := filepath.Abs(filepath.Join(s.repoDir, filepath.FromSlash(relPath)))
 	if err != nil {
