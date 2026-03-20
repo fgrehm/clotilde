@@ -42,12 +42,18 @@ func LoadFile(path string) (*Tour, error) {
 }
 
 func validate(t *Tour) error {
+	if t.Title == "" {
+		return fmt.Errorf("tour title is required")
+	}
 	if len(t.Steps) == 0 {
 		return fmt.Errorf("tour must have at least one step")
 	}
 	for i := range t.Steps {
 		if t.Steps[i].File == "" {
 			return fmt.Errorf("step %d: file field is required", i+1)
+		}
+		if t.Steps[i].Description == "" {
+			return fmt.Errorf("step %d: description is required", i+1)
 		}
 		if t.Steps[i].Line < 0 {
 			return fmt.Errorf("step %d: line must be positive, got %d", i+1, t.Steps[i].Line)

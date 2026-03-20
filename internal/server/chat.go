@@ -127,8 +127,12 @@ func (s *Server) handleChat(ctx context.Context, conn *websocket.Conn, cs *chatS
 		AdditionalArgs:   []string{"--model", s.model},
 	}
 
+	// Use a cancelable context so we can kill the claude process on write errors
+	invokeCtx, invokeCancel := context.WithCancel(ctx)
+	defer invokeCancel()
+
 	var aborted bool
-	err := InvokeStreamingFunc(ctx, opts, prompt, func(line string) {
+	err := InvokeStreamingFunc(invokeCtx, opts, prompt, func(line string) {
 		if aborted {
 			return
 		}
@@ -156,6 +160,7 @@ func (s *Server) handleChat(ctx context.Context, conn *websocket.Conn, cs *chatS
 					if text, ok := blockMap["text"].(string); ok {
 						if err := cs.write(ctx, conn, chatResponse{Type: "token", Content: text}); err != nil {
 							aborted = true
+							invokeCancel()
 							return
 						}
 					}

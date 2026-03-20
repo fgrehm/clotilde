@@ -209,6 +209,14 @@ func newTourGenerateCmd() *cobra.Command {
 				MaxSteps: maxSteps,
 			})
 
+			// Check output path before invoking Claude
+			toursDir := filepath.Join(dir, ".tours")
+			if err := util.EnsureDir(toursDir); err != nil {
+				return fmt.Errorf("failed to create .tours directory: %w", err)
+			}
+			outputPath := filepath.Join(toursDir, name+".tour")
+			fileExistedBefore := util.FileExists(outputPath)
+
 			// Invoke Claude
 			fmt.Fprintln(os.Stderr, "Generating tour via Claude Code...")
 			var output strings.Builder
@@ -247,17 +255,10 @@ func newTourGenerateCmd() *cobra.Command {
 				return fmt.Errorf("claude invocation failed: %w", err)
 			}
 
-			toursDir := filepath.Join(dir, ".tours")
-			if err := util.EnsureDir(toursDir); err != nil {
-				return fmt.Errorf("failed to create .tours directory: %w", err)
-			}
-
-			outputPath := filepath.Join(toursDir, name+".tour")
-
 			// Claude may have written the file directly using its Write tool.
-			// If so, validate it in place. Otherwise extract JSON from output.
+			// Only trust the file if it didn't exist before we started.
 			var t *tour.Tour
-			if util.FileExists(outputPath) {
+			if !fileExistedBefore && util.FileExists(outputPath) {
 				data, readErr := os.ReadFile(outputPath)
 				if readErr != nil {
 					return fmt.Errorf("failed to read tour file written by Claude: %w", readErr)

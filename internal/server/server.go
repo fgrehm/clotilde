@@ -217,8 +217,11 @@ func (s *Server) fileTree(w http.ResponseWriter, _ *http.Request) {
 }
 
 func logRequests(next http.Handler) http.Handler {
+	debug := os.Getenv("CLOTILDE_TOUR_DEBUG") != ""
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(os.Stderr, "%s %s\n", r.Method, r.URL.Path)
+		if debug {
+			fmt.Fprintf(os.Stderr, "%s %s\n", r.Method, r.URL.Path)
+		}
 		next.ServeHTTP(w, r)
 	})
 }
