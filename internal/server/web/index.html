@@ -38,6 +38,7 @@
       </div>
     </section>
 
+    <div id="panel-resize-handle"></div>
     <section id="side-panel">
       <div id="chat-panel">
         <div id="chat-header">
@@ -47,10 +48,18 @@
           </div>
           <button id="chat-reset" title="Clear chat history">Reset</button>
         </div>
-        <div id="chat-messages"></div>
+        <div id="chat-messages">
+          <div id="typing-indicator" class="typing-indicator" hidden>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+          </div>
+        </div>
         <div id="chat-input-area">
-          <input type="text" id="chat-input" placeholder="Ask about this code..." autocomplete="off">
-          <button id="chat-send">Send</button>
+          <textarea id="chat-input" placeholder="Ask about this code..." rows="1" autocomplete="off"></textarea>
+          <button id="chat-send" title="Send (Enter)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
         </div>
       </div>
     </section>

@@ -60,6 +60,7 @@ const stepDescription = document.getElementById("step-description");
 const stepPopover = document.getElementById("step-popover");
 const popoverStepLabel = document.getElementById("popover-step-label");
 const popoverClose = document.getElementById("popover-close");
+const popoverHeader = stepPopover.querySelector(".popover-header");
 const notesBtn = document.getElementById("notes-btn");
 const codeContainer = document.getElementById("code-container");
 const loadingEl = document.getElementById("loading");
@@ -171,6 +172,9 @@ async function showStep(index) {
     Prism.highlightElement(block);
   });
   popoverStepLabel.textContent = `Step ${index + 1} of ${tour.steps.length}`;
+
+  // Reset drag offset and show popover
+  popoverDragOffset = null;
   stepPopover.hidden = false;
 
   // Scroll to highlighted line and position popover
@@ -206,7 +210,16 @@ function hideLoading() {
 }
 
 // Popover positioning
+let popoverDragOffset = null; // {top, left} when user drags
+
 function positionPopover() {
+  // If user dragged the popover, keep their position
+  if (popoverDragOffset) {
+    stepPopover.style.top = popoverDragOffset.top + "px";
+    stepPopover.style.left = popoverDragOffset.left + "px";
+    return;
+  }
+
   const lineEl = codePre.querySelector(".line-highlight");
   if (!lineEl || stepPopover.hidden) return;
 
@@ -229,7 +242,38 @@ function positionPopover() {
   stepPopover.style.left = left + "px";
 }
 
-codeContainer.addEventListener("scroll", positionPopover);
+codeContainer.addEventListener("scroll", () => {
+  if (!popoverDragOffset) positionPopover();
+});
+
+// Popover dragging
+popoverHeader.addEventListener("mousedown", (e) => {
+  if (e.target === document.getElementById("popover-close")) return;
+  e.preventDefault();
+
+  const startX = e.clientX;
+  const startY = e.clientY;
+  const startTop = stepPopover.offsetTop;
+  const startLeft = stepPopover.offsetLeft;
+
+  const onMouseMove = (moveEvent) => {
+    const dx = moveEvent.clientX - startX;
+    const dy = moveEvent.clientY - startY;
+    const newTop = startTop + dy;
+    const newLeft = startLeft + dx;
+    stepPopover.style.top = newTop + "px";
+    stepPopover.style.left = newLeft + "px";
+    popoverDragOffset = { top: newTop, left: newLeft };
+  };
+
+  const onMouseUp = () => {
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+  };
+
+  document.addEventListener("mousemove", onMouseMove);
+  document.addEventListener("mouseup", onMouseUp);
+});
 
 // Navigation
 prevBtn.addEventListener("click", () => showStep(state.currentStep - 1));
@@ -267,14 +311,27 @@ const chatMessages = document.getElementById("chat-messages");
 const chatInput = document.getElementById("chat-input");
 const chatSend = document.getElementById("chat-send");
 const chatReset = document.getElementById("chat-reset");
+const typingIndicator = document.getElementById("typing-indicator");
 
 let ws = null;
 let currentAssistantEl = null;
 let intentionalClose = false;
 
+function showTyping() {
+  typingIndicator.hidden = false;
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function hideTyping() {
+  typingIndicator.hidden = true;
+}
+
 function resetChat() {
-  // Clear chat messages
+  // Clear chat messages (keep typing indicator)
+  const indicator = typingIndicator;
   chatMessages.innerHTML = "";
+  chatMessages.appendChild(indicator);
+  hideTyping();
   currentAssistantEl = null;
   chatInput.disabled = false;
   chatInput.focus();
@@ -297,6 +354,7 @@ function connectChat() {
     const msg = JSON.parse(event.data);
 
     if (msg.type === "token") {
+      hideTyping();
       if (!currentAssistantEl) {
         currentAssistantEl = addChatMessage("assistant", "");
       }
@@ -306,6 +364,7 @@ function connectChat() {
       textEl.textContent = textEl.dataset.rawContent;
       chatMessages.scrollTop = chatMessages.scrollHeight;
     } else if (msg.type === "done") {
+      hideTyping();
       // Render markdown when message is complete
       if (currentAssistantEl) {
         const textEl = currentAssistantEl.querySelector(".chat-msg-text");
@@ -320,6 +379,7 @@ function connectChat() {
       chatInput.disabled = false;
       chatInput.focus();
     } else if (msg.type === "error") {
+      hideTyping();
       addChatMessage("error", msg.message);
       currentAssistantEl = null;
       chatInput.disabled = false;
@@ -340,10 +400,11 @@ function addChatMessage(role, text) {
   el.className = `chat-msg chat-msg-${role}`;
 
   const label = role === "error" ? "Error" : role === "assistant" ? "Claude" : "You";
-  el.innerHTML = `<span class="chat-msg-label">${label}:</span><span class="chat-msg-text"></span>`;
+  el.innerHTML = `<span class="chat-msg-label">${label}</span><span class="chat-msg-text"></span>`;
   el.querySelector(".chat-msg-text").textContent = text;
 
-  chatMessages.appendChild(el);
+  // Insert before typing indicator
+  chatMessages.insertBefore(el, typingIndicator);
   chatMessages.scrollTop = chatMessages.scrollHeight;
   return el;
 }
@@ -357,6 +418,7 @@ function sendChat() {
   addChatMessage("user", text);
   chatInput.value = "";
   chatInput.disabled = true;
+  showTyping();
 
   ws.send(JSON.stringify({
     type: "chat",
@@ -372,7 +434,14 @@ function sendChat() {
 
 chatSend.addEventListener("click", sendChat);
 chatInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") sendChat();
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendChat();
+  }
+});
+chatInput.addEventListener("input", () => {
+  chatInput.style.height = "auto";
+  chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + "px";
 });
 chatReset.addEventListener("click", resetChat);
 
@@ -385,6 +454,38 @@ marked.use({
       token.href = "";
     }
   },
+});
+
+// Side panel resizing
+const sidePanel = document.getElementById("side-panel");
+const panelResizeHandle = document.getElementById("panel-resize-handle");
+
+function initializePanelWidth() {
+  const saved = localStorage.getItem("sidePanelWidth");
+  if (saved) sidePanel.style.width = saved + "px";
+}
+
+initializePanelWidth();
+
+panelResizeHandle.addEventListener("mousedown", (e) => {
+  e.preventDefault();
+  const startX = e.clientX;
+  const startWidth = sidePanel.offsetWidth;
+
+  const onMouseMove = (moveEvent) => {
+    const dx = startX - moveEvent.clientX;
+    const newWidth = Math.max(300, Math.min(700, startWidth + dx));
+    sidePanel.style.width = newWidth + "px";
+    localStorage.setItem("sidePanelWidth", newWidth);
+  };
+
+  const onMouseUp = () => {
+    document.removeEventListener("mousemove", onMouseMove);
+    document.removeEventListener("mouseup", onMouseUp);
+  };
+
+  document.addEventListener("mousemove", onMouseMove);
+  document.addEventListener("mouseup", onMouseUp);
 });
 
 // Start
