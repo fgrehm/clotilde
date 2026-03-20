@@ -52,6 +52,13 @@ func validate(t *Tour) error {
 		if t.Steps[i].File == "" {
 			return fmt.Errorf("step %d: file field is required", i+1)
 		}
+		if filepath.IsAbs(t.Steps[i].File) {
+			return fmt.Errorf("step %d: file path must be relative, got %q", i+1, t.Steps[i].File)
+		}
+		clean := filepath.Clean(t.Steps[i].File)
+		if clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+			return fmt.Errorf("step %d: file path must not escape the repository, got %q", i+1, t.Steps[i].File)
+		}
 		if t.Steps[i].Description == "" {
 			return fmt.Errorf("step %d: description is required", i+1)
 		}

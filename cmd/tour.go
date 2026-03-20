@@ -93,11 +93,19 @@ func newTourServeCmd() *cobra.Command {
 
 			// Create or load tour session
 			store := session.NewFileStore(clotildeRoot)
+			const tourPrefix = "tour-"
 			sanitized := util.SanitizeBranchName(filepath.Base(dir))
 			if sanitized == "" {
 				sanitized = "default"
 			}
-			sessionName := "tour-" + sanitized
+			maxLen := session.MaxNameLength - len(tourPrefix)
+			if len(sanitized) > maxLen {
+				sanitized = strings.TrimRight(sanitized[:maxLen], "-")
+				if sanitized == "" {
+					sanitized = "default"
+				}
+			}
+			sessionName := tourPrefix + sanitized
 
 			var sess *session.Session
 			if store.Exists(sessionName) {
