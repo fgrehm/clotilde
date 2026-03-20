@@ -37,6 +37,13 @@ A power-user companion for Claude Code.
 - `/fork` slash command inside a Clotilde session creates an untracked fork (see [slash-fork-handling spec](specs/slash-fork-handling.md))
 - Zellij tab status integration blocked by Zellij limitations (see [investigation notes](zellij-tab-status.md))
 
+## Tour Follow-ups
+
+- **Debug/verbose mode for tour generation**: Show all stream-json events Claude emits during `tour generate` (tool inputs/outputs, assistant text blocks, result events). Currently only tool call summaries are shown. Could be `--verbose` or `CLOTILDE_TOUR_DEBUG=1`. Would help diagnose extraction failures and prompt issues.
+- **Tour regeneration**: `tour generate --name existing` should detect an existing tour and offer to overwrite or diff.
+- **Tour editing**: `tour edit <name>` to open the tour file in `$EDITOR` with validation on save.
+- **Custom generation prompts**: Allow users to provide their own prompt template or append instructions (e.g. "focus on error handling patterns", "use a casual tone").
+
 ## Future Ideas
 
 - **Session stats**: Record session statistics (turns, time, tokens, tool usage) to daily JSONL files on session end. Opt-in via `clotilde setup --stats`. [Spec](specs/sessionend-stats.md)

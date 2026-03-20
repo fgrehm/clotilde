@@ -25,6 +25,7 @@ type StreamMessage struct {
 // StreamContent is one content block in an assistant message.
 type StreamContent struct {
 	Type  string         `json:"type"`
+	Text  string         `json:"text,omitempty"`
 	Name  string         `json:"name,omitempty"`
 	Input map[string]any `json:"input,omitempty"`
 }
@@ -164,7 +165,7 @@ func ValidateTourJSON(data []byte, repoDir string) (*Tour, error) {
 }
 
 // ExtractJSON tries to extract JSON from Claude's output, handling markdown fences
-// and preamble text before the fence.
+// and preamble text before the JSON object.
 func ExtractJSON(output string) string {
 	output = strings.TrimSpace(output)
 
@@ -187,6 +188,14 @@ func ExtractJSON(output string) string {
 		}
 		if len(jsonLines) > 0 {
 			return strings.Join(jsonLines, "\n")
+		}
+	}
+
+	// Strip preamble text before the first '{' (Claude sometimes adds commentary)
+	if idx := strings.Index(output, "{"); idx > 0 {
+		// Find the matching closing brace by scanning from the end
+		if last := strings.LastIndex(output, "}"); last > idx {
+			return output[idx : last+1]
 		}
 	}
 

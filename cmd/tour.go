@@ -230,8 +230,16 @@ func newTourGenerateCmd() *cobra.Command {
 				if summary := tour.ToolCallSummary(ev); summary != "" {
 					fmt.Fprintf(os.Stderr, "  %s\n", summary)
 				}
-				// Capture final result
-				if ev.Type == "result" {
+				// Capture text from assistant messages (where Claude writes the JSON)
+				if ev.Type == "assistant" && ev.Message != nil {
+					for _, c := range ev.Message.Content {
+						if c.Type == "text" && c.Text != "" {
+							output.WriteString(c.Text)
+						}
+					}
+				}
+				// Also capture result event as fallback
+				if ev.Type == "result" && output.Len() == 0 {
 					output.WriteString(ev.Result)
 				}
 			})
@@ -239,8 +247,6 @@ func newTourGenerateCmd() *cobra.Command {
 				return fmt.Errorf("claude invocation failed: %w", err)
 			}
 
-			// Extract and validate JSON
-			raw := tour.ExtractJSON(output.String())
 			toursDir := filepath.Join(dir, ".tours")
 			if err := util.EnsureDir(toursDir); err != nil {
 				return fmt.Errorf("failed to create .tours directory: %w", err)
@@ -248,18 +254,35 @@ func newTourGenerateCmd() *cobra.Command {
 
 			outputPath := filepath.Join(toursDir, name+".tour")
 
-			t, err := tour.ValidateTourJSON([]byte(raw), dir)
-			if err != nil {
-				// Save invalid output for debugging (best-effort)
-				invalidPath := outputPath + ".invalid"
-				_ = os.WriteFile(invalidPath, []byte(raw), 0o644)
-				return fmt.Errorf("generated tour failed validation: %w\nRaw output saved to %s", err, invalidPath)
-			}
-
-			// Write validated tour
-			formatted, _ := json.MarshalIndent(t, "", "  ")
-			if err := util.WriteFile(outputPath, formatted); err != nil {
-				return fmt.Errorf("failed to write tour file: %w", err)
+			// Claude may have written the file directly using its Write tool.
+			// If so, validate it in place. Otherwise extract JSON from output.
+			var t *tour.Tour
+			if util.FileExists(outputPath) {
+				data, readErr := os.ReadFile(outputPath)
+				if readErr != nil {
+					return fmt.Errorf("failed to read tour file written by Claude: %w", readErr)
+				}
+				t, err = tour.ValidateTourJSON(data, dir)
+				if err != nil {
+					return fmt.Errorf("tour file written by claude failed validation: %w", err)
+				}
+				// Re-write formatted for consistency
+				formatted, _ := json.MarshalIndent(t, "", "  ")
+				if writeErr := util.WriteFile(outputPath, formatted); writeErr != nil {
+					return fmt.Errorf("failed to reformat tour file: %w", writeErr)
+				}
+			} else {
+				raw := tour.ExtractJSON(output.String())
+				t, err = tour.ValidateTourJSON([]byte(raw), dir)
+				if err != nil {
+					invalidPath := outputPath + ".invalid"
+					_ = os.WriteFile(invalidPath, []byte(raw), 0o644)
+					return fmt.Errorf("generated tour failed validation: %w\nRaw output saved to %s", err, invalidPath)
+				}
+				formatted, _ := json.MarshalIndent(t, "", "  ")
+				if writeErr := util.WriteFile(outputPath, formatted); writeErr != nil {
+					return fmt.Errorf("failed to write tour file: %w", writeErr)
+				}
 			}
 
 			fmt.Fprintf(os.Stderr, "Generated %s (%d steps)\n", outputPath, len(t.Steps))

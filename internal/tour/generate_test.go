@@ -31,6 +31,16 @@ var _ = Describe("ExtractJSON", func() {
 		Expect(tour.ExtractJSON(input)).To(Equal(`{"title": "Test"}`))
 	})
 
+	It("extracts JSON when there is preamble text without a fence", func() {
+		input := "I've read all the files. Here's the CodeTour:\n\n{\"title\": \"Test\", \"steps\": []}"
+		Expect(tour.ExtractJSON(input)).To(Equal(`{"title": "Test", "steps": []}`))
+	})
+
+	It("extracts JSON when there is preamble and trailing text", func() {
+		input := "Here it is:\n{\"title\": \"Test\"}\n\nLet me know if you need changes."
+		Expect(tour.ExtractJSON(input)).To(Equal(`{"title": "Test"}`))
+	})
+
 	It("trims surrounding whitespace", func() {
 		input := "  \n  {\"title\": \"Test\"}  \n  "
 		Expect(tour.ExtractJSON(input)).To(Equal(`{"title": "Test"}`))
