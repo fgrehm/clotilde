@@ -17,6 +17,7 @@
       <span id="step-counter"></span>
     </div>
     <div class="header-right">
+      <button id="notes-btn" title="Show step notes (n)">notes</button>
       <button id="prev-btn" title="Previous step (Left arrow)">&#9664; prev</button>
       <button id="next-btn" title="Next step (Right arrow)">next &#9654;</button>
     </div>
@@ -28,11 +29,16 @@
       <div id="code-container">
         <pre id="code-pre" class="line-numbers"><code id="code-block"></code></pre>
       </div>
+      <div id="step-popover" class="step-popover" hidden>
+        <div class="popover-header">
+          <span id="popover-step-label"></span>
+          <button id="popover-close" title="Close (Escape)">&times;</button>
+        </div>
+        <div id="step-description"></div>
+      </div>
     </section>
 
     <section id="side-panel">
-      <div id="step-description"></div>
-      <div id="chat-resize-handle"></div>
       <div id="chat-panel">
         <div id="chat-header">
           <div>

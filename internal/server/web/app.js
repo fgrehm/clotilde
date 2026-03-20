@@ -57,6 +57,11 @@ const fileHeader = document.getElementById("file-header");
 const codeBlock = document.getElementById("code-block");
 const codePre = document.getElementById("code-pre");
 const stepDescription = document.getElementById("step-description");
+const stepPopover = document.getElementById("step-popover");
+const popoverStepLabel = document.getElementById("popover-step-label");
+const popoverClose = document.getElementById("popover-close");
+const notesBtn = document.getElementById("notes-btn");
+const codeContainer = document.getElementById("code-container");
 const loadingEl = document.getElementById("loading");
 const errorEl = document.getElementById("error");
 
@@ -160,20 +165,21 @@ async function showStep(index) {
   // Re-highlight
   Prism.highlightElement(codeBlock);
 
-  // Scroll to highlighted line after rendering
+  // Render step description
+  stepDescription.innerHTML = marked.parse(step.description);
+  stepDescription.querySelectorAll("pre code").forEach((block) => {
+    Prism.highlightElement(block);
+  });
+  popoverStepLabel.textContent = `Step ${index + 1} of ${tour.steps.length}`;
+  stepPopover.hidden = false;
+
+  // Scroll to highlighted line and position popover
   requestAnimationFrame(() => {
     const lineEl = codePre.querySelector(".line-highlight");
     if (lineEl) {
-      lineEl.scrollIntoView({ block: "center", behavior: "smooth" });
+      lineEl.scrollIntoView({ block: "center", behavior: "instant" });
     }
-  });
-
-  // Render step description as markdown
-  stepDescription.innerHTML = marked.parse(step.description);
-
-  // Highlight code blocks in the markdown
-  stepDescription.querySelectorAll("pre code").forEach((block) => {
-    Prism.highlightElement(block);
+    positionPopover();
   });
 }
 
@@ -199,11 +205,50 @@ function hideLoading() {
   loadingEl.classList.add("hidden");
 }
 
+// Popover positioning
+function positionPopover() {
+  const lineEl = codePre.querySelector(".line-highlight");
+  if (!lineEl || stepPopover.hidden) return;
+
+  const panelRect = codePre.closest("#code-panel").getBoundingClientRect();
+  const lineRect = lineEl.getBoundingClientRect();
+
+  // Position below the highlighted line, anchored to the right
+  let top = lineRect.bottom - panelRect.top + 8;
+  const popoverW = stepPopover.offsetWidth;
+  let left = panelRect.width - popoverW - 16;
+
+  // Clamp so the popover stays within the code panel
+  const popoverH = stepPopover.offsetHeight;
+  const maxTop = panelRect.height - popoverH - 8;
+  if (top > maxTop) top = lineRect.top - panelRect.top - popoverH - 8;
+  if (top < 40) top = 40;
+  if (left < 8) left = 8;
+
+  stepPopover.style.top = top + "px";
+  stepPopover.style.left = left + "px";
+}
+
+codeContainer.addEventListener("scroll", positionPopover);
+
 // Navigation
 prevBtn.addEventListener("click", () => showStep(state.currentStep - 1));
 nextBtn.addEventListener("click", () => showStep(state.currentStep + 1));
 
+// Popover dismiss/open
+popoverClose.addEventListener("click", () => { stepPopover.hidden = true; });
+notesBtn.addEventListener("click", () => {
+  stepPopover.hidden = false;
+  requestAnimationFrame(positionPopover);
+});
+
 document.addEventListener("keydown", (e) => {
+  // Close popover on Escape
+  if (e.key === "Escape" && !stepPopover.hidden) {
+    stepPopover.hidden = true;
+    return;
+  }
+
   // Don't capture if user is typing in an input
   if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
 
@@ -211,6 +256,9 @@ document.addEventListener("keydown", (e) => {
     showStep(state.currentStep - 1);
   } else if (e.key === "ArrowRight" || e.key === "l") {
     showStep(state.currentStep + 1);
+  } else if (e.key === "n") {
+    stepPopover.hidden = false;
+    requestAnimationFrame(positionPopover);
   }
 });
 
@@ -327,58 +375,6 @@ chatInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") sendChat();
 });
 chatReset.addEventListener("click", resetChat);
-
-// Chat panel resizing
-const chatPanel = document.getElementById("chat-panel");
-const resizeHandle = document.getElementById("chat-resize-handle");
-let isResizing = false;
-
-// Set initial chat panel height: use saved value or default to 50% of viewport
-function initializeChatHeight() {
-  const savedHeight = localStorage.getItem("chatPanelHeight");
-  if (savedHeight) {
-    chatPanel.style.height = savedHeight + "px";
-  } else {
-    // Default to 50% of viewport height
-    const defaultHeight = window.innerHeight * 0.5;
-    chatPanel.style.height = defaultHeight + "px";
-  }
-}
-
-initializeChatHeight();
-
-// Re-initialize on window resize to keep proportions
-window.addEventListener("resize", () => {
-  const savedHeight = localStorage.getItem("chatPanelHeight");
-  if (!savedHeight) {
-    // Only reset to 50% if no custom height was saved
-    const defaultHeight = window.innerHeight * 0.5;
-    chatPanel.style.height = defaultHeight + "px";
-  }
-});
-
-resizeHandle.addEventListener("mousedown", (e) => {
-  isResizing = true;
-  const startY = e.clientY;
-  const startHeight = chatPanel.offsetHeight;
-
-  const onMouseMove = (moveEvent) => {
-    if (!isResizing) return;
-    const delta = moveEvent.clientY - startY;
-    const newHeight = Math.max(100, startHeight - delta);
-    chatPanel.style.height = newHeight + "px";
-    localStorage.setItem("chatPanelHeight", newHeight);
-  };
-
-  const onMouseUp = () => {
-    isResizing = false;
-    document.removeEventListener("mousemove", onMouseMove);
-    document.removeEventListener("mouseup", onMouseUp);
-  };
-
-  document.addEventListener("mousemove", onMouseMove);
-  document.addEventListener("mouseup", onMouseUp);
-});
 
 // Strip raw HTML from markdown to prevent XSS
 marked.use({
