@@ -50,8 +50,9 @@ func validate(t *Tour) error {
 			return fmt.Errorf("step %d: file field is required", i+1)
 		}
 		if t.Steps[i].Line < 0 {
-			return fmt.Errorf("step %d: line must be >= 1, got %d", i+1, t.Steps[i].Line)
+			return fmt.Errorf("step %d: line must be positive, got %d", i+1, t.Steps[i].Line)
 		}
+		// Omitted line (zero value from JSON) defaults to 1
 		if t.Steps[i].Line == 0 {
 			t.Steps[i].Line = 1
 		}

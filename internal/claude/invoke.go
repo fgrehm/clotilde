@@ -2,7 +2,6 @@ package claude
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -288,8 +287,8 @@ func InvokeStreaming(ctx context.Context, opts InvokeOptions, prompt string, onL
 	}
 
 	cmd := exec.CommandContext(ctx, claudeBin, args...)
-	var stderrBuf bytes.Buffer
-	cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
+	stderrTail := &tailBuffer{maxSize: 4096}
+	cmd.Stderr = io.MultiWriter(os.Stderr, stderrTail)
 
 	// Set environment variables
 	cmd.Env = os.Environ()
@@ -339,13 +338,32 @@ func InvokeStreaming(ctx context.Context, opts InvokeOptions, prompt string, onL
 		if lastResult != "" {
 			return fmt.Errorf("claude error: %s", lastResult)
 		}
-		if stderr := strings.TrimSpace(stderrBuf.String()); stderr != "" {
+		if stderr := strings.TrimSpace(stderrTail.String()); stderr != "" {
 			return fmt.Errorf("claude exited with error: %w\n%s", err, stderr)
 		}
 		return fmt.Errorf("claude exited with error: %w", err)
 	}
 
 	return nil
+}
+
+// tailBuffer is a bounded writer that keeps only the last maxSize bytes.
+// Used to capture stderr tail for error messages without unbounded memory growth.
+type tailBuffer struct {
+	maxSize int
+	buf     []byte
+}
+
+func (t *tailBuffer) Write(p []byte) (int, error) {
+	t.buf = append(t.buf, p...)
+	if len(t.buf) > t.maxSize {
+		t.buf = t.buf[len(t.buf)-t.maxSize:]
+	}
+	return len(p), nil
+}
+
+func (t *tailBuffer) String() string {
+	return string(t.buf)
 }
 
 // Invoke executes claude CLI with custom options (for advanced use cases).

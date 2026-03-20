@@ -3,7 +3,7 @@ const state = {
   tours: [],
   currentTour: null,
   currentStep: 0,
-  fileCache: {},
+  fileCache: Object.create(null),
 };
 
 // File extension to Prism language mapping
