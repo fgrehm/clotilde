@@ -163,6 +163,9 @@ func newTourGenerateCmd() *cobra.Command {
 			name, _ := cmd.Flags().GetString("name")
 			focus, _ := cmd.Flags().GetString("focus")
 			model, _ := cmd.Flags().GetString("model")
+			maxFiles, _ := cmd.Flags().GetInt("max-files")
+			minSteps, _ := cmd.Flags().GetInt("min-steps")
+			maxSteps, _ := cmd.Flags().GetInt("max-steps")
 
 			// Validate name: must be lowercase alnum+hyphens, max 30 chars to leave room
 			// for the "tour-generate-<name>-<timestamp>" session name (≤64 chars total).
@@ -198,7 +201,13 @@ func newTourGenerateCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to resolve dir: %w", err)
 			}
-			prompt := tour.BuildGenerationPrompt(absDir, focus)
+			prompt := tour.BuildGenerationPrompt(tour.GenerationOpts{
+				RepoDir:  absDir,
+				Focus:    focus,
+				MaxFiles: maxFiles,
+				MinSteps: minSteps,
+				MaxSteps: maxSteps,
+			})
 
 			// Invoke Claude
 			fmt.Fprintln(os.Stderr, "Generating tour via Claude Code...")
@@ -275,6 +284,9 @@ func newTourGenerateCmd() *cobra.Command {
 	cmd.Flags().String("name", "overview", "Tour name (output: .tours/<name>.tour)")
 	cmd.Flags().String("focus", "", "Focus on a specific area (e.g. 'auth flow')")
 	cmd.Flags().String("model", "sonnet", "Claude model to use for generation")
+	cmd.Flags().Int("max-files", 20, "Maximum number of files for Claude to read")
+	cmd.Flags().Int("min-steps", 8, "Minimum number of tour steps to generate")
+	cmd.Flags().Int("max-steps", 15, "Maximum number of tour steps to generate")
 
 	return cmd
 }

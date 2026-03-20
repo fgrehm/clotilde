@@ -68,18 +68,48 @@ func ToolCallSummary(ev StreamEvent) string {
 	return ""
 }
 
-// GenerationPrompt is the prompt for tour generation via autonomous repo crawl.
-const GenerationPrompt = `Explore the repository at %s using your file tools (Glob, Read, Grep).
+// GenerationOpts controls the generation prompt parameters.
+type GenerationOpts struct {
+	RepoDir  string
+	Focus    string
+	MaxFiles int // max files to read (default 20)
+	MinSteps int // min steps to produce (default 8)
+	MaxSteps int // max steps to produce (default 15)
+}
+
+// BuildGenerationPrompt constructs the prompt for tour generation.
+func BuildGenerationPrompt(opts GenerationOpts) string {
+	maxFiles := opts.MaxFiles
+	if maxFiles <= 0 {
+		maxFiles = 20
+	}
+	minSteps := opts.MinSteps
+	if minSteps <= 0 {
+		minSteps = 8
+	}
+	maxSteps := opts.MaxSteps
+	if maxSteps <= 0 {
+		maxSteps = 15
+	}
+	if maxSteps < minSteps {
+		maxSteps = minSteps
+	}
+
+	var focusLine string
+	if opts.Focus != "" {
+		focusLine = fmt.Sprintf("\n- Focus specifically on: %s", opts.Focus)
+	}
+
+	return fmt.Sprintf(`Explore the repository at %s using your file tools (Glob, Read, Grep).
 
 Your goal: produce a CodeTour that walks an unfamiliar developer through the codebase architecture.
 
 Rules:
-- Read at most 20 files total. Start with entry points and README, then follow the most important paths.
-- Produce exactly 8-15 steps. Do not produce more.
+- Read at most %d files total. Start with entry points and README, then follow the most important paths.
+- Produce %d-%d steps. Do not produce more or fewer.
 - Each step: file path relative to repo root, a specific line number, 2-4 sentence description.
 - Start each description with a ## heading.
-- Steps must follow logical reading order (entry point → core modules → periphery).
-%s
+- Steps must follow logical reading order (entry point -> core modules -> periphery).%s
 
 When you are done exploring, output ONLY a raw JSON object. No preamble, no explanation, no markdown fences.
 
@@ -90,15 +120,7 @@ Output format:
   "steps": [
     { "file": "<relative/path>", "line": <number>, "description": "<markdown>" }
   ]
-}`
-
-// BuildGenerationPrompt constructs the prompt for tour generation.
-func BuildGenerationPrompt(repoDir, focus string) string {
-	var focusLine string
-	if focus != "" {
-		focusLine = fmt.Sprintf("\nFocus specifically on: %s", focus)
-	}
-	return fmt.Sprintf(GenerationPrompt, repoDir, focusLine)
+}`, opts.RepoDir, maxFiles, minSteps, maxSteps, focusLine)
 }
 
 // ValidateTourJSON parses and validates generated tour JSON against the repo.
