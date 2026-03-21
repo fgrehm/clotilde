@@ -142,11 +142,14 @@ func ValidateTourJSON(data []byte, repoDir string) (*Tour, error) {
 		// Resolve symlinks and re-check containment on the real path
 		realPath, err := filepath.EvalSymlinks(absPath)
 		if err != nil {
-			return nil, fmt.Errorf("step %d: file %q does not exist", i+1, step.File)
+			if os.IsNotExist(err) {
+				return nil, fmt.Errorf("step %d: file %q does not exist", i+1, step.File)
+			}
+			return nil, fmt.Errorf("step %d: cannot resolve file %q: %w", i+1, step.File, err)
 		}
 
 		rel, relErr := filepath.Rel(repoDir, realPath)
-		if relErr != nil || strings.HasPrefix(rel, "..") {
+		if relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 			return nil, fmt.Errorf("step %d: file path %q escapes repo directory", i+1, step.File)
 		}
 

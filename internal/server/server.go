@@ -149,7 +149,7 @@ func (s *Server) fileContent(w http.ResponseWriter, r *http.Request) {
 
 	// Ensure the resolved path is within the repo directory
 	rel, err := filepath.Rel(s.repoDir, realPath)
-	if err != nil || strings.HasPrefix(rel, "..") {
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		http.Error(w, "forbidden", http.StatusForbidden)
 		return
 	}
