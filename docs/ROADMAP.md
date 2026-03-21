@@ -6,8 +6,8 @@ A power-user companion for Claude Code.
 
 ### What's Working
 
-- **Commands**: setup, start, resume, list, inspect, fork, delete, incognito, export, completion
-- **Features**: Named sessions, forking, incognito mode, system prompts, permissions, session context, session profiles (global + project), output styles, session export (HTML)
+- **Commands**: setup, start, resume, list, inspect, fork, delete, incognito, export, tour, completion
+- **Features**: Named sessions, forking, incognito mode, system prompts, permissions, session context, session profiles (global + project), output styles, session export (HTML), interactive codebase tours
 - **Shorthand flags**: `--accept-edits`, `--yolo`, `--plan`, `--dont-ask`, `--fast`
 - **TUI**: Dashboard (with start/fork actions), session picker, confirmation dialogs, styled output
 - **Debugging**: `hook notify` subcommand logs hook events to JSONL (opt-in)
