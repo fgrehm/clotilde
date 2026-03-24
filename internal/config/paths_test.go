@@ -213,6 +213,25 @@ var _ = Describe("ProjectRootFromPath", func() {
 		root := config.ProjectRootFromPath(tempDir)
 		Expect(root).To(Equal(tempDir))
 	})
+
+	It("should not walk above $HOME to find .claude", func() {
+		// Use tempDir as a fake $HOME with .claude/ in it
+		GinkgoT().Setenv("HOME", tempDir)
+
+		claudeDir := filepath.Join(tempDir, ".claude")
+		err := util.EnsureDir(claudeDir)
+		Expect(err).NotTo(HaveOccurred())
+
+		subDir := filepath.Join(tempDir, "projects", "myapp")
+		err = util.EnsureDir(subDir)
+		Expect(err).NotTo(HaveOccurred())
+
+		// ProjectRootFromPath should NOT treat $HOME as the project root
+		// even though ~/.claude/ exists
+		root := config.ProjectRootFromPath(subDir)
+		Expect(root).To(Equal(subDir))
+		Expect(root).NotTo(Equal(tempDir))
+	})
 })
 
 var _ = Describe("FindOrCreateClotildeRoot", func() {

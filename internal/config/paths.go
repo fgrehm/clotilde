@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/fgrehm/clotilde/internal/util"
 )
 
 const (
@@ -31,6 +33,9 @@ func FindClotildeRoot() (string, error) {
 
 // ClotildeRootFromPath searches for .claude/clotilde starting from the given path.
 // Returns the absolute path to the .claude/clotilde directory, or an error if not found.
+// Note: unlike ProjectRootFromPath, this does NOT stop at $HOME. If .claude/clotilde
+// was already created at ~ (e.g., from before the walk-up fix), we still need to find
+// it so users can list/delete those sessions.
 func ClotildeRootFromPath(startPath string) (string, error) {
 	absPath, err := filepath.Abs(startPath)
 	if err != nil {
@@ -114,14 +119,20 @@ func FindProjectRoot() (string, error) {
 // ProjectRootFromPath determines the project root starting from the given path.
 // Walks up looking for a .claude/ directory. If found, returns its parent.
 // If not found, returns the starting path.
+// Stops at $HOME to avoid treating ~/.claude/ (Claude Code's global config) as a project marker.
 func ProjectRootFromPath(startPath string) string {
 	absPath, err := filepath.Abs(startPath)
 	if err != nil {
 		return startPath
 	}
 
+	homeDir, err := util.HomeDir()
+	if err != nil {
+		homeDir = ""
+	}
+
 	currentPath := absPath
-	for {
+	for homeDir == "" || currentPath != homeDir {
 		claudePath := filepath.Join(currentPath, ".claude")
 		info, err := os.Stat(claudePath)
 		if err == nil && info.IsDir() {
@@ -130,11 +141,13 @@ func ProjectRootFromPath(startPath string) string {
 
 		parentPath := filepath.Dir(currentPath)
 		if parentPath == currentPath {
-			// Reached filesystem root, use original path
-			return absPath
+			// Reached filesystem root
+			break
 		}
 		currentPath = parentPath
 	}
+
+	return absPath
 }
 
 // FindOrCreateClotildeRoot finds an existing .claude/clotilde directory or creates one.
