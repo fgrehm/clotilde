@@ -372,6 +372,59 @@ var _ = Describe("Shorthand Flags", func() {
 		})
 	})
 
+	Describe("--model on resume", func() {
+		It("should pass --model to claude", func() {
+			sess := session.NewSession("resume-model", "uuid-resume-model")
+			err := store.Create(sess)
+			Expect(err).NotTo(HaveOccurred())
+
+			rootCmd := cmd.NewRootCmd()
+			rootCmd.SetOut(io.Discard)
+			rootCmd.SetErr(io.Discard)
+			rootCmd.SetArgs([]string{"--claude-bin", filepath.Join(fakeClaudeDir, "claude"), "resume", "resume-model", "--model", "opus"})
+
+			err = rootCmd.Execute()
+			Expect(err).NotTo(HaveOccurred())
+
+			args, err := testutil.ReadClaudeArgs(claudeArgsFile)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(args).To(ContainSubstring("--model opus"))
+		})
+
+		It("should not pass --model when --fast is used", func() {
+			sess := session.NewSession("resume-fast-model", "uuid-resume-fast-model")
+			err := store.Create(sess)
+			Expect(err).NotTo(HaveOccurred())
+
+			rootCmd := cmd.NewRootCmd()
+			rootCmd.SetOut(io.Discard)
+			rootCmd.SetErr(io.Discard)
+			rootCmd.SetArgs([]string{"--claude-bin", filepath.Join(fakeClaudeDir, "claude"), "resume", "resume-fast-model", "--fast"})
+
+			err = rootCmd.Execute()
+			Expect(err).NotTo(HaveOccurred())
+
+			args, err := testutil.ReadClaudeArgs(claudeArgsFile)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(args).To(ContainSubstring("--model haiku"))
+		})
+
+		It("should reject --model with --fast on resume", func() {
+			sess := session.NewSession("resume-conflict-model", "uuid-resume-conflict-model")
+			err := store.Create(sess)
+			Expect(err).NotTo(HaveOccurred())
+
+			rootCmd := cmd.NewRootCmd()
+			rootCmd.SetOut(io.Discard)
+			rootCmd.SetErr(io.Discard)
+			rootCmd.SetArgs([]string{"--claude-bin", filepath.Join(fakeClaudeDir, "claude"), "resume", "resume-conflict-model", "--fast", "--model", "opus"})
+
+			err = rootCmd.Execute()
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("cannot use --fast with --model"))
+		})
+	})
+
 	Describe("--fast stores model in settings on start", func() {
 		It("should persist haiku model in settings.json", func() {
 			rootCmd := cmd.NewRootCmd()

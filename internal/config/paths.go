@@ -129,12 +129,7 @@ func ProjectRootFromPath(startPath string) string {
 	homeDir, _ := util.HomeDir()
 
 	currentPath := absPath
-	for {
-		// Stop at $HOME (~/.claude/ is Claude Code's global config, not a project)
-		if currentPath == homeDir {
-			break
-		}
-
+	for currentPath != homeDir {
 		claudePath := filepath.Join(currentPath, ".claude")
 		info, err := os.Stat(claudePath)
 		if err == nil && info.IsDir() {
