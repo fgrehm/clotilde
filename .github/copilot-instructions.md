@@ -33,6 +33,8 @@ All packages are under `internal/`; this is a binary, not a library.
 - Global hooks in `~/.claude/settings.json` (installed by `clotilde setup`).
 - Lazy directory creation: session-creating commands auto-create
   `.claude/clotilde/sessions/` on first use.
+- Path walk-up stops at `$HOME` to avoid treating `~/.claude/` (Claude
+  Code's global config) as a project marker.
 - Session-reading commands return friendly messages when no sessions exist.
 - Double-hook execution guard via `CLOTILDE_HOOK_EXECUTED` env var prevents
   duplicate output when both global and per-project hooks exist.

@@ -48,6 +48,9 @@ func registerShorthandFlags(cmd *cobra.Command) {
 
 	// Composite preset
 	cmd.Flags().Bool("fast", false, "Use haiku model with low effort for quick tasks")
+
+	// Effort level (pass-through to claude CLI)
+	cmd.Flags().String("effort", "", "Reasoning effort level (low, medium, high, max)")
 }
 
 // resolvePermissionMode reads the four permission shorthand bools and the
@@ -110,5 +113,18 @@ func resolveFastMode(cmd *cobra.Command) (bool, error) {
 	if cmd.Flags().Lookup("model") != nil && cmd.Flags().Changed("model") {
 		return false, fmt.Errorf("cannot use --fast with --model")
 	}
+	if cmd.Flags().Changed("effort") {
+		return false, fmt.Errorf("cannot use --fast with --effort")
+	}
 	return true, nil
+}
+
+// collectEffortFlag appends --effort to additionalArgs if the flag is set.
+// Called after resolveFastMode (which may also append --effort low).
+func collectEffortFlag(cmd *cobra.Command, additionalArgs []string) []string {
+	effort, _ := cmd.Flags().GetString("effort")
+	if effort != "" {
+		additionalArgs = append(additionalArgs, "--effort", effort)
+	}
+	return additionalArgs
 }

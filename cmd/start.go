@@ -94,6 +94,8 @@ Pass additional flags to Claude Code after '--':
 			if fastEnabled {
 				_ = cmd.Flags().Set("model", "haiku")
 				additionalArgs = append(additionalArgs, "--effort", "low")
+			} else {
+				additionalArgs = collectEffortFlag(cmd, additionalArgs)
 			}
 
 			// Build params from flags
@@ -186,6 +188,8 @@ func handleExistingSession(cmd *cobra.Command, name, clotildeRoot string, store 
 	}
 	if fastEnabled {
 		additionalArgs = append(additionalArgs, "--model", "haiku", "--effort", "low")
+	} else {
+		additionalArgs = collectEffortFlag(cmd, additionalArgs)
 	}
 
 	// Load and resume session

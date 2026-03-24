@@ -325,6 +325,53 @@ var _ = Describe("Shorthand Flags", func() {
 		})
 	})
 
+	Describe("--effort on start", func() {
+		It("should pass --effort to claude", func() {
+			rootCmd := cmd.NewRootCmd()
+			rootCmd.SetOut(io.Discard)
+			rootCmd.SetErr(io.Discard)
+			rootCmd.SetArgs([]string{"--claude-bin", filepath.Join(fakeClaudeDir, "claude"), "start", "effort-session", "--effort", "high"})
+
+			err := rootCmd.Execute()
+			Expect(err).NotTo(HaveOccurred())
+
+			args, err := testutil.ReadClaudeArgs(claudeArgsFile)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(args).To(ContainSubstring("--effort high"))
+		})
+
+		It("should reject --effort with --fast", func() {
+			rootCmd := cmd.NewRootCmd()
+			rootCmd.SetOut(io.Discard)
+			rootCmd.SetErr(io.Discard)
+			rootCmd.SetArgs([]string{"--claude-bin", filepath.Join(fakeClaudeDir, "claude"), "start", "conflict-session", "--fast", "--effort", "high"})
+
+			err := rootCmd.Execute()
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("cannot use --fast with --effort"))
+		})
+	})
+
+	Describe("--effort on resume", func() {
+		It("should pass --effort to claude", func() {
+			sess := session.NewSession("resume-effort", "uuid-resume-effort")
+			err := store.Create(sess)
+			Expect(err).NotTo(HaveOccurred())
+
+			rootCmd := cmd.NewRootCmd()
+			rootCmd.SetOut(io.Discard)
+			rootCmd.SetErr(io.Discard)
+			rootCmd.SetArgs([]string{"--claude-bin", filepath.Join(fakeClaudeDir, "claude"), "resume", "resume-effort", "--effort", "max"})
+
+			err = rootCmd.Execute()
+			Expect(err).NotTo(HaveOccurred())
+
+			args, err := testutil.ReadClaudeArgs(claudeArgsFile)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(args).To(ContainSubstring("--effort max"))
+		})
+	})
+
 	Describe("--fast stores model in settings on start", func() {
 		It("should persist haiku model in settings.json", func() {
 			rootCmd := cmd.NewRootCmd()

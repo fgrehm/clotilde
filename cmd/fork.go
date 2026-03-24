@@ -88,6 +88,8 @@ Pass additional flags to Claude Code after '--':
 			}
 			if fastEnabled {
 				additionalArgs = append(additionalArgs, "--model", "haiku", "--effort", "low")
+			} else {
+				additionalArgs = collectEffortFlag(cmd, additionalArgs)
 			}
 
 			// Find or create clotilde root

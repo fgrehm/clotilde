@@ -8,7 +8,7 @@ A power-user companion for Claude Code.
 
 - **Commands**: setup, start, resume, list, inspect, fork, delete, incognito, export, tour, completion
 - **Features**: Named sessions, forking, incognito mode, system prompts, permissions, session context, session profiles (global + project), output styles, session export (HTML), interactive codebase tours (experimental)
-- **Shorthand flags**: `--accept-edits`, `--yolo`, `--plan`, `--dont-ask`, `--fast`
+- **Shorthand flags**: `--accept-edits`, `--yolo`, `--plan`, `--dont-ask`, `--fast`, `--effort`
 - **TUI**: Dashboard (with start/fork actions), session picker, confirmation dialogs, styled output
 - **Debugging**: `hook notify` subcommand logs hook events to JSONL (opt-in)
 - **Distribution**: Cross-platform binaries via goreleaser
