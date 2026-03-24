@@ -41,6 +41,11 @@ func modelCompletion(cmd *cobra.Command, args []string, toComplete string) ([]st
 	return []string{"haiku", "sonnet", "opus"}, cobra.ShellCompDirectiveNoFileComp
 }
 
+// effortCompletion provides completion for --effort flag values
+func effortCompletion(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	return []string{"low", "medium", "high", "max"}, cobra.ShellCompDirectiveNoFileComp
+}
+
 // profileNameCompletion provides dynamic completion for profile names
 func profileNameCompletion(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	// Find clotilde root

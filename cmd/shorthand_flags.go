@@ -51,6 +51,7 @@ func registerShorthandFlags(cmd *cobra.Command) {
 
 	// Effort level (pass-through to claude CLI)
 	cmd.Flags().String("effort", "", "Reasoning effort level (low, medium, high, max)")
+	_ = cmd.RegisterFlagCompletionFunc("effort", effortCompletion)
 }
 
 // resolvePermissionMode reads the four permission shorthand bools and the

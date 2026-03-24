@@ -216,23 +216,22 @@ var _ = Describe("ProjectRootFromPath", func() {
 	})
 
 	It("should not walk above $HOME to find .claude", func() {
-		// Simulate a subdirectory of $HOME without its own .claude/
-		// The walk-up should NOT find ~/.claude/ (Claude Code's global config)
-		homeDir, err := os.UserHomeDir()
+		// Use tempDir as a fake $HOME with .claude/ in it
+		GinkgoT().Setenv("HOME", tempDir)
+
+		claudeDir := filepath.Join(tempDir, ".claude")
+		err := util.EnsureDir(claudeDir)
 		Expect(err).NotTo(HaveOccurred())
 
-		// Use a temp dir under $HOME to test the boundary
-		// Since tempDir is under /tmp (not $HOME), create a subdir under $HOME
-		subDir := filepath.Join(homeDir, "clotilde-test-walkup-"+GinkgoT().Name())
+		subDir := filepath.Join(tempDir, "projects", "myapp")
 		err = util.EnsureDir(subDir)
 		Expect(err).NotTo(HaveOccurred())
-		defer func() { _ = os.RemoveAll(subDir) }()
 
-		// ~/.claude/ exists (Claude Code creates it), but ProjectRootFromPath
-		// should NOT treat $HOME as the project root
+		// ProjectRootFromPath should NOT treat $HOME as the project root
+		// even though ~/.claude/ exists
 		root := config.ProjectRootFromPath(subDir)
 		Expect(root).To(Equal(subDir))
-		Expect(root).NotTo(Equal(homeDir))
+		Expect(root).NotTo(Equal(tempDir))
 	})
 })
 
