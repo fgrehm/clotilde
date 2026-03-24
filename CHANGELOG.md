@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **`--effort` flag**: Pass reasoning effort level (`low`, `medium`, `high`, `max`) through to Claude CLI on `start`, `resume`, `fork`, and `incognito` commands. Conflicts with `--fast` (which sets effort to `low` automatically). Includes shell completion for valid values.
+- **`--model` on resume**: Override the model when resuming a session (e.g. `clotilde resume my-session --model opus`). Previously `--model` was only available on `start` and `incognito`.
 
 ### Fixed
 
