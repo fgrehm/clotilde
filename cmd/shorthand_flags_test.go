@@ -325,6 +325,42 @@ var _ = Describe("Shorthand Flags", func() {
 		})
 	})
 
+	Describe("--effort on fork", func() {
+		It("should pass --effort to claude", func() {
+			parent := session.NewSession("fork-parent-effort", "uuid-fork-parent-effort")
+			err := store.Create(parent)
+			Expect(err).NotTo(HaveOccurred())
+
+			rootCmd := cmd.NewRootCmd()
+			rootCmd.SetOut(io.Discard)
+			rootCmd.SetErr(io.Discard)
+			rootCmd.SetArgs([]string{"--claude-bin", filepath.Join(fakeClaudeDir, "claude"), "fork", "fork-parent-effort", "fork-child-effort", "--effort", "medium"})
+
+			err = rootCmd.Execute()
+			Expect(err).NotTo(HaveOccurred())
+
+			args, err := testutil.ReadClaudeArgs(claudeArgsFile)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(args).To(ContainSubstring("--effort medium"))
+		})
+	})
+
+	Describe("--effort on incognito", func() {
+		It("should pass --effort to claude", func() {
+			rootCmd := cmd.NewRootCmd()
+			rootCmd.SetOut(io.Discard)
+			rootCmd.SetErr(io.Discard)
+			rootCmd.SetArgs([]string{"--claude-bin", filepath.Join(fakeClaudeDir, "claude"), "incognito", "incog-effort", "--effort", "high"})
+
+			err := rootCmd.Execute()
+			Expect(err).NotTo(HaveOccurred())
+
+			args, err := testutil.ReadClaudeArgs(claudeArgsFile)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(args).To(ContainSubstring("--effort high"))
+		})
+	})
+
 	Describe("--effort on start", func() {
 		It("should pass --effort to claude", func() {
 			rootCmd := cmd.NewRootCmd()

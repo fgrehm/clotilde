@@ -126,10 +126,13 @@ func ProjectRootFromPath(startPath string) string {
 		return startPath
 	}
 
-	homeDir, _ := util.HomeDir()
+	homeDir, err := util.HomeDir()
+	if err != nil {
+		homeDir = ""
+	}
 
 	currentPath := absPath
-	for currentPath != homeDir {
+	for homeDir == "" || currentPath != homeDir {
 		claudePath := filepath.Join(currentPath, ".claude")
 		info, err := os.Stat(claudePath)
 		if err == nil && info.IsDir() {

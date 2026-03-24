@@ -121,7 +121,8 @@ func resolveFastMode(cmd *cobra.Command) (bool, error) {
 }
 
 // collectEffortFlag appends --effort to additionalArgs if the flag is set.
-// Called after resolveFastMode (which may also append --effort low).
+// Called after resolveFastMode; when --fast is enabled, the caller appends
+// ["--effort", "low"] directly instead of calling this function.
 func collectEffortFlag(cmd *cobra.Command, additionalArgs []string) []string {
 	effort, _ := cmd.Flags().GetString("effort")
 	if effort != "" {
