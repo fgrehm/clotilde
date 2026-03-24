@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`--effort` flag**: Pass reasoning effort level (`low`, `medium`, `high`, `max`) through to Claude CLI on `start`, `resume`, `fork`, and `incognito` commands. Conflicts with `--fast` (which sets effort to `low` automatically). Includes shell completion for valid values.
+
+### Fixed
+
+- **Session leakage into `$HOME`**: `ProjectRootFromPath` now stops walking up at `$HOME`, preventing `~/.claude/` (Claude Code's global config) from being treated as a project marker. Previously, projects without their own `.claude/` directory would create sessions under `~/.claude/clotilde/sessions/`.
+
+## [0.9.0] - 2026-03-23
+
+### Added
+
 - **Interactive Codebase Tours (experimental)**: New `clotilde tour` subcommand for browser-based interactive codebase walkthroughs with integrated Claude chat.
   - `clotilde tour list` — List available tours in `.tours/` directory
   - `clotilde tour serve [--port] [--model]` — Start interactive tour web server with code viewer, tour navigation, and chat sidebar
