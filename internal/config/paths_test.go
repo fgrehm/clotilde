@@ -98,7 +98,6 @@ var _ = Describe("ClotildeRootFromPath", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(root).To(Equal(clotildePath))
 	})
-
 })
 
 var _ = Describe("Path helpers", func() {
