@@ -122,12 +122,13 @@ Pass additional flags to Claude Code after '--':
 				return fmt.Errorf("cannot fork from incognito session '%s' (it will auto-delete when you exit)", parentName)
 			}
 
-			// Create fork session with empty sessionId (will be filled by hook)
+			// Create fork session with a pre-assigned UUID passed via --session-id
+			forkUUID := util.GenerateUUID()
 			var fork *session.Session
 			if incognito {
-				fork = session.NewIncognitoSession(forkName, "")
+				fork = session.NewIncognitoSession(forkName, forkUUID)
 			} else {
-				fork = session.NewSession(forkName, "")
+				fork = session.NewSession(forkName, forkUUID)
 			}
 			fork.Metadata.IsForkedSession = true
 			fork.Metadata.ParentSession = parentName

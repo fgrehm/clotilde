@@ -109,19 +109,9 @@ func handleStartup(clotildeRoot string, hookData hookInput, store session.Store)
 	return nil
 }
 
-// handleResume handles session resumption and fork registration.
+// handleResume handles session resumption.
 func handleResume(clotildeRoot string, hookData hookInput, store session.Store) error {
 	sessionName := os.Getenv("CLOTILDE_SESSION_NAME")
-
-	// Check if this is a fork registration
-	forkName := os.Getenv("CLOTILDE_FORK_NAME")
-	if forkName != "" {
-		if err := registerFork(store, forkName, hookData.SessionID); err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "Warning: failed to register fork: %v\n", err)
-		}
-		// Use fork name for context output
-		sessionName = forkName
-	}
 
 	// Crash recovery must run before saveTranscriptPath, which updates LastAccessed.
 	// If it ran after, attemptCrashRecovery would always see a fresh timestamp and
@@ -293,27 +283,6 @@ func handleCompact(clotildeRoot string, hookData hookInput, store session.Store)
 // Unlike /compact, /clear DOES create a new session UUID in Claude Code.
 func handleClear(clotildeRoot string, hookData hookInput, store session.Store) error {
 	return handleCompact(clotildeRoot, hookData, store)
-}
-
-// registerFork updates the fork's metadata.json with the actual session UUID.
-// This is idempotent - won't overwrite existing UUIDs.
-func registerFork(store session.Store, forkName, sessionID string) error {
-	// Load fork session
-	fork, err := store.Get(forkName)
-	if err != nil {
-		return fmt.Errorf("fork '%s' not found: %w", forkName, err)
-	}
-
-	// Only update if sessionId is empty (idempotent)
-	if fork.Metadata.SessionID == "" {
-		fork.Metadata.SessionID = sessionID
-		fork.UpdateLastAccessed()
-		if err := store.Update(fork); err != nil {
-			return fmt.Errorf("failed to update fork metadata: %w", err)
-		}
-	}
-
-	return nil
 }
 
 // saveTranscriptPath saves the transcript path and updates lastAccessed in a single write.

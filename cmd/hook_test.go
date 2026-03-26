@@ -135,36 +135,6 @@ var _ = Describe("Hook Commands", func() {
 				Expect(err).NotTo(HaveOccurred())
 			})
 
-			It("should be idempotent - not overwrite existing UUID", func() {
-				// Create fork with existing sessionId
-				fork := session.NewSession("existing-fork", "existing-uuid")
-				fork.Metadata.IsForkedSession = true
-				fork.Metadata.ParentSession = "parent"
-				err := store.Create(fork)
-				Expect(err).NotTo(HaveOccurred())
-
-				// Set environment variable for fork registration
-				_ = os.Setenv("CLOTILDE_FORK_NAME", "existing-fork")
-				defer func() { _ = os.Unsetenv("CLOTILDE_FORK_NAME") }()
-
-				// Create hook input with different UUID
-				hookInput := map[string]string{
-					"session_id": "new-different-uuid",
-					"source":     "startup",
-				}
-				inputJSON, err := json.Marshal(hookInput)
-				Expect(err).NotTo(HaveOccurred())
-
-				// Execute hook sessionstart
-				err = executeHookWithInput("sessionstart", inputJSON)
-				Expect(err).NotTo(HaveOccurred())
-
-				// Verify UUID was NOT changed
-				updatedFork, err := store.Get("existing-fork")
-				Expect(err).NotTo(HaveOccurred())
-				Expect(updatedFork.Metadata.SessionID).To(Equal("existing-uuid"))
-			})
-
 			It("should handle non-clotilde project gracefully", func() {
 				// Change to a directory without clotilde
 				nonClotildeDir := GinkgoT().TempDir()
@@ -261,64 +231,32 @@ var _ = Describe("Hook Commands", func() {
 		})
 
 		Context("source: resume", func() {
-			It("should register fork session ID", func() {
-				// Create fork with empty sessionId
-				fork := session.NewSession("test-fork", "")
+			It("should not overwrite pre-assigned fork UUID (CLOTILDE_FORK_NAME is ignored)", func() {
+				// Fork UUID is now pre-assigned by clotilde fork before invoking claude.
+				// The hook must not modify the existing UUID even if CLOTILDE_FORK_NAME is set.
+				fork := session.NewSession("pre-assigned-fork", "pre-assigned-uuid")
 				fork.Metadata.IsForkedSession = true
 				fork.Metadata.ParentSession = "parent"
 				err := store.Create(fork)
 				Expect(err).NotTo(HaveOccurred())
 
-				// Set environment variable for fork registration
-				_ = os.Setenv("CLOTILDE_FORK_NAME", "test-fork")
+				_ = os.Setenv("CLOTILDE_FORK_NAME", "pre-assigned-fork")
 				defer func() { _ = os.Unsetenv("CLOTILDE_FORK_NAME") }()
 
-				// Create hook input with session UUID
 				hookInput := map[string]string{
-					"session_id": "new-fork-uuid-123",
+					"session_id": "hook-provided-uuid",
 					"source":     "resume",
 				}
 				inputJSON, err := json.Marshal(hookInput)
 				Expect(err).NotTo(HaveOccurred())
 
-				// Execute hook sessionstart
 				err = executeHookWithInput("sessionstart", inputJSON)
 				Expect(err).NotTo(HaveOccurred())
 
-				// Verify UUID was registered
-				updatedFork, err := store.Get("test-fork")
+				// UUID must remain as pre-assigned; hook no longer registers forks
+				updatedFork, err := store.Get("pre-assigned-fork")
 				Expect(err).NotTo(HaveOccurred())
-				Expect(updatedFork.Metadata.SessionID).To(Equal("new-fork-uuid-123"))
-			})
-
-			It("should be idempotent - not overwrite existing fork UUID", func() {
-				// Create fork with existing sessionId
-				fork := session.NewSession("existing-fork-resume", "existing-uuid-resume")
-				fork.Metadata.IsForkedSession = true
-				fork.Metadata.ParentSession = "parent"
-				err := store.Create(fork)
-				Expect(err).NotTo(HaveOccurred())
-
-				// Set environment variable for fork registration
-				_ = os.Setenv("CLOTILDE_FORK_NAME", "existing-fork-resume")
-				defer func() { _ = os.Unsetenv("CLOTILDE_FORK_NAME") }()
-
-				// Create hook input with different UUID
-				hookInput := map[string]string{
-					"session_id": "new-different-uuid-resume",
-					"source":     "resume",
-				}
-				inputJSON, err := json.Marshal(hookInput)
-				Expect(err).NotTo(HaveOccurred())
-
-				// Execute hook sessionstart
-				err = executeHookWithInput("sessionstart", inputJSON)
-				Expect(err).NotTo(HaveOccurred())
-
-				// Verify UUID was NOT changed
-				updatedFork, err := store.Get("existing-fork-resume")
-				Expect(err).NotTo(HaveOccurred())
-				Expect(updatedFork.Metadata.SessionID).To(Equal("existing-uuid-resume"))
+				Expect(updatedFork.Metadata.SessionID).To(Equal("pre-assigned-uuid"))
 			})
 
 			It("should handle non-clotilde project gracefully", func() {

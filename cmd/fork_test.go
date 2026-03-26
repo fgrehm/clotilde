@@ -101,12 +101,19 @@ var _ = Describe("Fork Command", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(forkSettings.Model).To(Equal("opus"))
 
-		// Verify claude was invoked with --fork-session
+		// Verify claude was invoked with --fork-session and pre-assigned --session-id
 		args, err := testutil.ReadClaudeArgs(claudeArgsFile)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(args).To(ContainSubstring("--fork-session"))
 		Expect(args).To(ContainSubstring("--resume"))
 		Expect(args).To(ContainSubstring("uuid-parent-123"))
+		Expect(args).To(ContainSubstring("--session-id"))
+
+		// Fork must have a non-empty UUID pre-assigned before claude was invoked
+		fork, err = store.Get("child")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(fork.Metadata.SessionID).NotTo(BeEmpty())
+		Expect(args).To(ContainSubstring(fork.Metadata.SessionID))
 	})
 
 	It("should inherit system prompt from parent", func() {

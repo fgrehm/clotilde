@@ -54,7 +54,7 @@ func appendCommonArgs(args []string, settingsFile, systemPromptFile, systemPromp
 
 // Start invokes claude CLI to start a new session.
 func Start(clotildeRoot string, sess *session.Session, settingsFile, systemPromptFile string, additionalArgs []string) error {
-	args := []string{"--session-id", sess.Metadata.SessionID}
+	args := []string{"--session-id", sess.Metadata.SessionID, "-n", sess.Name}
 	args = appendCommonArgs(args, settingsFile, systemPromptFile, sess.Metadata.GetSystemPromptMode())
 	args = append(args, additionalArgs...)
 
@@ -73,7 +73,7 @@ func Start(clotildeRoot string, sess *session.Session, settingsFile, systemPromp
 
 // Resume invokes claude CLI to resume an existing session.
 func Resume(clotildeRoot string, sess *session.Session, settingsFile, systemPromptFile string, additionalArgs []string) error {
-	args := []string{"--resume", sess.Metadata.SessionID}
+	args := []string{"--resume", sess.Metadata.SessionID, "-n", sess.Name}
 	args = appendCommonArgs(args, settingsFile, systemPromptFile, sess.Metadata.GetSystemPromptMode())
 	args = append(args, additionalArgs...)
 
@@ -92,14 +92,12 @@ func Resume(clotildeRoot string, sess *session.Session, settingsFile, systemProm
 // The parent session will be resumed with --fork-session flag.
 // For ephemeral forks, cleanup will happen when Claude exits.
 func Fork(clotildeRoot string, parentSess *session.Session, forkName string, settingsFile, systemPromptFile string, additionalArgs []string, forkSession *session.Session) error {
-	args := []string{"--resume", parentSess.Metadata.SessionID, "--fork-session"}
+	args := []string{"--resume", parentSess.Metadata.SessionID, "--fork-session", "--session-id", forkSession.Metadata.SessionID, "-n", forkName}
 	args = appendCommonArgs(args, settingsFile, systemPromptFile, forkSession.Metadata.GetSystemPromptMode())
 	args = append(args, additionalArgs...)
 
 	env := map[string]string{
-		"CLOTILDE_SESSION_NAME":   forkName,
-		"CLOTILDE_FORK_NAME":      forkName,
-		"CLOTILDE_PARENT_SESSION": parentSess.Name,
+		"CLOTILDE_SESSION_NAME": forkName,
 	}
 
 	if forkSession.Metadata.IsIncognito {
@@ -221,8 +219,7 @@ func cleanupIncognitoSession(clotildeRoot string, sess *session.Session) (*Delet
 }
 
 // defaultSessionUsed checks if a Claude Code session was actually used by looking
-// for a transcript file. Sessions with no ID (e.g., forks where the hook didn't run)
-// are considered unused.
+// for a transcript file. Sessions with no ID are considered unused.
 func DefaultSessionUsed(clotildeRoot string, sess *session.Session) bool {
 	sessionID := sess.Metadata.SessionID
 	if sessionID == "" {
