@@ -6,7 +6,7 @@ A power-user companion for Claude Code.
 
 - Incognito cleanup only runs on normal exit (not SIGKILL/crashes)
 - `/compact` UUID tracking is defensive (Claude Code doesn't currently create new UUIDs for it)
-- `/fork` slash command inside a Clotilde session creates an untracked fork (see [slash-fork-handling spec](specs/slash-fork-handling.md))
+- `/rename` inside a session is detected post-exit (transcript scan); if the new name fails slug validation, clotilde skips it silently with a stderr warning
 - Zellij tab status integration blocked by Zellij limitations (see [investigation notes](zellij-tab-status.md))
 
 ## Tour Follow-ups
@@ -20,8 +20,7 @@ A power-user companion for Claude Code.
 
 - **Session stats**: Record session statistics (turns, time, tokens, tool usage) to daily JSONL files on session end. Opt-in via `clotilde setup --stats`. [Spec](specs/sessionend-stats.md)
 - **Zellij tab status**: Rename tab with emoji status during sessions. Blocked by `rename-tab` targeting focused tab and plugin off-by-one bug. Revisit when Zellij adds `--tab-index` support ([investigation](zellij-tab-status.md))
-- **`/fork` slash command support**: Auto-detect and register forks created via Claude Code's `/fork` command ([spec](specs/slash-fork-handling.md))
-- **`adopt` command**: Register existing Claude Code sessions into Clotilde
+- **`adopt` command**: Register existing Claude Code sessions into Clotilde (deferred from `/branch` detection work — hook covers the common case)
 - **Consolidate test framework**: Migrate to a single testing approach (standard `testing` or Ginkgo). Currently mixed: some packages use Ginkgo (`cmd/`, `internal/claude/hooks_test.go`), others use standard `testing` (`internal/claude/transcript_test.go`, `internal/claude/stats_file_test.go`). Both work with `go test` but the inconsistency adds friction.
 - **Session search**: Full-text search across transcripts
 - **Context templates**: Dynamic context (git branch, ticket info)
