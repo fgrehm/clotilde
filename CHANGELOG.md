@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`/branch` detection**: When the user runs `/branch` inside Claude, clotilde now detects it automatically via the `SessionStart` hook (which fires with a new UUID that doesn't match any registered session). The branch is registered as a new clotilde session with an auto-generated name (`<parent>-branch-N`). If the user provided a name to `/branch`, post-exit scanning reads the `custom-title` entry Claude writes to the branch transcript, strips the ` (Branch)` suffix, sanitizes to slug format, and renames the session accordingly.
+
+- **`/rename` detection**: After returning from a `start` or `resume` session, clotilde scans the transcript for the last `custom-title` entry (written inline when the user runs `/rename` inside Claude). If found and different from the current session name, the session directory is renamed automatically. Skipped if the new name fails slug validation.
+
+### Fixed
+
+- **`clotilde fork` UUID mismatch**: Previously, forked sessions ended up with the parent's UUID because `SessionStart` fires with the parent's UUID when using `--fork-session`. Fixed by pre-assigning a UUID with `--session-id` before invocation (same pattern as `start`). Also passes `-n <forkName>` so the fork appears in Claude's native session picker with the right name.
+
 ## [0.10.0] - 2026-03-24
 
 ### Added
