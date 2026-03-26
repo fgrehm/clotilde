@@ -123,6 +123,7 @@ Pass additional flags to Claude Code after '--':
 			err = claude.Start(result.ClotildeRoot, result.Session, result.SettingsFile, result.SystemPromptFile, additionalArgs)
 			if !result.Session.Metadata.IsIncognito {
 				detectRename(result.ClotildeRoot, result.Session)
+				detectBranchRenames(result.ClotildeRoot, result.Session)
 			}
 			return err
 		},
@@ -222,5 +223,6 @@ func handleExistingSession(cmd *cobra.Command, name, clotildeRoot string, store 
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\nResuming session '%s' (%s)\n\n", sess.Name, sess.Metadata.SessionID)
 	err = claude.Resume(clotildeRoot, sess, settingsFile, systemPromptFile, additionalArgs)
 	detectRename(clotildeRoot, sess)
+	detectBranchRenames(clotildeRoot, sess)
 	return err
 }

@@ -1,5 +1,24 @@
 {
-  "hooks": {},
+  "hooks": {
+    "SessionStart":       [{"hooks": [{"type": "command", "command": "clotilde hook notify"}]}],
+    "SessionEnd":         [{"hooks": [{"type": "command", "command": "clotilde hook notify"}]}],
+    "PreToolUse":         [{"hooks": [{"type": "command", "command": "clotilde hook notify"}]}],
+    "PostToolUse":        [{"hooks": [{"type": "command", "command": "clotilde hook notify"}]}],
+    "PostToolUseFailure": [{"hooks": [{"type": "command", "command": "clotilde hook notify"}]}],
+    "UserPromptSubmit":   [{"hooks": [{"type": "command", "command": "clotilde hook notify"}]}],
+    "Stop":               [{"hooks": [{"type": "command", "command": "clotilde hook notify"}]}],
+    "StopFailure":        [{"hooks": [{"type": "command", "command": "clotilde hook notify"}]}],
+    "SubagentStart":      [{"hooks": [{"type": "command", "command": "clotilde hook notify"}]}],
+    "SubagentStop":       [{"hooks": [{"type": "command", "command": "clotilde hook notify"}]}],
+    "PreCompact":         [{"hooks": [{"type": "command", "command": "clotilde hook notify"}]}],
+    "PostCompact":        [{"hooks": [{"type": "command", "command": "clotilde hook notify"}]}],
+    "Notification":       [{"hooks": [{"type": "command", "command": "clotilde hook notify"}]}],
+    "PermissionRequest":  [{"hooks": [{"type": "command", "command": "clotilde hook notify"}]}],
+    "FileChanged":        [{"hooks": [{"type": "command", "command": "clotilde hook notify"}]}],
+    "CwdChanged":         [{"hooks": [{"type": "command", "command": "clotilde hook notify"}]}],
+    "ConfigChange":       [{"hooks": [{"type": "command", "command": "clotilde hook notify"}]}],
+    "InstructionsLoaded": [{"hooks": [{"type": "command", "command": "clotilde hook notify"}]}]
+  },
   "includeCoAuthoredBy": false,
   "permissions": {
     "allow": [
