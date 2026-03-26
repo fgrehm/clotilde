@@ -145,7 +145,11 @@ Pass additional flags to Claude Code after '--':
 			_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Resuming session '%s' (%s)\n\n", name, sess.Metadata.SessionID)
 
 			// Invoke claude
-			return claude.Resume(clotildeRoot, sess, settingsFile, systemPromptFile, additionalArgs)
+			err = claude.Resume(clotildeRoot, sess, settingsFile, systemPromptFile, additionalArgs)
+			if !sess.Metadata.IsIncognito {
+				detectRename(clotildeRoot, sess)
+			}
+			return err
 		},
 	}
 	cmd.Flags().String("model", "", "Claude model to use (haiku, sonnet, opus)")

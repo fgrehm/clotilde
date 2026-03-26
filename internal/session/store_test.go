@@ -233,6 +233,59 @@ var _ = Describe("FileStore", func() {
 		})
 	})
 
+	Describe("Rename", func() {
+		It("should rename a session directory", func() {
+			s := session.NewSession("old-name", "uuid-rename")
+			err := store.Create(s)
+			Expect(err).NotTo(HaveOccurred())
+
+			err = store.Rename("old-name", "new-name")
+			Expect(err).NotTo(HaveOccurred())
+
+			Expect(store.Exists("old-name")).To(BeFalse())
+			Expect(store.Exists("new-name")).To(BeTrue())
+
+			retrieved, err := store.Get("new-name")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(retrieved.Metadata.SessionID).To(Equal("uuid-rename"))
+		})
+
+		It("should error if old session doesn't exist", func() {
+			err := store.Rename("nonexistent", "new-name")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("not found"))
+		})
+
+		It("should error if new name already exists", func() {
+			s1 := session.NewSession("source", "uuid-src")
+			err := store.Create(s1)
+			Expect(err).NotTo(HaveOccurred())
+
+			s2 := session.NewSession("destination", "uuid-dst")
+			err = store.Create(s2)
+			Expect(err).NotTo(HaveOccurred())
+
+			err = store.Rename("source", "destination")
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("already exists"))
+		})
+
+		It("should preserve session metadata after rename", func() {
+			s := session.NewSession("meta-old", "uuid-meta")
+			s.Metadata.Context = "some context"
+			err := store.Create(s)
+			Expect(err).NotTo(HaveOccurred())
+
+			err = store.Rename("meta-old", "meta-new")
+			Expect(err).NotTo(HaveOccurred())
+
+			retrieved, err := store.Get("meta-new")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(retrieved.Metadata.SessionID).To(Equal("uuid-meta"))
+			Expect(retrieved.Metadata.Context).To(Equal("some context"))
+		})
+	})
+
 	Describe("File existence checks", func() {
 		It("should check if settings file exists", func() {
 			s := session.NewSession("test-session", "uuid-123")
