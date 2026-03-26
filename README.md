@@ -14,7 +14,7 @@ Claude Code is great for single conversations, but as you start juggling multipl
 - **The resume picker doesn't scale**: Fine for 2-3 sessions, but with more it shows unhelpful text like "This session is being continued from a previous conversation that ran out of context..." Which one was your auth work again?
 - **No per-session configuration**: Want to use Haiku for a quick question and Opus for deep feature work? You have to change settings globally or pass flags every time.
 - **No persistent context injection**: There's no built-in way to feed the same background context (ticket info, project conventions, task goals) into every session automatically.
-- **Forking is low-level**: `--fork-session` and `/fork` exist but require knowing UUIDs, have no named fork tracking, and don't record parent/child relationships. There's no way to fork by name.
+- **Forking is low-level**: `--fork-session` and `/branch` exist but require knowing UUIDs, have no named fork tracking, and don't record parent/child relationships. There's no way to fork by name.
 
 ## What Clotilde does
 
@@ -50,7 +50,8 @@ Session names are stored as external name-to-UUID mappings, so they work reliabl
 Clotilde never patches or modifies Claude Code.
 
 - Each session is a folder in `.claude/clotilde/sessions/<name>/` containing metadata, optional settings, and system prompt files
-- SessionStart hooks handle fork registration, `/clear` UUID tracking, and context injection
+- SessionStart hooks handle `/clear` UUID tracking, context injection, and in-session `/branch` detection
+- Post-exit transcript scanning auto-detects `/rename` and updates branch session names when `/branch <name>` is used
 - Claude Code is invoked with `--session-id`, `--resume`, `--settings`, and `--append-system-prompt-file` flags
 
 **Note on worktrees:** Since `.claude/clotilde/` lives in each worktree's `.claude/` directory, each worktree gets its own independent sessions and context. Use worktrees for major branches/features, use Clotilde for managing multiple conversations within each worktree.

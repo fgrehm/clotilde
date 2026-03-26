@@ -1,4 +1,18 @@
-# Plan: First-class `/fork` slash command support
+# Plan: First-class `/branch` slash command support
+
+> **Status: Implemented** (as of 2026-03-26, branch `feat/fork-uuid-fix-oob-slash-commands`)
+>
+> The implementation follows this plan closely with some differences:
+> - Claude Code's `/fork` was renamed to `/branch` in a later release; all references below to `/fork` apply to `/branch`
+> - Detection uses UUID mismatch in `handleResume` (not a separate `detectSlashFork()`) with `readForkedFrom()` to verify parentage
+> - Branch auto-names use `<parent>-branch-N` (plan said `<parent>-fork-N`)
+> - The `adopt` command (Step 4) was deferred; hook-based detection covers the common case
+> - `getSessionName()` UUID validation (Step 3) was implemented as described
+> - Post-exit `detectBranchRenames()` renames sessions after Claude writes `custom-title` to transcript
+>
+> See `cmd/hook_sessionstart.go` (`handleBranch`, `readForkedFrom`, `generateBranchName`) and `cmd/slash_detect.go` (`detectBranchRenames`, `sanitizeBranchName`).
+
+---
 
 ## Context
 

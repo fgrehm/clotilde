@@ -161,10 +161,11 @@ claude --resume <uuid> \
 **Forking a session:**
 ```bash
 claude --resume <parent-uuid> --fork-session \
+  --session-id <fork-uuid> -n <fork-name> \
   [--settings ...] [--append-system-prompt-file ...]
 ```
 
-Note: `--settings` and `--append-system-prompt-file` are only added if the files exist.
+Note: `--settings` and `--append-system-prompt-file` are only added if the files exist. `--session-id` pre-assigns the fork's UUID (avoids hook-based UUID registration). `-n` sets the display name shown in Claude's native session picker.
 
 ### Session Hooks
 
@@ -186,17 +187,34 @@ Note: `--settings` and `--append-system-prompt-file` are only added if the files
 No matcher field - the single hook handles all sources (startup, resume, compact, clear) internally.
 
 **Source-based dispatch:**
-- **`startup`**: New sessions - outputs global context, saves transcript path
-- **`resume`**: Resuming/forking - registers fork UUID if `CLOTILDE_FORK_NAME` env var set, outputs context
+- **`startup`**: New sessions - outputs session name and context, saves transcript path
+- **`resume`**: Resuming, `clotilde fork`, or in-session `/branch` - outputs context; detects UUID mismatch to auto-register `/branch` as new clotilde session (see below)
 - **`compact`**: Session compaction - defensive handler (Claude Code doesn't currently create new UUID for `/compact`, but we handle it anyway in case behavior changes)
 - **`clear`**: Session clear - updates metadata with new UUID, preserves old UUID in `previousSessionIds` array
 
-**Fork registration:**
-1. `clotilde fork` creates fork folder with empty `sessionId` in metadata.json
-2. Sets env vars: `CLOTILDE_FORK_NAME`, `CLOTILDE_PARENT_SESSION`, `CLOTILDE_SESSION_NAME`
-3. Invokes `claude --resume <parent> --fork-session`
-4. Claude triggers SessionStart with `source: "resume"` → hook detects `CLOTILDE_FORK_NAME` and updates fork metadata with new UUID
-5. Hook is idempotent (won't overwrite existing UUIDs)
+**`clotilde fork` registration:**
+1. `clotilde fork` pre-assigns a UUID via `util.GenerateUUID()` before creating the session
+2. Sets env var: `CLOTILDE_SESSION_NAME` (for context output in hook)
+3. Invokes `claude --resume <parent> --fork-session --session-id <forkUUID> -n <forkName>`
+4. Claude triggers SessionStart with `source: "resume"` → hook outputs context for the new session
+5. Fork UUID is guaranteed to match because it was pre-assigned (no hook-based UUID registration needed)
+
+**In-session `/branch` detection (hook-time):**
+1. User runs `/branch [name]` inside Claude Code
+2. Claude creates a new UUID and triggers SessionStart with `source: "resume"`
+3. Hook sees `CLOTILDE_SESSION_NAME` set but the incoming UUID doesn't match the registered session
+4. Hook reads the first line of the new transcript to verify `forkedFrom.sessionId` matches parent
+5. Generates branch name as `<parent>-branch-N` (incrementing), creates new clotilde session
+6. Outputs "Clotilde: registered branch as '<name>'" to stderr
+7. Writes fork name to `CLAUDE_ENV_FILE` for correct `/clear` tracking inside the branch
+
+**Post-exit `/branch` rename detection:**
+After `invokeInteractive` returns in `claude.Resume()`/`claude.Start()`, `detectBranchRenames()` in `cmd/slash_detect.go`:
+1. Lists all sessions with `IsForkedSession=true` and `ParentSession` matching the current session
+2. For each session whose name matches the auto-generated `<parent>-branch-N` pattern
+3. Reads the branch transcript for the last `custom-title` entry (written by Claude when user provides a name)
+4. Strips ` (Branch)` suffix Claude appends, sanitizes to slug format
+5. Renames the session if the result is valid and not already taken
 
 **Clear handling:**
 1. User runs `/clear` in Claude Code
@@ -211,6 +229,14 @@ No matcher field - the single hook handles all sources (startup, resume, compact
 5. Session name persists across multiple `/clear` operations
 
 **Note on `/compact`:** Currently, Claude Code does NOT create a new session UUID when `/compact` is run (only `/clear` does). However, the hook defensively handles `source: "compact"` identically to `source: "clear"` in case Claude Code's behavior changes in the future.
+
+**Post-exit `/rename` detection:**
+After `invokeInteractive` returns in `claude.Resume()`/`claude.Start()`, `detectRename()` in `cmd/slash_detect.go`:
+1. Reads the session's transcript and scans for the last `{"type":"custom-title","customTitle":"..."}` entry
+2. If found and differs from the current session name, validates the new name (must pass `session.ValidateName` slug format)
+3. Calls `store.Rename(oldName, newName)` which renames the session directory on disk
+4. Logs a warning to stderr if the name fails validation (Claude allows arbitrary names; clotilde requires slug format)
+5. Updates `sess.Name` in-process so `detectBranchRenames` uses the updated name
 
 **Context loading:**
 - Hook outputs context to stdout which gets automatically injected by Claude Code
