@@ -269,7 +269,7 @@ var _ = Describe("Shorthand Flags", func() {
 	})
 
 	Describe("--fast on fork", func() {
-		It("should pass --model and --effort to claude", func() {
+		It("should persist model and effort in settings (not CLI args)", func() {
 			parent := session.NewSession("fork-parent-fast", "uuid-fork-parent-fast")
 			err := store.Create(parent)
 			Expect(err).NotTo(HaveOccurred())
@@ -284,8 +284,12 @@ var _ = Describe("Shorthand Flags", func() {
 
 			args, err := testutil.ReadClaudeArgs(claudeArgsFile)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(args).To(ContainSubstring("--model haiku"))
-			Expect(args).To(ContainSubstring("--effort low"))
+			Expect(args).NotTo(ContainSubstring("--effort"))
+
+			settings, err := store.LoadSettings("fork-child-fast")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(settings.Model).To(Equal("haiku"))
+			Expect(settings.EffortLevel).To(Equal("low"))
 		})
 	})
 
@@ -329,7 +333,7 @@ var _ = Describe("Shorthand Flags", func() {
 	})
 
 	Describe("--effort on fork", func() {
-		It("should pass --effort to claude", func() {
+		It("should persist effort in settings (not CLI args)", func() {
 			parent := session.NewSession("fork-parent-effort", "uuid-fork-parent-effort")
 			err := store.Create(parent)
 			Expect(err).NotTo(HaveOccurred())
@@ -344,7 +348,11 @@ var _ = Describe("Shorthand Flags", func() {
 
 			args, err := testutil.ReadClaudeArgs(claudeArgsFile)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(args).To(ContainSubstring("--effort medium"))
+			Expect(args).NotTo(ContainSubstring("--effort"))
+
+			settings, err := store.LoadSettings("fork-child-effort")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(settings.EffortLevel).To(Equal("medium"))
 		})
 	})
 

@@ -88,10 +88,15 @@ Pass additional flags to Claude Code after '--':
 			if err != nil {
 				return err
 			}
+
+			// Resolve model/effort from flags (persisted to settings.json below, not CLI args)
+			var forkModel, forkEffort string
 			if fastEnabled {
-				additionalArgs = append(additionalArgs, "--model", "haiku", "--effort", "low")
+				forkModel = "haiku"
+				forkEffort = "low"
 			} else {
-				additionalArgs = collectEffortFlag(cmd, additionalArgs)
+				effort, _ := cmd.Flags().GetString("effort")
+				forkEffort = effort
 			}
 
 			if err := session.ValidateName(forkName); err != nil {
@@ -188,6 +193,26 @@ Pass additional flags to Claude Code after '--':
 							}
 						}
 					}
+				}
+			}
+
+			// Apply model/effort overrides to fork settings.json (sticky, not CLI args)
+			if forkModel != "" || forkEffort != "" {
+				settings, err := store.LoadSettings(forkName)
+				if err != nil {
+					return fmt.Errorf("failed to load fork settings: %w", err)
+				}
+				if settings == nil {
+					settings = &session.Settings{}
+				}
+				if forkModel != "" {
+					settings.Model = forkModel
+				}
+				if forkEffort != "" {
+					settings.EffortLevel = forkEffort
+				}
+				if err := store.SaveSettings(forkName, settings); err != nil {
+					return fmt.Errorf("failed to save fork settings: %w", err)
 				}
 			}
 
