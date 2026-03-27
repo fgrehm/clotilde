@@ -285,5 +285,4 @@ var _ = Describe("Start Command", func() {
 		name := sessions[0].Name
 		Expect(name).To(MatchRegexp(`^\d{4}-\d{2}-\d{2}-[a-z]+-[a-z]+$`))
 	})
-
 })

@@ -157,4 +157,3 @@ func DeleteCustomStyleFile(clotildeRoot, sessionName string) error {
 
 	return nil
 }
-

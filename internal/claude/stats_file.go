@@ -159,4 +159,3 @@ func FindLastRecordDays(sessionID string, now time.Time, days int) (*SessionStat
 	}
 	return nil, nil
 }
-

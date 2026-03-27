@@ -45,5 +45,4 @@ var _ = Describe("Hooks", func() {
 			Expect(config.SessionEnd[0].Hooks[0].Command).To(Equal("/usr/local/bin/clotilde hook sessionend"))
 		})
 	})
-
 })

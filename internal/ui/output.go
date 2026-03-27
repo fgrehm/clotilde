@@ -19,4 +19,3 @@ func Info(msg string) string {
 	icon := InfoStyle.Render("ℹ")
 	return fmt.Sprintf("%s %s", icon, msg)
 }
-

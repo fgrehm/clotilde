@@ -64,4 +64,3 @@ func GenerateHookConfig(clotildeBinaryPath string, opts HookConfigOptions) HookC
 
 	return config
 }
-

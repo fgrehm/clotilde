@@ -117,4 +117,3 @@ var _ = Describe("BuildHTML", func() {
 		Expect(html).NotTo(ContainSubstring(`src="http`))
 	})
 })
-

@@ -117,4 +117,3 @@ func BuildHTML(sessionName string, entries []json.RawMessage) (string, error) {
 
 	return r.Replace(string(htmlTemplate)), nil
 }
-

@@ -41,5 +41,4 @@ var _ = Describe("Paths", func() {
 			Expect(path).To(Equal(expected))
 		})
 	})
-
 })

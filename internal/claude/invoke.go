@@ -361,4 +361,3 @@ func (t *tailBuffer) Write(p []byte) (int, error) {
 func (t *tailBuffer) String() string {
 	return string(t.buf)
 }
-

@@ -21,5 +21,4 @@ var _ = Describe("Detect", func() {
 			}
 		})
 	})
-
 })

@@ -26,4 +26,3 @@ func GenerateUUID() string {
 		uuid[8:10],
 		uuid[10:16])
 }
-

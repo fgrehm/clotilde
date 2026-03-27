@@ -43,4 +43,3 @@ func TestInfo(t *testing.T) {
 		t.Error("Info() did not include info icon")
 	}
 }
-

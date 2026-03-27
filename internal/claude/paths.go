@@ -29,4 +29,3 @@ func TranscriptPath(homeDir, clotildeRoot, sessionID string) string {
 	projectDir := ProjectDir(clotildeRoot)
 	return filepath.Join(homeDir, ".claude", "projects", projectDir, sessionID+".jsonl")
 }
-

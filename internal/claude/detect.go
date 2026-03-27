@@ -17,4 +17,3 @@ func IsInstalled() error {
 	}
 	return nil
 }
-

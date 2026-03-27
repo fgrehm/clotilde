@@ -147,5 +147,4 @@ var _ = Describe("MergedProfiles", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(merged).To(BeEmpty())
 	})
-
 })
