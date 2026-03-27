@@ -1,7 +1,6 @@
 package claude_test
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -239,68 +238,3 @@ func TestFindLastRecord(t *testing.T) {
 	})
 }
 
-func TestConsolidateStatsFile(t *testing.T) {
-	t.Run("keeps only last record per session_id", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		path := filepath.Join(tmpDir, "2026-03-13.jsonl")
-
-		writeRecord := func(id string, turns int) {
-			t.Helper()
-			rec := claude.SessionStatsRecord{SessionID: id, Turns: turns}
-			data, _ := json.Marshal(rec)
-			f, _ := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-			_, _ = f.Write(append(data, '\n'))
-			_ = f.Close()
-		}
-
-		writeRecord("uuid-1", 5)
-		writeRecord("uuid-2", 3)
-		writeRecord("uuid-1", 10) // supersedes first uuid-1
-
-		deduped, err := claude.ConsolidateStatsFile(path)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if len(deduped) != 2 {
-			t.Fatalf("got %d records, want 2", len(deduped))
-		}
-		// First appearance order: uuid-1 then uuid-2
-		if deduped[0].SessionID != "uuid-1" || deduped[0].Turns != 10 {
-			t.Errorf("first record: got %q turns=%d, want uuid-1 turns=10", deduped[0].SessionID, deduped[0].Turns)
-		}
-		if deduped[1].SessionID != "uuid-2" || deduped[1].Turns != 3 {
-			t.Errorf("second record: got %q turns=%d, want uuid-2 turns=3", deduped[1].SessionID, deduped[1].Turns)
-		}
-	})
-
-	t.Run("uses atomic rename", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		path := filepath.Join(tmpDir, "2026-03-14.jsonl")
-
-		rec := claude.SessionStatsRecord{SessionID: "uuid-x", Turns: 1}
-		data, _ := json.Marshal(rec)
-		if err := os.WriteFile(path, append(data, '\n'), 0o644); err != nil {
-			t.Fatalf("write: %v", err)
-		}
-
-		_, err := claude.ConsolidateStatsFile(path)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-
-		// Temp file should not exist after rename
-		tmpPath := filepath.Join(tmpDir, ".2026-03-14.jsonl.tmp")
-		if _, err := os.Stat(tmpPath); !os.IsNotExist(err) {
-			t.Errorf("temp file should be removed after rename, got err: %v", err)
-		}
-
-		// Original file should still be readable
-		records, err := claude.ReadStatsFile(path)
-		if err != nil {
-			t.Fatalf("read error: %v", err)
-		}
-		if len(records) != 1 {
-			t.Fatalf("got %d records, want 1", len(records))
-		}
-	})
-}

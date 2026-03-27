@@ -44,25 +44,6 @@ var _ = Describe("OutputStyle", func() {
 		})
 	})
 
-	Describe("ValidateBuiltIn", func() {
-		It("returns nil for valid built-in styles", func() {
-			Expect(outputstyle.ValidateBuiltIn("default")).To(Succeed())
-			Expect(outputstyle.ValidateBuiltIn("Explanatory")).To(Succeed())
-			Expect(outputstyle.ValidateBuiltIn("Learning")).To(Succeed())
-		})
-
-		It("returns error for invalid built-in style", func() {
-			err := outputstyle.ValidateBuiltIn("invalid")
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("invalid built-in style"))
-		})
-
-		It("is case-sensitive for validation", func() {
-			err := outputstyle.ValidateBuiltIn("Default")
-			Expect(err).To(HaveOccurred())
-		})
-	})
-
 	Describe("GetCustomStylePath", func() {
 		It("returns correct path for custom style", func() {
 			clotildeRoot := "/home/user/.claude/clotilde"
@@ -298,30 +279,4 @@ Content`
 		})
 	})
 
-	Describe("CustomStyleExists", func() {
-		var tmpDir string
-
-		BeforeEach(func() {
-			tmpDir = GinkgoT().TempDir()
-		})
-
-		It("returns true when custom style file exists", func() {
-			clotildeRoot := filepath.Join(tmpDir, ".claude", "clotilde")
-			err := os.MkdirAll(clotildeRoot, 0o755)
-			Expect(err).NotTo(HaveOccurred())
-
-			err = outputstyle.CreateCustomStyleFile(clotildeRoot, "existing", "content")
-			Expect(err).NotTo(HaveOccurred())
-
-			exists := outputstyle.CustomStyleExists(clotildeRoot, "existing")
-			Expect(exists).To(BeTrue())
-		})
-
-		It("returns false when custom style file doesn't exist", func() {
-			clotildeRoot := filepath.Join(tmpDir, ".claude", "clotilde")
-
-			exists := outputstyle.CustomStyleExists(clotildeRoot, "nonexistent")
-			Expect(exists).To(BeFalse())
-		})
-	})
 })

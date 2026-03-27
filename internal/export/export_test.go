@@ -1,11 +1,8 @@
 package export_test
 
 import (
-	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -121,52 +118,3 @@ var _ = Describe("BuildHTML", func() {
 	})
 })
 
-var _ = Describe("Export", func() {
-	It("writes HTML file to disk from fixture JSONL", func() {
-		tmpDir := GinkgoT().TempDir()
-
-		// Create fixture JSONL
-		transcriptPath := filepath.Join(tmpDir, "transcript.jsonl")
-		data := `{"type":"user","timestamp":"2025-01-01T00:01:00Z","message":{"content":"hello"}}
-{"type":"assistant","timestamp":"2025-01-01T00:01:05Z","message":{"content":[{"type":"text","text":"hi"}]}}
-`
-		err := os.WriteFile(transcriptPath, []byte(data), 0o644)
-		Expect(err).NotTo(HaveOccurred())
-
-		outputPath := filepath.Join(tmpDir, "output.html")
-		err = export.Export(transcriptPath, "test-session", outputPath)
-		Expect(err).NotTo(HaveOccurred())
-
-		// Verify file exists and contains HTML
-		content, err := os.ReadFile(outputPath)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(string(content)).To(ContainSubstring("<!DOCTYPE html>"))
-		Expect(string(content)).To(ContainSubstring("test-session"))
-	})
-
-	It("returns error for non-existent transcript path", func() {
-		tmpDir := GinkgoT().TempDir()
-		outputPath := filepath.Join(tmpDir, "output.html")
-		err := export.Export("/nonexistent/path.jsonl", "test", outputPath)
-		Expect(err).To(HaveOccurred())
-	})
-})
-
-var _ = Describe("ExportToWriter", func() {
-	It("writes HTML to a bytes.Buffer", func() {
-		tmpDir := GinkgoT().TempDir()
-
-		transcriptPath := filepath.Join(tmpDir, "transcript.jsonl")
-		data := `{"type":"user","message":{"content":"hello"}}
-{"type":"assistant","message":{"content":[{"type":"text","text":"hi"}]}}
-`
-		err := os.WriteFile(transcriptPath, []byte(data), 0o644)
-		Expect(err).NotTo(HaveOccurred())
-
-		var buf bytes.Buffer
-		err = export.ExportToWriter(transcriptPath, "test-session", &buf)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(buf.String()).To(ContainSubstring("<!DOCTYPE html>"))
-		Expect(buf.String()).To(ContainSubstring("test-session"))
-	})
-})

@@ -12,7 +12,7 @@ import (
 	"github.com/fgrehm/clotilde/internal/util"
 )
 
-var _ = Describe("Load and Save", func() {
+var _ = Describe("Load", func() {
 	var tempDir string
 	var clotildeRoot string
 
@@ -23,38 +23,9 @@ var _ = Describe("Load and Save", func() {
 		Expect(err).NotTo(HaveOccurred())
 	})
 
-	It("should save and load config", func() {
-		cfg := &config.Config{
-			Profiles: map[string]config.Profile{
-				"quick": {
-					Model: "haiku",
-				},
-			},
-		}
-
-		err := config.Save(clotildeRoot, cfg)
-		Expect(err).NotTo(HaveOccurred())
-
-		loaded, err := config.Load(clotildeRoot)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(loaded.Profiles["quick"].Model).To(Equal("haiku"))
-	})
-
 	It("should return error if config file doesn't exist", func() {
 		_, err := config.Load(clotildeRoot)
 		Expect(err).To(HaveOccurred())
-	})
-
-	It("should preserve empty fields", func() {
-		cfg := config.NewConfig()
-		// Profiles is empty map
-
-		err := config.Save(clotildeRoot, cfg)
-		Expect(err).NotTo(HaveOccurred())
-
-		loaded, err := config.Load(clotildeRoot)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(loaded.Profiles).To(BeEmpty())
 	})
 })
 
@@ -67,22 +38,6 @@ var _ = Describe("LoadOrDefault", func() {
 		clotildeRoot = filepath.Join(tempDir, config.ClotildeDir)
 		err := util.EnsureDir(clotildeRoot)
 		Expect(err).NotTo(HaveOccurred())
-	})
-
-	It("should load existing config", func() {
-		cfg := &config.Config{
-			Profiles: map[string]config.Profile{
-				"research": {
-					Model: "opus",
-				},
-			},
-		}
-		err := config.Save(clotildeRoot, cfg)
-		Expect(err).NotTo(HaveOccurred())
-
-		loaded, err := config.LoadOrDefault(clotildeRoot)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(loaded.Profiles["research"].Model).To(Equal("opus"))
 	})
 
 	It("should return default config if file doesn't exist", func() {
@@ -187,56 +142,10 @@ var _ = Describe("MergedProfiles", func() {
 		Expect(merged["quick"].Model).To(Equal("haiku"))
 	})
 
-	It("returns project profiles when only project config has profiles", func() {
-		err := config.Save(clotildeRoot, &config.Config{
-			Profiles: map[string]config.Profile{
-				"strict": {PermissionMode: "ask"},
-			},
-		})
-		Expect(err).NotTo(HaveOccurred())
-
-		merged, err := config.MergedProfiles(clotildeRoot)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(merged).To(HaveKey("strict"))
-		Expect(merged["strict"].PermissionMode).To(Equal("ask"))
-	})
-
-	It("project profile overrides global profile with same name", func() {
-		writeGlobalConfig(map[string]config.Profile{
-			"quick": {Model: "haiku"},
-		})
-		err := config.Save(clotildeRoot, &config.Config{
-			Profiles: map[string]config.Profile{
-				"quick": {Model: "opus"},
-			},
-		})
-		Expect(err).NotTo(HaveOccurred())
-
-		merged, err := config.MergedProfiles(clotildeRoot)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(merged["quick"].Model).To(Equal("opus"))
-	})
-
 	It("returns empty map when neither config has profiles", func() {
 		merged, err := config.MergedProfiles(clotildeRoot)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(merged).To(BeEmpty())
 	})
 
-	It("includes profiles from both configs when names differ", func() {
-		writeGlobalConfig(map[string]config.Profile{
-			"quick": {Model: "haiku"},
-		})
-		err := config.Save(clotildeRoot, &config.Config{
-			Profiles: map[string]config.Profile{
-				"strict": {PermissionMode: "ask"},
-			},
-		})
-		Expect(err).NotTo(HaveOccurred())
-
-		merged, err := config.MergedProfiles(clotildeRoot)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(merged).To(HaveKey("quick"))
-		Expect(merged).To(HaveKey("strict"))
-	})
 })

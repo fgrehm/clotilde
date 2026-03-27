@@ -48,5 +48,8 @@ jobs:
           path: coverage.html
           retention-days: 14
 
+      - name: Check for dead code
+        run: make deadcode
+
       - name: Build
         run: make build

@@ -1,4 +1,4 @@
-.PHONY: help build test test-watch install clean lint fmt coverage vendor setup-hooks
+.PHONY: help build test test-watch install clean lint fmt coverage vendor setup-hooks deadcode
 
 # Build variables
 BASE_VERSION := $(shell cat VERSION 2>/dev/null || echo "0.0.0")
@@ -79,6 +79,19 @@ coverage: ## Generate test coverage report
 	@go run github.com/onsi/ginkgo/v2/ginkgo -r --randomize-all --randomize-suites --cover --coverprofile=coverage.txt
 	@go tool cover -html=coverage.txt -o coverage.html
 	@echo "✓ Coverage report generated: coverage.html"
+
+deadcode: ## Check for unreachable functions
+	@output=$$(go run golang.org/x/tools/cmd/deadcode@latest ./... 2>&1 | grep -v \
+		-e 'cmd/root.go:.*NewRootCmd' \
+		-e 'internal/testutil/claude.go:.*CreateFakeClaude' \
+		-e 'internal/testutil/claude.go:.*ReadClaudeArgs' \
+	); \
+	if [ -n "$$output" ]; then \
+		echo "Dead code found:"; \
+		echo "$$output"; \
+		exit 1; \
+	fi
+	@echo "✓ No dead code found"
 
 vendor: ## Update vendored dependencies
 	@echo "Vendoring dependencies..."

@@ -42,14 +42,4 @@ var _ = Describe("Paths", func() {
 		})
 	})
 
-	Describe("AgentLogPattern", func() {
-		It("should generate correct agent log glob pattern", func() {
-			homeDir := "/home/user"
-			clotildeRoot := "/home/user/project/.claude/clotilde"
-
-			pattern := claude.AgentLogPattern(homeDir, clotildeRoot)
-			expected := filepath.Join(homeDir, ".claude", "projects", "-home-user-project", "agent-*.jsonl")
-			Expect(pattern).To(Equal(expected))
-		})
-	})
 })

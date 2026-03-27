@@ -28,14 +28,6 @@ func IsBuiltIn(style string) bool {
 	return style == "default" || style == "Explanatory" || style == "Learning"
 }
 
-// ValidateBuiltIn validates a built-in style value
-func ValidateBuiltIn(style string) error {
-	if !IsBuiltIn(style) {
-		return fmt.Errorf("invalid built-in style: %s (must be 'default', 'Explanatory', or 'Learning')", style)
-	}
-	return nil
-}
-
 // StyleExists checks if a style file exists in standard locations
 func StyleExists(clotildeRoot, styleName string) bool {
 	// Check project level: .claude/output-styles/<name>.md
@@ -166,9 +158,3 @@ func DeleteCustomStyleFile(clotildeRoot, sessionName string) error {
 	return nil
 }
 
-// CustomStyleExists checks if a custom style file exists
-func CustomStyleExists(clotildeRoot, sessionName string) bool {
-	stylePath := GetCustomStylePath(clotildeRoot, sessionName)
-	_, err := os.Stat(stylePath)
-	return err == nil
-}

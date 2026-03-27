@@ -30,9 +30,3 @@ func TranscriptPath(homeDir, clotildeRoot, sessionID string) string {
 	return filepath.Join(homeDir, ".claude", "projects", projectDir, sessionID+".jsonl")
 }
 
-// AgentLogPattern returns a glob pattern for finding agent logs for a session.
-// Format: ~/.claude/projects/<project-dir>/agent-*.jsonl
-func AgentLogPattern(homeDir, clotildeRoot string) string {
-	projectDir := ProjectDir(clotildeRoot)
-	return filepath.Join(homeDir, ".claude", "projects", projectDir, "agent-*.jsonl")
-}

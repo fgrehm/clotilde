@@ -19,13 +19,6 @@ func Load(clotildeRoot string) (*Config, error) {
 	return &cfg, nil
 }
 
-// Save writes the config to config.json in the clotilde root.
-// Returns an error if writing fails.
-func Save(clotildeRoot string, cfg *Config) error {
-	configPath := GetConfigPath(clotildeRoot)
-	return util.WriteJSON(configPath, cfg)
-}
-
 // LoadOrDefault loads the config, or returns a default config if it doesn't exist.
 // Returns an error only if the file exists but can't be read/parsed.
 func LoadOrDefault(clotildeRoot string) (*Config, error) {

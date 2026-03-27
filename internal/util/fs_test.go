@@ -240,29 +240,6 @@ var _ = Describe("HomeDir", func() {
 	})
 })
 
-var _ = Describe("ExpandHome", func() {
-	It("should expand ~ to home directory", func() {
-		expanded, err := util.ExpandHome("~/test/path")
-		Expect(err).NotTo(HaveOccurred())
-		Expect(expanded).NotTo(ContainSubstring("~"))
-		Expect(expanded).To(ContainSubstring("/test/path"))
-	})
-
-	It("should not modify paths without ~", func() {
-		path := "/absolute/path"
-		expanded, err := util.ExpandHome(path)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(expanded).To(Equal(path))
-	})
-
-	It("should only expand leading ~", func() {
-		path := "/path/to/~/something"
-		expanded, err := util.ExpandHome(path)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(expanded).To(Equal(path))
-	})
-})
-
 var _ = Describe("WriteFile and ReadFile", func() {
 	var tempDir string
 
@@ -288,40 +265,6 @@ var _ = Describe("WriteFile and ReadFile", func() {
 		err := util.WriteFile(testFile, []byte("test"))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(util.FileExists(testFile)).To(BeTrue())
-	})
-})
-
-var _ = Describe("CopyDir", func() {
-	var tempDir string
-
-	BeforeEach(func() {
-		tempDir = GinkgoT().TempDir()
-	})
-
-	It("should copy a directory recursively", func() {
-		srcDir := filepath.Join(tempDir, "source")
-		dstDir := filepath.Join(tempDir, "dest")
-
-		// Create source structure
-		err := os.MkdirAll(filepath.Join(srcDir, "subdir"), 0o755)
-		Expect(err).NotTo(HaveOccurred())
-		err = os.WriteFile(filepath.Join(srcDir, "file1.txt"), []byte("content1"), 0o644)
-		Expect(err).NotTo(HaveOccurred())
-		err = os.WriteFile(filepath.Join(srcDir, "subdir", "file2.txt"), []byte("content2"), 0o644)
-		Expect(err).NotTo(HaveOccurred())
-
-		// Copy directory
-		err = util.CopyDir(srcDir, dstDir)
-		Expect(err).NotTo(HaveOccurred())
-
-		// Verify destination
-		Expect(util.DirExists(dstDir)).To(BeTrue())
-		Expect(util.FileExists(filepath.Join(dstDir, "file1.txt"))).To(BeTrue())
-		Expect(util.FileExists(filepath.Join(dstDir, "subdir", "file2.txt"))).To(BeTrue())
-
-		// Verify content
-		content, _ := os.ReadFile(filepath.Join(dstDir, "file1.txt"))
-		Expect(string(content)).To(Equal("content1"))
 	})
 })
 

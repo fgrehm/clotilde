@@ -22,16 +22,4 @@ var _ = Describe("Detect", func() {
 		})
 	})
 
-	Describe("GetVersion", func() {
-		It("should get claude version if installed", func() {
-			// Skip this test if claude is not installed
-			if claude.IsInstalled() != nil {
-				Skip("claude CLI not installed")
-			}
-
-			version, err := claude.GetVersion()
-			Expect(err).NotTo(HaveOccurred())
-			Expect(version).NotTo(BeEmpty())
-		})
-	})
 })

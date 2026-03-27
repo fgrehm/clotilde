@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"html"
 	"io"
-	"os"
 	"strings"
 )
 
@@ -119,45 +118,3 @@ func BuildHTML(sessionName string, entries []json.RawMessage) (string, error) {
 	return r.Replace(string(htmlTemplate)), nil
 }
 
-// Export reads a transcript JSONL file, filters it, and writes a self-contained HTML file.
-func Export(transcriptPath, sessionName, outputPath string) error {
-	out, err := buildFromFile(transcriptPath, sessionName)
-	if err != nil {
-		return err
-	}
-
-	if err := os.WriteFile(outputPath, []byte(out), 0o644); err != nil {
-		return fmt.Errorf("writing output file: %w", err)
-	}
-
-	return nil
-}
-
-// ExportToWriter reads a transcript JSONL file, filters it, and writes HTML to w.
-func ExportToWriter(transcriptPath, sessionName string, w io.Writer) error {
-	out, err := buildFromFile(transcriptPath, sessionName)
-	if err != nil {
-		return err
-	}
-
-	if _, err := io.WriteString(w, out); err != nil {
-		return fmt.Errorf("writing HTML: %w", err)
-	}
-
-	return nil
-}
-
-func buildFromFile(transcriptPath, sessionName string) (string, error) {
-	f, err := os.Open(transcriptPath)
-	if err != nil {
-		return "", fmt.Errorf("opening transcript: %w", err)
-	}
-	defer func() { _ = f.Close() }()
-
-	entries, err := FilterTranscript(f)
-	if err != nil {
-		return "", err
-	}
-
-	return BuildHTML(sessionName, entries)
-}

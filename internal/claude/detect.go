@@ -18,12 +18,3 @@ func IsInstalled() error {
 	return nil
 }
 
-// GetVersion returns the claude CLI version.
-func GetVersion() (string, error) {
-	cmd := exec.Command("claude", "--version")
-	output, err := cmd.Output()
-	if err != nil {
-		return "", fmt.Errorf("failed to get claude version: %w", err)
-	}
-	return string(output), nil
-}

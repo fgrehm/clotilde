@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 )
 
 const (
@@ -132,21 +131,6 @@ func HomeDir() (string, error) {
 	return os.UserHomeDir()
 }
 
-// ExpandHome expands a path with a leading ~ to the user's home directory.
-// Returns the expanded path or an error if home directory cannot be determined.
-func ExpandHome(path string) (string, error) {
-	if !strings.HasPrefix(path, "~/") {
-		return path, nil
-	}
-
-	home, err := HomeDir()
-	if err != nil {
-		return "", err
-	}
-
-	return filepath.Join(home, path[2:]), nil
-}
-
 // WriteFile writes content to a file, creating parent directories if needed.
 // Returns an error if writing fails.
 func WriteFile(path string, content []byte) error {
@@ -160,45 +144,6 @@ func WriteFile(path string, content []byte) error {
 // Returns the file contents and any error encountered.
 func ReadFile(path string) ([]byte, error) {
 	return os.ReadFile(path)
-}
-
-// CopyDir recursively copies a directory from src to dst.
-// Returns an error if copy fails.
-func CopyDir(src, dst string) error {
-	srcInfo, err := os.Stat(src)
-	if err != nil {
-		return err
-	}
-	if !srcInfo.IsDir() {
-		return errors.New("source is not a directory")
-	}
-
-	// Create destination directory
-	if err := os.MkdirAll(dst, srcInfo.Mode()); err != nil {
-		return err
-	}
-
-	entries, err := os.ReadDir(src)
-	if err != nil {
-		return err
-	}
-
-	for _, entry := range entries {
-		srcPath := filepath.Join(src, entry.Name())
-		dstPath := filepath.Join(dst, entry.Name())
-
-		if entry.IsDir() {
-			if err := CopyDir(srcPath, dstPath); err != nil {
-				return err
-			}
-		} else {
-			if err := CopyFile(srcPath, dstPath); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
 }
 
 // RemoveAll removes a path and all its contents.
