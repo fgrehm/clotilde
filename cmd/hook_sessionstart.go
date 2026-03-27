@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -114,15 +113,6 @@ func handleStartup(clotildeRoot string, hookData hookInput, store session.Store)
 func handleResume(clotildeRoot string, hookData hookInput, store session.Store) error {
 	sessionName := os.Getenv("CLOTILDE_SESSION_NAME")
 
-	// Detect OOB /branch: Claude fires SessionStart with source "resume" and a brand-new
-	// UUID that doesn't match the registered session ID for CLOTILDE_SESSION_NAME.
-	// The new transcript's first line already contains forkedFrom.sessionId at hook time.
-	if sessionName != "" && hookData.SessionID != "" {
-		if sess, err := store.Get(sessionName); err == nil && sess.Metadata.SessionID != hookData.SessionID {
-			return handleBranch(clotildeRoot, hookData, sess, store)
-		}
-	}
-
 	// Crash recovery must run before saveTranscriptPath, which updates LastAccessed.
 	// If it ran after, attemptCrashRecovery would always see a fresh timestamp and
 	// skip via the <30s fast-path, making recovery never trigger.
@@ -151,83 +141,6 @@ func handleResume(clotildeRoot string, hookData hookInput, store session.Store) 
 	outputContexts(clotildeRoot, store, sessionName)
 
 	return nil
-}
-
-// handleBranch registers an OOB /branch as a new clotilde session.
-// Called when the hook's session_id doesn't match the registered parent UUID.
-func handleBranch(clotildeRoot string, hookData hookInput, parentSess *session.Session, store session.Store) error {
-	// Verify this is really a /branch of the expected parent
-	parentID, ok := readForkedFrom(hookData.TranscriptPath)
-	if !ok || parentID != parentSess.Metadata.SessionID {
-		// Not a /branch of this parent — output context for parent and move on
-		outputContexts(clotildeRoot, store, parentSess.Name)
-		return nil
-	}
-
-	// Generate a unique branch name: <parent>-branch-1, -branch-2, …
-	branchName := generateBranchName(parentSess.Name, store)
-
-	branch := session.NewSession(branchName, hookData.SessionID)
-	branch.Metadata.IsForkedSession = true
-	branch.Metadata.ParentSession = parentSess.Name
-	branch.Metadata.TranscriptPath = hookData.TranscriptPath
-	branch.Metadata.Context = parentSess.Metadata.Context // Inherit context
-
-	if err := store.Create(branch); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "clotilde: failed to register /branch session: %v\n", err)
-		outputContexts(clotildeRoot, store, parentSess.Name)
-		return nil
-	}
-
-	if err := writeSessionNameToEnv(branchName); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Warning: failed to write session name to env: %v\n", err)
-	}
-
-	_, _ = fmt.Fprintf(os.Stderr, "clotilde: /branch detected — registered as '%s'\n", branchName)
-
-	outputContexts(clotildeRoot, store, branchName)
-	return nil
-}
-
-// readForkedFrom reads the first line of a JSONL transcript and returns
-// the forkedFrom.sessionId if present. Claude writes this on every record
-// of a branched session, including the very first hook-progress line.
-func readForkedFrom(transcriptPath string) (string, bool) {
-	if transcriptPath == "" {
-		return "", false
-	}
-	f, err := os.Open(transcriptPath)
-	if err != nil {
-		return "", false
-	}
-	defer func() { _ = f.Close() }()
-
-	r := bufio.NewReader(f)
-	line, err := r.ReadString('\n')
-	line = strings.TrimRight(line, "\r\n")
-	if line == "" && err != nil {
-		return "", false
-	}
-
-	var ev struct {
-		ForkedFrom struct {
-			SessionID string `json:"sessionId"`
-		} `json:"forkedFrom"`
-	}
-	if json.Unmarshal([]byte(line), &ev) == nil && ev.ForkedFrom.SessionID != "" {
-		return ev.ForkedFrom.SessionID, true
-	}
-	return "", false
-}
-
-// generateBranchName returns the first available "<parent>-branch-N" name.
-func generateBranchName(parentName string, store session.Store) string {
-	for i := 1; ; i++ {
-		name := fmt.Sprintf("%s-branch-%d", parentName, i)
-		if !store.Exists(name) {
-			return name
-		}
-	}
 }
 
 // attemptCrashRecovery checks if the previous invocation of this session ended

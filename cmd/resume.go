@@ -147,8 +147,7 @@ Pass additional flags to Claude Code after '--':
 			// Invoke claude
 			err = claude.Resume(clotildeRoot, sess, settingsFile, systemPromptFile, additionalArgs)
 			if !sess.Metadata.IsIncognito {
-				detectRename(clotildeRoot, sess)        // may update sess.Name
-				detectBranchRenames(clotildeRoot, sess) // uses updated sess.Name
+				detectRename(clotildeRoot, sess)
 			}
 			return err
 		},
