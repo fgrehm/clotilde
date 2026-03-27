@@ -8,13 +8,15 @@ A traditional Brazilian name - sometimes considered old-fashioned or humorous - 
 
 ## Why?
 
-Claude Code is great for single conversations, but as you start juggling multiple parallel sessions in the same project, things get painful:
+Claude Code has gotten better at session management: `-n` names sessions at startup, `/rename` and `/branch` work, and the `/resume` picker shows names. But if you work with multiple parallel sessions daily, there's still friction:
 
-- **Session naming is unreliable**: Claude Code has `/rename`, but names don't persist across resumes, can't be used with `--resume <name>`, and get overwritten by auto-generated slugs. There's no way to name a session at startup either.
-- **The resume picker doesn't scale**: Fine for 2-3 sessions, but with more it shows unhelpful text like "This session is being continued from a previous conversation that ran out of context..." Which one was your auth work again?
-- **No per-session configuration**: Want to use Haiku for a quick question and Opus for deep feature work? You have to change settings globally or pass flags every time.
-- **No persistent context injection**: There's no built-in way to feed the same background context (ticket info, project conventions, task goals) into every session automatically.
-- **Forking is low-level**: `--fork-session` and `/branch` exist but require knowing UUIDs, have no named fork tracking, and don't record parent/child relationships. There's no way to fork by name.
+- **No per-session configuration**: Want to use Haiku for a quick question and Opus for deep feature work? You have to pass flags every time. There's no way to define reusable presets.
+- **No persistent context injection**: There's no built-in way to feed background context (ticket info, task goals) into every session automatically.
+- **No session export**: Transcripts are JSONL files buried in `~/.claude/projects/`. There's no way to share a readable conversation with a colleague.
+- **No incognito mode**: Every session persists. There's no "quick throwaway" option that cleans up after itself.
+- **Forking by name**: `/branch` works but requires being inside the session. There's no way to fork by name from the command line, and no parent/child tracking.
+- **No shorthand flags**: Common workflows like "fast mode" (haiku + low effort) or "yolo mode" (bypass permissions) require remembering multiple flags.
+- **No shell completion**: Claude Code has no built-in shell completion. Community plugins complete flags, but nothing completes session names or profile names.
 
 ## What Clotilde does
 
@@ -43,15 +45,14 @@ clotilde start spike --profile quick       # use Haiku, bypass permissions
 clotilde export auth-feature
 ```
 
-Session names are stored as external name-to-UUID mappings, so they work reliably regardless of Claude Code's internal naming behavior. Profiles let you define reusable presets (model, permissions, output style) in a config file. Context is automatically injected at session start via hooks.
+Profiles let you define reusable presets (model, permissions, output style) in a config file. Context is automatically injected at session start via hooks. Session names are passed to Claude Code via `-n` so they appear in the native `/resume` picker too.
 
 ## How It Works
 
 Clotilde never patches or modifies Claude Code.
 
 - Each session is a folder in `.claude/clotilde/sessions/<name>/` containing metadata, optional settings, and system prompt files
-- SessionStart hooks handle `/clear` UUID tracking, context injection, and in-session `/branch` detection
-- Post-exit transcript scanning auto-detects `/rename` and updates branch session names when `/branch <name>` is used
+- SessionStart hooks handle `/clear` UUID tracking and context injection
 - Claude Code is invoked with `--session-id`, `--resume`, `--settings`, and `--append-system-prompt-file` flags
 
 **Note on worktrees:** Since `.claude/clotilde/` lives in each worktree's `.claude/` directory, each worktree gets its own independent sessions and context. Use worktrees for major branches/features, use Clotilde for managing multiple conversations within each worktree.
@@ -691,23 +692,22 @@ Generate shell completion scripts (bash, zsh, fish, powershell). See `clotilde c
 
 ## Related Work
 
-Claude Code has a `/rename` command, but session names don't persist reliably across resumes, can't be used with `--resume <name>`, and there's no `--session-name` flag for naming at startup. Several open issues track these gaps:
+Claude Code now has native session naming (`-n`/`--name`), `/rename`, `/branch`, and a `/resume` picker. Clotilde uses these features under the hood (passing `-n` to all invocations) and focuses on what Claude Code doesn't provide: profiles, context injection, export, incognito mode, and shorthand flags.
 
-- [#25870](https://github.com/anthropics/claude-code/issues/25870) - `--session-name` flag for naming sessions at startup
-- [#26249](https://github.com/anthropics/claude-code/issues/26249) - `/rename` names not indexed, can't resume by name
-- [#26240](https://github.com/anthropics/claude-code/issues/26240) - Session names lost after resuming and continuing work
-- [#11408](https://github.com/anthropics/claude-code/issues/11408) - Named sessions for easier identification
+**Note on `/branch` and `/rename`:** Clotilde does not detect or track when you use these commands inside Claude Code. If you want clotilde-managed forks, use `clotilde fork`. If you use `/branch` directly, the resulting session lives outside clotilde's tracking.
 
-### Existing solutions
+### Other tools in this space
 
 - [**tweakcc**](https://github.com/Piebald-AI/tweakcc) - Patches Claude Code to add custom system prompts, toolsets, themes, and more
-- [**claude-code-session-name**](https://github.com/richardkmichael/claude-code-session-name) - Python wrapper adding `--session-name` flag, stores names in SQLite
+- [**claude-code-transcripts**](https://github.com/simonw/claude-code-transcripts) - Python tool for converting JSONL transcripts to HTML (by Simon Willison)
+- [**claude-code-log**](https://github.com/daaain/claude-code-log) - Python CLI for transcript viewing with TUI browser
+- [**OpCode**](https://github.com/winfunc/opcode) - GUI app for managing Claude Code sessions, agents, and background tasks
 
 Clotilde is different because:
 
 - Non-invasive (doesn't patch or modify Claude Code)
 - Native Go binary (no runtime dependencies)
-- Goes beyond naming: profiles, context injection, incognito sessions, forking, session export
+- Focuses on ergonomics: profiles, context injection, incognito sessions, forking by name, session export, shorthand flags, shell completion for session/profile names
 - Built-in cleanup (deletes sessions + associated Claude Code data)
 
 ## Development
