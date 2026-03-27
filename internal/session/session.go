@@ -58,23 +58,6 @@ func NewSession(name, sessionID string) *Session {
 	}
 }
 
-// NewForkedSession creates a new forked session with empty sessionId.
-// The sessionId will be filled in later by the session-start hook.
-func NewForkedSession(name, parentName string) *Session {
-	now := time.Now()
-	return &Session{
-		Name: name,
-		Metadata: Metadata{
-			Name:            name,
-			SessionID:       "", // Will be filled by hook
-			Created:         now,
-			LastAccessed:    now,
-			ParentSession:   parentName,
-			IsForkedSession: true,
-		},
-	}
-}
-
 // NewIncognitoSession creates a new incognito session that will auto-delete on exit.
 func NewIncognitoSession(name, sessionID string) *Session {
 	sess := NewSession(name, sessionID)

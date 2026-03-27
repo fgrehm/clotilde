@@ -38,6 +38,14 @@ Pass additional flags to Claude Code after '--':
 			// Get incognito flag early to determine if we need a name
 			incognito, _ := cmd.Flags().GetBool("incognito")
 
+			// Find or create clotilde root
+			clotildeRoot, err := config.FindOrCreateClotildeRoot()
+			if err != nil {
+				return fmt.Errorf("failed to initialize session storage: %w", err)
+			}
+
+			store := session.NewFileStore(clotildeRoot)
+
 			var forkName string
 			if len(args) >= 2 {
 				forkName = args[1]
@@ -47,12 +55,6 @@ Pass additional flags to Claude Code after '--':
 					return fmt.Errorf("fork name required (or use --incognito for random name)")
 				}
 
-				// Generate unique random name
-				clotildeRoot, err := config.FindOrCreateClotildeRoot()
-				if err != nil {
-					return fmt.Errorf("failed to initialize session storage: %w", err)
-				}
-				store := session.NewFileStore(clotildeRoot)
 				sessions, err := store.List()
 				if err != nil {
 					return fmt.Errorf("failed to list sessions: %w", err)
@@ -73,7 +75,7 @@ Pass additional flags to Claude Code after '--':
 				additionalArgs = args[argsLenAtDash:]
 			}
 
-			// Resolve shorthand flags (fork doesn't create sessions, pass to claude CLI)
+			// Resolve shorthand flags
 			permMode, err := resolvePermissionMode(cmd)
 			if err != nil {
 				return err
@@ -92,19 +94,9 @@ Pass additional flags to Claude Code after '--':
 				additionalArgs = collectEffortFlag(cmd, additionalArgs)
 			}
 
-			// Find or create clotilde root
-			clotildeRoot, err := config.FindOrCreateClotildeRoot()
-			if err != nil {
-				return fmt.Errorf("failed to initialize session storage: %w", err)
-			}
-
-			// Validate fork name
 			if err := session.ValidateName(forkName); err != nil {
 				return err
 			}
-
-			// Create store
-			store := session.NewFileStore(clotildeRoot)
 
 			// Check if fork already exists
 			if store.Exists(forkName) {
@@ -149,12 +141,46 @@ Pass additional flags to Claude Code after '--':
 			forkDir := config.GetSessionDir(clotildeRoot, forkName)
 			parentDir := config.GetSessionDir(clotildeRoot, parentName)
 
-			// Copy settings.json if exists
-			parentSettings := filepath.Join(parentDir, "settings.json")
-			if util.FileExists(parentSettings) {
-				forkSettings := filepath.Join(forkDir, "settings.json")
-				if err := util.CopyFile(parentSettings, forkSettings); err != nil {
+			// Copy settings.json and handle custom output style inheritance
+			parentSettingsPath := filepath.Join(parentDir, "settings.json")
+			if util.FileExists(parentSettingsPath) {
+				forkSettingsPath := filepath.Join(forkDir, "settings.json")
+				if err := util.CopyFile(parentSettingsPath, forkSettingsPath); err != nil {
 					return fmt.Errorf("failed to copy settings: %w", err)
+				}
+
+				// Check for custom output style that needs its own copy
+				parentSettingsData, err := os.ReadFile(parentSettingsPath)
+				if err == nil {
+					var parsedSettings session.Settings
+					if err := json.Unmarshal(parentSettingsData, &parsedSettings); err == nil {
+						if parsedSettings.OutputStyle != "" && strings.HasPrefix(parsedSettings.OutputStyle, "clotilde/") {
+							parentStyleName := strings.TrimPrefix(parsedSettings.OutputStyle, "clotilde/")
+							parentStylePath := outputstyle.GetCustomStylePath(clotildeRoot, parentStyleName)
+							if util.FileExists(parentStylePath) {
+								styleContent, err := os.ReadFile(parentStylePath)
+								if err == nil {
+									content := string(styleContent)
+									parts := strings.SplitN(content, "---", 3)
+									if len(parts) == 3 {
+										content = strings.TrimSpace(parts[2])
+									}
+
+									if err := outputstyle.CreateCustomStyleFile(clotildeRoot, forkName, content); err != nil {
+										return fmt.Errorf("failed to copy custom output style: %w", err)
+									}
+
+									// Update the already-copied settings to reference the fork's style
+									parsedSettings.OutputStyle = outputstyle.GetCustomStyleReference(forkName)
+									updatedData, _ := json.MarshalIndent(parsedSettings, "", "  ")
+									_ = os.WriteFile(forkSettingsPath, updatedData, 0o644)
+
+									fork.Metadata.HasCustomOutputStyle = true
+									_ = store.Update(fork)
+								}
+							}
+						}
+					}
 				}
 			}
 
@@ -164,56 +190,6 @@ Pass additional flags to Claude Code after '--':
 				forkPrompt := filepath.Join(forkDir, "system-prompt.md")
 				if err := util.CopyFile(parentPrompt, forkPrompt); err != nil {
 					return fmt.Errorf("failed to copy system prompt: %w", err)
-				}
-			}
-
-			// Handle custom output style inheritance
-			parentSettingsPath := filepath.Join(parentDir, "settings.json")
-			if util.FileExists(parentSettingsPath) {
-				parentSettingsData, err := os.ReadFile(parentSettingsPath)
-				if err == nil {
-					var parentSettings session.Settings
-					if err := json.Unmarshal(parentSettingsData, &parentSettings); err == nil {
-						// Check if parent has custom output style (starts with "clotilde/")
-						if parentSettings.OutputStyle != "" && strings.HasPrefix(parentSettings.OutputStyle, "clotilde/") {
-							// Extract parent session name from style reference
-							parentStyleName := strings.TrimPrefix(parentSettings.OutputStyle, "clotilde/")
-
-							// Read parent's custom style file
-							parentStylePath := outputstyle.GetCustomStylePath(clotildeRoot, parentStyleName)
-							if util.FileExists(parentStylePath) {
-								styleContent, err := os.ReadFile(parentStylePath)
-								if err == nil {
-									// Extract just the content (skip frontmatter from parent)
-									content := string(styleContent)
-									// Simple frontmatter skip (find second "---" and take everything after)
-									parts := strings.SplitN(content, "---", 3)
-									if len(parts) == 3 {
-										content = strings.TrimSpace(parts[2])
-									}
-
-									// Create custom style for fork
-									if err := outputstyle.CreateCustomStyleFile(clotildeRoot, forkName, content); err != nil {
-										return fmt.Errorf("failed to copy custom output style: %w", err)
-									}
-
-									// Update fork's settings.json to reference new style
-									forkSettingsPath := filepath.Join(forkDir, "settings.json")
-									forkSettingsData, _ := os.ReadFile(forkSettingsPath)
-									var forkSettings session.Settings
-									if err := json.Unmarshal(forkSettingsData, &forkSettings); err == nil {
-										forkSettings.OutputStyle = outputstyle.GetCustomStyleReference(forkName)
-										updatedData, _ := json.MarshalIndent(forkSettings, "", "  ")
-										_ = os.WriteFile(forkSettingsPath, updatedData, 0o644)
-									}
-
-									// Update fork metadata
-									fork.Metadata.HasCustomOutputStyle = true
-									_ = store.Update(fork)
-								}
-							}
-						}
-					}
 				}
 			}
 

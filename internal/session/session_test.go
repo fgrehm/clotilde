@@ -27,23 +27,6 @@ var _ = Describe("Session", func() {
 		})
 	})
 
-	Describe("NewForkedSession", func() {
-		It("should create a forked session with empty sessionId", func() {
-			name := "forked-session"
-			parentName := "parent-session"
-
-			s := session.NewForkedSession(name, parentName)
-
-			Expect(s.Name).To(Equal(name))
-			Expect(s.Metadata.Name).To(Equal(name))
-			Expect(s.Metadata.SessionID).To(BeEmpty())
-			Expect(s.Metadata.Created).To(BeTemporally("~", time.Now(), time.Second))
-			Expect(s.Metadata.LastAccessed).To(BeTemporally("~", time.Now(), time.Second))
-			Expect(s.Metadata.IsForkedSession).To(BeTrue())
-			Expect(s.Metadata.ParentSession).To(Equal(parentName))
-		})
-	})
-
 	Describe("NewIncognitoSession", func() {
 		It("should create an incognito session with IsIncognito set to true", func() {
 			name := "incognito-session"

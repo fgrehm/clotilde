@@ -69,33 +69,38 @@ Handles fork registration, session ID updates, and context injection.`,
 
 		// Dispatch based on source field
 		switch hookData.Source {
-		case "startup":
-			return handleStartup(clotildeRoot, hookData, store)
-		case "resume":
-			return handleResume(clotildeRoot, hookData, store)
+		case "startup", "resume":
+			return handleStartupOrResume(clotildeRoot, hookData, store)
 		case "compact":
 			return handleCompact(clotildeRoot, hookData, store)
 		case "clear":
 			return handleClear(clotildeRoot, hookData, store)
 		default:
 			// Fallback to startup for backward compatibility or unknown sources
-			return handleStartup(clotildeRoot, hookData, store)
+			return handleStartupOrResume(clotildeRoot, hookData, store)
 		}
 	},
 }
 
-// handleStartup handles new session startup.
-func handleStartup(clotildeRoot string, hookData hookInput, store session.Store) error {
-	// Get session name from environment
+// handleStartupOrResume handles new session startup and session resumption.
+// On resume, it also runs crash recovery for stats tracking.
+func handleStartupOrResume(clotildeRoot string, hookData hookInput, store session.Store) error {
 	sessionName := os.Getenv("CLOTILDE_SESSION_NAME")
 
-	// Persist session name for statusline and future operations
 	if sessionName != "" {
+		// Crash recovery on resume: must run before saveTranscriptPath (which updates
+		// LastAccessed), otherwise the <30s fast-path would always skip recovery.
+		if hookData.Source == "resume" {
+			globalCfg, cfgErr := config.LoadGlobalOrDefault()
+			if cfgErr == nil && globalCfg.StatsTracking != nil && *globalCfg.StatsTracking {
+				attemptCrashRecovery(clotildeRoot, sessionName, store)
+			}
+		}
+
 		if err := writeSessionNameToEnv(sessionName); err != nil {
 			_, _ = fmt.Fprintf(os.Stderr, "Warning: failed to write session name to env: %v\n", err)
 		}
 
-		// Save transcript path to metadata
 		if hookData.TranscriptPath != "" {
 			if err := saveTranscriptPath(store, sessionName, hookData.TranscriptPath); err != nil {
 				_, _ = fmt.Fprintf(os.Stderr, "Warning: failed to save transcript path: %v\n", err)
@@ -103,41 +108,6 @@ func handleStartup(clotildeRoot string, hookData hookInput, store session.Store)
 		}
 	}
 
-	// Output session name, context, and global context
-	outputContexts(clotildeRoot, store, sessionName)
-
-	return nil
-}
-
-// handleResume handles session resumption.
-func handleResume(clotildeRoot string, hookData hookInput, store session.Store) error {
-	sessionName := os.Getenv("CLOTILDE_SESSION_NAME")
-
-	// Crash recovery must run before saveTranscriptPath, which updates LastAccessed.
-	// If it ran after, attemptCrashRecovery would always see a fresh timestamp and
-	// skip via the <30s fast-path, making recovery never trigger.
-	if sessionName != "" {
-		globalCfg, cfgErr := config.LoadGlobalOrDefault()
-		if cfgErr == nil && globalCfg.StatsTracking != nil && *globalCfg.StatsTracking {
-			attemptCrashRecovery(clotildeRoot, sessionName, store)
-		}
-	}
-
-	// Persist session name
-	if sessionName != "" {
-		if err := writeSessionNameToEnv(sessionName); err != nil {
-			_, _ = fmt.Fprintf(os.Stderr, "Warning: failed to write session name to env: %v\n", err)
-		}
-
-		// Save transcript path to metadata
-		if hookData.TranscriptPath != "" {
-			if err := saveTranscriptPath(store, sessionName, hookData.TranscriptPath); err != nil {
-				_, _ = fmt.Fprintf(os.Stderr, "Warning: failed to save transcript path: %v\n", err)
-			}
-		}
-	}
-
-	// Output session name, context, and global context
 	outputContexts(clotildeRoot, store, sessionName)
 
 	return nil
