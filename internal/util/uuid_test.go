@@ -11,7 +11,7 @@ var _ = Describe("GenerateUUID", func() {
 	It("should generate a valid UUID v4 string", func() {
 		uuid := util.GenerateUUID()
 		Expect(uuid).NotTo(BeEmpty())
-		Expect(uuid).To(MatchRegexp(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`))
+		Expect(uuid).To(MatchRegexp(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`))
 	})
 
 	It("should generate unique UUIDs", func() {
@@ -22,7 +22,7 @@ var _ = Describe("GenerateUUID", func() {
 
 	It("should generate UUIDs in the correct format", func() {
 		uuid := util.GenerateUUID()
-		// Format: 8-4-4-4-12 (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
-		Expect(uuid).To(MatchRegexp(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`))
+		// UUID v4: version nibble is 4, variant nibble is 8/9/a/b
+		Expect(uuid).To(MatchRegexp(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`))
 	})
 })
