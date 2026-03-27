@@ -81,7 +81,7 @@ coverage: ## Generate test coverage report
 	@echo "✓ Coverage report generated: coverage.html"
 
 deadcode: ## Check for unreachable functions
-	@output=$$(go tool deadcode ./... 2>&1 | grep -v \
+	@output=$$(go tool deadcode ./... | grep -v \
 		-e 'cmd/root.go:.*NewRootCmd' \
 		-e 'internal/testutil/claude.go:.*CreateFakeClaude' \
 		-e 'internal/testutil/claude.go:.*ReadClaudeArgs' \
