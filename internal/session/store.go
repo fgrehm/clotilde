@@ -50,9 +50,6 @@ type Store interface {
 
 	// SaveSystemPrompt saves system-prompt.md for a session
 	SaveSystemPrompt(name string, content string) error
-
-	// Rename renames a session directory from oldName to newName.
-	Rename(oldName, newName string) error
 }
 
 // FileStore implements Store using the filesystem.
@@ -242,30 +239,6 @@ func (fs *FileStore) LoadSystemPrompt(name string) (string, error) {
 	}
 
 	return string(content), nil
-}
-
-// Rename renames a session directory from oldName to newName.
-// The session name is derived from the directory name on load, so no metadata update is needed.
-func (fs *FileStore) Rename(oldName, newName string) error {
-	if err := ValidateName(oldName); err != nil {
-		return fmt.Errorf("invalid old name: %w", err)
-	}
-	if err := ValidateName(newName); err != nil {
-		return fmt.Errorf("invalid new name: %w", err)
-	}
-	if !fs.Exists(oldName) {
-		return fmt.Errorf("session '%s' not found", oldName)
-	}
-	if fs.Exists(newName) {
-		return fmt.Errorf("session '%s' already exists", newName)
-	}
-
-	oldDir := config.GetSessionDir(fs.clotildeRoot, oldName)
-	newDir := config.GetSessionDir(fs.clotildeRoot, newName)
-	if err := os.Rename(oldDir, newDir); err != nil {
-		return fmt.Errorf("failed to rename session directory: %w", err)
-	}
-	return nil
 }
 
 // SaveSystemPrompt saves system-prompt.md for a session.

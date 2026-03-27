@@ -120,11 +120,7 @@ Pass additional flags to Claude Code after '--':
 			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "\nStarting Claude Code...")
 
 			// Invoke claude
-			err = claude.Start(result.ClotildeRoot, result.Session, result.SettingsFile, result.SystemPromptFile, additionalArgs)
-			if !result.Session.Metadata.IsIncognito {
-				detectRename(result.ClotildeRoot, result.Session)
-			}
-			return err
+			return claude.Start(result.ClotildeRoot, result.Session, result.SettingsFile, result.SystemPromptFile, additionalArgs)
 		},
 	}
 	cmd.Flags().String("model", "", "Claude model to use (haiku, sonnet, opus)")
@@ -220,7 +216,5 @@ func handleExistingSession(cmd *cobra.Command, name, clotildeRoot string, store 
 	}
 
 	_, _ = fmt.Fprintf(cmd.OutOrStdout(), "\nResuming session '%s' (%s)\n\n", sess.Name, sess.Metadata.SessionID)
-	err = claude.Resume(clotildeRoot, sess, settingsFile, systemPromptFile, additionalArgs)
-	detectRename(clotildeRoot, sess)
-	return err
+	return claude.Resume(clotildeRoot, sess, settingsFile, systemPromptFile, additionalArgs)
 }
