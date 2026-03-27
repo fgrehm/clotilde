@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`effortLevel` persisted in `settings.json`**: The `--effort` flag (and `--fast`, which implies `effort: low`) is now stored in the session's `settings.json` as `effortLevel`. This means the effort level is automatically applied on resume without needing to pass `--effort` again.
+
 ### Fixed
 
 - **`clotilde fork` UUID mismatch**: Previously, forked sessions ended up with the parent's UUID because `SessionStart` fires with the parent's UUID when using `--fork-session`. Fixed by pre-assigning a UUID with `--session-id` before invocation (same pattern as `start`). Also passes `-n <name>` to `start`, `resume`, and `fork` so clotilde session names appear in Claude's native session picker.
+- **Propagate errors in fork custom output style handling**: `json.MarshalIndent`, `os.WriteFile`, and `store.Update` errors during fork style inheritance were previously silently discarded. They now return errors so forks fail loudly on inconsistent state.
 
 ## [0.10.0] - 2026-03-24
 

@@ -29,6 +29,7 @@ type Metadata struct {
 // Settings represents Claude Code session-specific settings stored in settings.json.
 type Settings struct {
 	Model       string      `json:"model,omitempty"`
+	EffortLevel string      `json:"effortLevel,omitempty"`
 	OutputStyle string      `json:"outputStyle,omitempty"`
 	Permissions Permissions `json:"permissions,omitempty"`
 }

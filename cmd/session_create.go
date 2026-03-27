@@ -50,6 +50,7 @@ func buildCommonParams(cmd *cobra.Command, name string) SessionCreateParams {
 	outputStyle, _ := cmd.Flags().GetString("output-style")
 	outputStyleFile, _ := cmd.Flags().GetString("output-style-file")
 	context, _ := cmd.Flags().GetString("context")
+	effort, _ := cmd.Flags().GetString("effort")
 
 	return SessionCreateParams{
 		Name:                    name,
@@ -66,6 +67,7 @@ func buildCommonParams(cmd *cobra.Command, name string) SessionCreateParams {
 		OutputStyle:             outputStyle,
 		OutputStyleFile:         outputStyleFile,
 		Context:                 context,
+		EffortLevel:             effort,
 	}
 }
 
@@ -85,6 +87,7 @@ type SessionCreateParams struct {
 	OutputStyle             string // built-in style, custom style name, or inline content
 	OutputStyleFile         string // path to custom style file
 	Context                 string // session context (e.g. "working on ticket GH-123")
+	EffortLevel             string // effort level (low, medium, high, max)
 	Incognito               bool
 }
 
@@ -195,6 +198,9 @@ func createSession(params SessionCreateParams) (*SessionCreateResult, error) {
 	// CLI flags override profile values
 	if params.Model != "" {
 		settings.Model = params.Model
+	}
+	if params.EffortLevel != "" {
+		settings.EffortLevel = params.EffortLevel
 	}
 
 	// Handle output style (CLI flags override profile)

@@ -148,10 +148,11 @@ var _ = Describe("Shorthand Flags", func() {
 			err := rootCmd.Execute()
 			Expect(err).NotTo(HaveOccurred())
 
-			// Verify model stored in settings
+			// Verify model and effort stored in settings
 			settings, err := store.LoadSettings("fast-session")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(settings.Model).To(Equal("haiku"))
+			Expect(settings.EffortLevel).To(Equal("low"))
 
 			// Verify effort passed to claude
 			args, err := testutil.ReadClaudeArgs(claudeArgsFile)
@@ -362,7 +363,7 @@ var _ = Describe("Shorthand Flags", func() {
 	})
 
 	Describe("--effort on start", func() {
-		It("should pass --effort to claude", func() {
+		It("should pass --effort to claude and persist in settings", func() {
 			rootCmd := cmd.NewRootCmd()
 			rootCmd.SetOut(io.Discard)
 			rootCmd.SetErr(io.Discard)
@@ -370,6 +371,11 @@ var _ = Describe("Shorthand Flags", func() {
 
 			err := rootCmd.Execute()
 			Expect(err).NotTo(HaveOccurred())
+
+			// Verify effort stored in settings
+			settings, err := store.LoadSettings("effort-session")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(settings.EffortLevel).To(Equal("high"))
 
 			args, err := testutil.ReadClaudeArgs(claudeArgsFile)
 			Expect(err).NotTo(HaveOccurred())
