@@ -2,60 +2,56 @@
 
 A power-user companion for Claude Code.
 
-## About the Name
-
-A traditional Brazilian name - sometimes considered old-fashioned or humorous - which adds a light, unpretentious personality to the tool. Pronounced more or less like **KLOH-teel-dee** (Portuguese-ish).
-
 ## Why?
 
-Claude Code has gotten better at session management: `-n` names sessions at startup, `/rename` and `/branch` work, and the `/resume` picker shows names. But if you work with multiple parallel sessions daily, there's still friction:
+Claude Code has gotten better at session management: `-n` names sessions, `/branch` creates forks, and `/resume` shows a picker. But daily use still has friction:
 
-- **No per-session configuration**: Want to use Haiku for a quick question and Opus for deep feature work? You have to pass flags every time — they don't stick. There's no way to define reusable presets either.
-- **No persistent context injection**: There's no built-in way to feed background context (ticket info, task goals) into every session automatically.
-- **No session export**: Transcripts are JSONL files buried in `~/.claude/projects/`. There's no way to share a readable conversation with a colleague.
-- **No incognito mode**: Every session persists. There's no "quick throwaway" option that cleans up after itself.
-- **Forking by name**: `/branch` works but requires being inside the session. There's no way to fork by name from the command line, and no parent/child tracking.
-- **No shorthand flags**: Common workflows like "fast mode" (haiku + low effort) or "yolo mode" (bypass permissions) require remembering multiple flags.
-- **No shell completion**: Claude Code has no built-in shell completion. Community plugins complete flags, but nothing completes session names or profile names.
+- **Flags don't stick**: Want opus for deep work and haiku for quick tasks? You re-pass `--model` every time. Clotilde persists model, effort level, permissions, and output style in each session — automatically re-applied on every resume.
+- **No reusable presets**: Clotilde profiles let you define named configurations (model, permissions, output style) in a config file and apply them with `--profile <name>`.
+- **No persistent context**: Clotilde's `--context` flag attaches a note to a session (ticket number, current goal) that's injected into Claude automatically at startup and resume.
+- **Every session persists**: Clotilde's incognito sessions auto-delete all data — metadata, transcripts, logs — when you exit.
+- **Fork only from inside Claude**: `clotilde fork` creates a branched conversation from anywhere on the command line, with parent/child tracking.
+- **Common flag combos are a mouthful**: `--fast` means haiku + low effort. `--yolo` means bypass permissions. One flag instead of two or three.
+- **No completion for session names**: Clotilde adds shell completion for session names and profile names across bash, zsh, and fish.
+- **Transcripts are unreadable JSONL**: `clotilde export` renders a session as self-contained HTML with syntax highlighting, collapsible thinking blocks, and formatted tool outputs.
 
 ## What Clotilde does
 
-Clotilde wraps Claude Code with named sessions, profiles, context injection, session export, and more.
-
 ```bash
-# Start a session (auto-generates a name if omitted)
+# Start and resume named sessions
 clotilde start auth-feature
-clotilde start                            # e.g. "2026-03-09-happy-fox"
-
-# Resume, fork, list
 clotilde resume auth-feature
-clotilde fork auth-feature experiment
 
-# Interactive dashboard (no subcommand)
-clotilde
+# Settings stick — set them once, re-applied automatically on every resume
+clotilde start deep-work --model opus --effort high
+clotilde resume deep-work                             # opus + high effort, no flags needed
 
-# Incognito sessions that auto-delete on exit
+# Profiles for reusable configurations
+clotilde start spike --profile quick                 # haiku + bypass permissions
+clotilde start review --profile strict               # deny Bash/Write, ask mode
+
+# Session context, injected into Claude at startup
+clotilde start auth-feature --context "working on GH-123"
+
+# Incognito: auto-deletes everything on exit
 clotilde incognito
 
-# Profiles for different workflows
-clotilde start review --profile strict     # deny Bash/Write permissions
-clotilde start spike --profile quick       # use Haiku, bypass permissions
+# Fork a session from the command line
+clotilde fork auth-feature auth-experiment
 
 # Export a session as self-contained HTML
 clotilde export auth-feature
+
+# Session stats: turns, tokens, tool usage
+clotilde stats auth-feature
+clotilde stats --all                                  # aggregate across recent sessions
+
+# Interactive codebase tours with Claude chat (experimental)
+clotilde tour generate --focus "authentication"
+clotilde tour serve
 ```
 
-Profiles let you define reusable presets (model, permissions, output style) in a config file. Context is automatically injected at session start via hooks. Session names are passed to Claude Code via `-n` so they appear in the native `/resume` picker too.
-
-## How It Works
-
-Clotilde never patches or modifies Claude Code.
-
-- Each session is a folder in `.claude/clotilde/sessions/<name>/` containing metadata, optional settings, and system prompt files
-- SessionStart hooks handle `/clear` UUID tracking and context injection
-- Claude Code is invoked with `--session-id`, `--resume`, `--settings`, and `--append-system-prompt-file` flags
-
-**Note on worktrees:** Since `.claude/clotilde/` lives in each worktree's `.claude/` directory, each worktree gets its own independent sessions and context. Use worktrees for major branches/features, use Clotilde for managing multiple conversations within each worktree.
+Clotilde is a thin wrapper: it maps human-readable names to Claude Code UUIDs, invokes `claude` with the right flags, and never patches or modifies Claude Code itself.
 
 ## Installation
 
@@ -90,16 +86,16 @@ go install github.com/fgrehm/clotilde@latest
 git clone https://github.com/fgrehm/clotilde
 cd clotilde
 make build
-make install  # Installs to ~/.local/bin
+make install  # installs to ~/.local/bin
 ```
 
 ## Quick Start
 
 ```bash
-# One-time setup (registers hooks globally)
+# One-time setup (registers SessionStart hooks globally)
 clotilde setup
 
-# Start a new named session (creates .claude/clotilde/ automatically)
+# Start a new named session
 clotilde start auth-feature
 
 # Resume it later
@@ -108,7 +104,7 @@ clotilde resume auth-feature
 # List all sessions
 clotilde list
 
-# Inspect a session
+# Inspect a session (settings, context, files)
 clotilde inspect auth-feature
 
 # Fork a session to try something different
@@ -118,130 +114,82 @@ clotilde fork auth-feature experiment
 clotilde delete experiment
 ```
 
-## Incognito Sessions
+## How It Works
 
-Incognito sessions automatically delete themselves when you exit. See [`clotilde incognito`](#clotilde-incognito-name-options) for usage.
+Clotilde never patches or modifies Claude Code.
 
-**Note:** Cleanup runs on normal exit (Ctrl+D, `/exit`). If the process crashes or is killed (SIGKILL), the session may persist. Use `clotilde delete <name>` to clean up manually.
+- Each session is a folder in `.claude/clotilde/sessions/<name>/` containing metadata and optional settings
+- `clotilde setup` registers a SessionStart hook in `~/.claude/settings.json` that handles context injection and `/clear` UUID tracking
+- Claude Code is invoked with `--session-id` (new sessions), `--resume` (existing), and `--settings` (model, effort, permissions)
 
-**Limitations:**
-- Cannot fork FROM incognito sessions (they'll auto-delete when you exit)
-- CAN fork TO incognito sessions (create an incognito fork of a regular session)
+**Worktrees:** `.claude/clotilde/` lives in each worktree's `.claude/` directory, so each worktree gets its own independent sessions. Use worktrees for major branches, Clotilde for managing multiple conversations within each.
 
-## Session Context
+**Gitignore:** `.claude/clotilde/` contains ephemeral, per-user session state — add it to your `.gitignore`.
 
-Attach context to a session so Claude knows what you're working on:
+## Features
+
+### Sticky Session Settings
+
+Flags set on `start` and `incognito` are saved to the session's `settings.json` and re-applied automatically on every resume. No need to repeat flags.
 
 ```bash
-# Set context when starting a session
-clotilde start auth-feature --context "working on ticket GH-123"
+# Set once
+clotilde start deep-work --model opus --effort high
 
-# Works with incognito and fork too
-clotilde incognito --fast --context "quick spike on caching"
+# Resume any number of times — settings apply automatically
+clotilde resume deep-work
+```
+
+**What gets persisted:** `--model`, `--effort`, `--fast` (stores `model=haiku` + `effortLevel=low`), `--permission-mode`, `--allowed-tools`, `--disallowed-tools`, `--add-dir`, `--output-style`.
+
+Override for a specific resume by passing the flag — CLI always wins over stored settings:
+
+```bash
+clotilde resume deep-work --model sonnet   # one-off override, stored settings unchanged
+```
+
+### Session Context
+
+Attach a note to a session so Claude knows what you're working on. Stored in session metadata and injected automatically at every startup:
+
+```bash
+clotilde start auth-feature --context "working on ticket GH-123"
 clotilde fork auth-feature experiment --context "trying JWT instead of sessions"
 
-# Update context when resuming
+# Update when switching tasks
 clotilde resume auth-feature --context "now on GH-456"
 ```
 
-Context is stored in session metadata and automatically injected into Claude at session start (alongside the session name). Forked sessions inherit context from the parent unless overridden with `--context`.
+Forked sessions inherit context from the parent unless overridden. `clotilde inspect <name>` shows the stored context.
 
-Use `clotilde inspect <name>` to see a session's current context.
+### Incognito Sessions
 
-## Shorthand Flags
-
-Common permission modes and presets have short, memorable flags available on all session commands (`start`, `incognito`, `resume`, `fork`):
+Incognito sessions auto-delete themselves — metadata, transcripts, and agent logs — when you exit:
 
 ```bash
-# Permission mode shortcuts
-clotilde start refactor --accept-edits    # auto-approve edits, ask for the rest
-clotilde incognito --yolo                 # bypass all permission checks
-clotilde start spike --plan               # plan mode
-clotilde resume my-session --dont-ask     # approve everything
-
-# Fast mode (haiku + low effort)
-clotilde start quick-check --fast
-clotilde incognito --fast --yolo          # quick throwaway, no prompts
-
-# Works on resume and fork too
-clotilde resume my-session --fast
-clotilde fork my-session experiment --accept-edits
+clotilde incognito
+clotilde incognito quick-test --fast
 ```
 
-**Permission shortcuts** (`--accept-edits`, `--yolo`, `--plan`, `--dont-ask`) are mutually exclusive with each other and with `--permission-mode`.
+Cleanup runs on normal exit (Ctrl+D, `/exit`). If the process is killed (SIGKILL), the session may persist; use `clotilde delete <name>` to clean up manually.
 
-**`--fast`** sets `--model haiku` and `--effort low`. Cannot be combined with `--model`.
+You cannot fork *from* an incognito session, but you can fork *to* one: `clotilde fork auth-feature temp --incognito`.
 
-## Sticky Session Settings
+### Forking
 
-Flags passed to `start` and `incognito` are persisted in the session's `settings.json` and automatically re-applied every time you resume — no need to repeat them.
+Fork creates a new session starting from the parent's conversation history:
 
 ```bash
-# Start with a specific model and effort level
-clotilde start deep-work --model opus --effort high
-
-# Resume later — opus + high effort is applied automatically
-clotilde resume deep-work
-
-# Same with --fast (stores model=haiku and effortLevel=low)
-clotilde start quick-check --fast
-clotilde resume quick-check   # still haiku + low effort
+clotilde fork auth-feature experiment
+clotilde fork auth-feature --incognito                          # random name, auto-deletes
+clotilde fork auth-feature temp --context "trying a different approach"
 ```
 
-**What gets persisted:**
-- `--model` (model name)
-- `--effort` (effort level)
-- `--fast` (stores both `model=haiku` and `effortLevel=low`)
-- `--permission-mode`, `--allowed-tools`, `--disallowed-tools`, `--add-dir`
-- `--output-style`, `--output-style-file`
-- Profile settings (applied as baseline before CLI flags)
+Settings and context are inherited from the parent. The fork gets its own UUID and metadata; the parent is unaffected.
 
-**Override on resume** by passing the flag again — CLI flags always win over stored settings:
+### Profiles
 
-```bash
-# Session stored with haiku; resume once with opus
-clotilde resume quick-check --model opus
-
-# Only affects this invocation, stored settings unchanged
-```
-
-Use `clotilde inspect <name>` to see what's stored for a session.
-
-## Pass-Through Flags
-
-Pass additional Claude Code flags directly using `--` separator:
-
-```bash
-# Debug mode
-clotilde start my-session -- --debug api,hooks
-
-# Verbose output
-clotilde resume my-session -- --verbose
-
-# Multiple flags
-clotilde incognito test -- --debug --permission-mode plan
-```
-
-**Common use cases:**
-- `--debug [filter]` - Debug specific categories (api, hooks, mcp, etc.)
-- `--verbose` - Verbose output
-- `--permission-mode <mode>` - Override permission mode (acceptEdits, plan, etc.)
-- `--dangerously-skip-permissions` - Bypass permissions (for sandboxed environments)
-- `--print` - Non-interactive output for scripting
-- `--output-format json` - JSON output
-
-**Note:** These flags are passed directly to Claude Code for that invocation only and are not persisted. Use `--model`, `--effort`, and other named flags instead if you want settings to stick across resumes (see [Sticky Session Settings](#sticky-session-settings)).
-
-## Session Profiles
-
-Define named presets for common session configurations. Use `--profile <name>` when creating sessions to apply a profile's settings.
-
-Profiles can be defined in two locations:
-
-- **Global**: `~/.config/clotilde/config.json` (respects `$XDG_CONFIG_HOME`) - available in all projects
-- **Project**: `.claude/clotilde/config.json` - scoped to a single project
-
-When both define a profile with the same name, the project version wins.
+Define named presets in a config file and apply them with `--profile`:
 
 ```json
 {
@@ -264,540 +212,296 @@ When both define a profile with the same name, the project version wins.
 }
 ```
 
-**Profile fields:**
-- `model` - Claude model (haiku, sonnet, opus)
-- `permissionMode` - Permission mode (acceptEdits, bypassPermissions, default, dontAsk, plan)
-- `permissions` - Granular permissions:
-  - `allow` - Tools Claude can always use
-  - `deny` - Tools Claude cannot use
-  - `ask` - Tools that require approval
-  - `additionalDirectories` - Extra directories Claude can access
-  - `defaultMode` - Default action for tools not in allow/deny/ask (ask, allow, or deny)
-  - `disableBypassPermissionsMode` - Disable permission bypass (boolean)
-- `outputStyle` - Output style (built-in or custom name)
-
-**Usage examples:**
+Place profiles in `~/.config/clotilde/config.json` (global, respects `$XDG_CONFIG_HOME`) or `.claude/clotilde/config.json` (project-scoped). Project profiles override global ones with the same name.
 
 ```bash
-# Apply "quick" profile (haiku + bypass permissions)
 clotilde start spike --profile quick
-
-# Apply "strict" profile (deny Bash/Write, ask mode)
 clotilde start sandboxed --profile strict
 
-# Combine profiles with CLI flags (CLI flags win)
+# CLI flags override profile values
 clotilde start research --profile quick --model sonnet
-
-# Use profile on incognito sessions
-clotilde incognito --profile quick
 ```
 
-**Precedence:** Global profile → project profile → CLI flags (each layer overrides the previous). For example, `--profile quick --model opus` uses the quick profile's settings but replaces its model with opus.
+**Profile fields:** `model`, `permissionMode`, `permissions` (allow/deny/ask/additionalDirectories/defaultMode/disableBypassPermissionsMode), `outputStyle`.
 
-## Output Styles
+**Precedence:** global profile → project profile → CLI flags.
 
-Customize how Claude communicates in each session using built-in or custom output styles:
+### Shorthand Flags
+
+Available on all commands (`start`, `incognito`, `resume`, `fork`):
 
 ```bash
-# Built-in styles
-clotilde start myfeature --output-style default
+# Permission modes
+clotilde start refactor --accept-edits    # auto-approve edits
+clotilde incognito --yolo                 # bypass all permission checks
+clotilde start spike --plan              # plan mode
+clotilde resume my-session --dont-ask    # approve everything without asking
+
+# Fast mode: haiku + low effort (persisted in session settings on start/incognito)
+clotilde start quick-check --fast
+clotilde incognito --fast --yolo
+```
+
+`--fast` cannot be combined with `--model` or `--effort`. Permission shortcuts are mutually exclusive with each other and with `--permission-mode`.
+
+### Output Styles
+
+Customize how Claude communicates in a session:
+
+```bash
+# Built-in styles (case-sensitive)
 clotilde start myfeature --output-style Explanatory
 clotilde start myfeature --output-style Learning
 
-# Existing project/user styles (by name)
-clotilde start myfeature --output-style my-project-style
-clotilde start myfeature --output-style my-personal-style
+# Custom style from file
+clotilde start myfeature --output-style-file ./my-style.md
 
-# Custom inline content (creates new session-specific style)
+# Inline custom content (creates a session-specific style file)
 clotilde start myfeature --output-style "Be concise and use bullet points"
 
-# Custom from file (creates new session-specific style)
-clotilde start myfeature --output-style-file ./my-style.md
+# Existing named style (from .claude/output-styles/ or ~/.claude/output-styles/)
+clotilde start myfeature --output-style my-project-style
 ```
 
-**How `--output-style` flag works:**
-1. Checks if value matches existing style in `.claude/output-styles/` or `~/.claude/output-styles/`
-2. If found, uses that style (no new file created)
-3. Else checks if value is a built-in style (`default`, `Explanatory`, `Learning`)
-4. Otherwise treats value as inline content and creates `.claude/output-styles/clotilde/<session-name>.md`
+Session-specific custom styles are stored in `.claude/output-styles/clotilde/<session-name>.md` and should be gitignored. Team-shared styles go in `.claude/output-styles/` (committed to git).
 
-**Note:** Case sensitivity matters! `"default"` is lowercase, `"Explanatory"` and `"Learning"` are capitalized.
+### Pass-Through Flags
 
-**Storage:** Session-specific custom styles are stored in `.claude/output-styles/clotilde/<session-name>.md` and should be gitignored (much like `.claude/clotilde`, they're ephemeral per-user customizations). Team members can share output styles by placing them in `.claude/output-styles/` (without the `clotilde/` subdirectory) and committing them to git.
-
-## Interactive Codebase Tours (Experimental)
-
-Clotilde includes an experimental tour system for interactive, browser-based codebase walkthroughs. Tours are CodeTour JSON files that guide users through architecture, design decisions, and key files with an integrated chat sidebar powered by Claude.
-
-**Note:** This feature is experimental and APIs may change. Feedback is welcome!
-
-### Creating Tours
-
-**Generate tours automatically** using Claude to analyze your codebase:
+Pass any Claude Code flag directly using `--`:
 
 ```bash
-# Generate a tour of the entire codebase
+clotilde start my-session -- --debug api,hooks
+clotilde resume my-session -- --verbose
+```
+
+Pass-through flags apply to that invocation only and are not persisted. Use named flags (`--model`, `--effort`, etc.) if you want settings to stick across resumes.
+
+### Interactive Tours (Experimental)
+
+Browser-based codebase walkthroughs with an integrated Claude chat sidebar. Tours are CodeTour JSON files (`.tours/*.tour`) that step through key files with descriptions and line references.
+
+```bash
+# Generate a tour using Claude
 clotilde tour generate
+clotilde tour generate --focus "authentication" --name auth-flow --model sonnet
 
-# Generate a focused tour of a specific area
-clotilde tour generate --focus "authentication" --name auth-flow
-
-# Use a specific Claude model for generation
-clotilde tour generate --model sonnet
-
-# Specify output location
-clotilde tour generate --name my-tour --dir /path/to/repo
-```
-
-Generated tours are saved to `.tours/<name>.tour` in CodeTour format (JSON). You can edit them manually afterward.
-
-### Browsing Tours
-
-**List available tours:**
-
-```bash
+# List available tours
 clotilde tour list
-```
 
-**Start the interactive tour server:**
-
-```bash
-# Default: haiku model, port 3333
+# Start the local tour server (default: http://localhost:3333)
 clotilde tour serve
-
-# Custom model and port
 clotilde tour serve --model sonnet --port 8080
-
-# Specify repository directory
-clotilde tour serve --dir /path/to/repo
 ```
 
-The tour server opens a local web app at `http://localhost:3333` (or your specified port) with:
-
-- **Code viewer** — Syntax-highlighted source code with line numbers
-- **Tour navigation** — Step-by-step tour with descriptions
-- **Chat sidebar** — Ask Claude Code about the code at the current tour step
-- **URL persistence** — Step selections are saved in the URL (`?step=N`)
-- **Persistent sessions** — Chat history persists across browser refreshes
-
-### Tour Format
-
-Tours are stored as `.tour` files in CodeTour format:
-
-```json
-{
-  "title": "Authentication Flow",
-  "steps": [
-    {
-      "file": "pkg/auth/auth.go",
-      "line": 42,
-      "description": "## Entry point\n\nThe `Login` function..."
-    },
-    {
-      "file": "pkg/auth/jwt.go",
-      "line": 1,
-      "description": "## Token generation\n\nJWT tokens are..."
-    }
-  ]
-}
-```
-
-**Fields:**
-- `title` — Tour title (displayed in the browser)
-- `steps` — Array of tour steps
-  - `file` — Relative path to source file
-  - `line` — Starting line number (required for highlighting)
-  - `description` — Step description (markdown format)
-
-### Chat in Tours
-
-When you ask a question in the tour's chat sidebar:
-
-- Claude sees the current **tour context** — tour name, step number, file path, line number, and step description
-- A **persistent Claude Code session** named `tour-<repo-name>` is created and reused across browser sessions
-- **System prompt replacement** — Claude's default system prompt is replaced with the tour guide role to focus on code explanation
-- Chat history is **preserved** across page refreshes and browser restarts
-
-**Reset chat** — Click the "Reset" button in the chat header to clear the visible chat history. The underlying Claude session is preserved, so context from previous messages persists on the server.
+The tour server creates a persistent `tour-<repo-name>` Clotilde session for chat continuity. Chat context includes the current tour step, file, and line. APIs may change — feedback welcome.
 
 ## Commands
 
 ### `clotilde setup [--local] [--stats] [--no-stats]`
 
-One-time setup that registers hooks in `~/.claude/settings.json` (Claude Code's global user settings). Run this once after installing clotilde. With `--stats`, also registers a SessionEnd hook that records session statistics (turns, tokens, models, tool usage) to daily JSONL files.
+One-time setup. Registers a SessionStart hook in `~/.claude/settings.json`.
 
 ```bash
-# Install hooks globally (default)
-clotilde setup
-
-# Install hooks in ~/.claude/settings.local.json instead
-clotilde setup --local
-
-# Enable session statistics tracking (records turns, tokens, tool usage)
-clotilde setup --stats
-
-# Disable statistics tracking
-clotilde setup --no-stats
+clotilde setup              # registers hooks globally (recommended)
+clotilde setup --local      # registers in ~/.claude/settings.local.json instead
+clotilde setup --stats      # also registers a SessionEnd hook for stats tracking
+clotilde setup --no-stats   # disable stats tracking
 ```
 
-After setup, `clotilde start` works in any project directory. The `.claude/clotilde/sessions/` directory is created automatically on first use.
-
-**Note:** The `.claude/clotilde/` directory (containing session metadata and transcript paths) should be gitignored. Sessions are ephemeral, per-user state that shouldn't be committed to the repository.
+After setup, `clotilde start` works in any project directory.
 
 ### `clotilde start [name] [options]`
 
-Start a new named session. If no name is provided, one is auto-generated using the format `YYYY-MM-DD-adjective-noun` (e.g. `2026-03-09-happy-fox`).
+Start a new named session. Auto-generates a name like `2026-03-09-happy-fox` if none is provided.
 
 ```bash
-# Auto-generated name
 clotilde start
-
-# Explicit name
 clotilde start my-session
-
-# With profile
+clotilde start bugfix --model haiku --effort low
 clotilde start spike --profile quick
-clotilde start sandboxed --profile strict
-
-# With custom model
-clotilde start bugfix --model haiku
-
-# Profile + CLI flag override
-clotilde start research --profile quick --model sonnet
-
-# With custom system prompt (append to default)
-clotilde start refactoring --append-system-prompt-file prompts/architect.md
-clotilde start review --append-system-prompt "Be critical and thorough"
-
-# Replace Claude's default system prompt entirely
-clotilde start minimal --replace-system-prompt-file prompts/custom.md
-clotilde start focused --replace-system-prompt "You are a focused coding assistant"
-
-# Create incognito session
-clotilde start quick-test --incognito
-
-# With permissions
-clotilde start sandboxed --permission-mode plan \
-  --allowed-tools "Read,Bash(npm:*)" \
-  --disallowed-tools "Write" \
-  --add-dir "../docs"
-
-# Combine options
-clotilde start research --model haiku --append-system-prompt "Focus on exploration"
+clotilde start sandboxed --permission-mode plan --allowed-tools "Read,Bash(npm:*)" --disallowed-tools "Write"
+clotilde start auth-feature --context "working on GH-123"
 ```
 
 **Options:**
-- `--profile <name>` - Named profile from config (applies model, permissions, and output style as baseline)
-- `--model <model>` - Model to use (haiku, sonnet, opus). CLI flag overrides profile.
-- `--fast` - Use haiku model with low effort for quick tasks
-- `--append-system-prompt <text>` - Add system prompt text (appends to Claude's default)
-- `--append-system-prompt-file <path>` - Add system prompt from file (appends to Claude's default)
-- `--replace-system-prompt <text>` - Replace Claude's default system prompt entirely with custom text
-- `--replace-system-prompt-file <path>` - Replace Claude's default system prompt entirely with file contents
-- `--context <text>` - Session context (e.g. "working on ticket GH-123"). Injected into Claude at session start.
-- `--incognito` - Create incognito session (auto-deletes on exit)
-- `--accept-edits` - Shorthand for `--permission-mode acceptEdits`
-- `--yolo` - Shorthand for `--permission-mode bypassPermissions`
-- `--plan` - Shorthand for `--permission-mode plan`
-- `--dont-ask` - Shorthand for `--permission-mode dontAsk`
-- `--permission-mode <mode>` - Permission mode (acceptEdits, bypassPermissions, default, dontAsk, plan). CLI flag overrides profile.
-- `--allowed-tools <tools>` - Comma-separated list of allowed tools (e.g. `Bash(npm:*),Read`). CLI flag overrides profile.
-- `--disallowed-tools <tools>` - Comma-separated list of disallowed tools (e.g. `Write,Bash(git:*)`). CLI flag overrides profile.
-- `--add-dir <directories>` - Additional directories to allow tool access to. CLI flag overrides profile.
-- `--output-style <style>` - Output style: `default`, `Explanatory`, `Learning`, existing style name, or custom content. CLI flag overrides profile.
-- `--output-style-file <path>` - Path to custom output style file. CLI flag overrides profile.
+- `--model <model>` — Model (haiku, sonnet, opus). Persisted in session settings.
+- `--effort <level>` — Reasoning effort (low, medium, high, max). Persisted in session settings.
+- `--fast` — haiku + low effort. Persisted in session settings.
+- `--profile <name>` — Named profile (baseline; CLI flags override).
+- `--context <text>` — Session context, injected at startup.
+- `--incognito` — Auto-delete session on exit.
+- `--accept-edits` — Shorthand for `--permission-mode acceptEdits`.
+- `--yolo` — Shorthand for `--permission-mode bypassPermissions`.
+- `--plan` — Shorthand for `--permission-mode plan`.
+- `--dont-ask` — Shorthand for `--permission-mode dontAsk`.
+- `--permission-mode <mode>` — acceptEdits, bypassPermissions, default, dontAsk, plan. Persisted.
+- `--allowed-tools <tools>` — Comma-separated allowed tools (e.g. `Bash(npm:*),Read`). Persisted.
+- `--disallowed-tools <tools>` — Comma-separated denied tools. Persisted.
+- `--add-dir <directories>` — Additional directories to allow access to. Persisted.
+- `--output-style <style>` — Built-in name, existing style name, or inline content. Persisted.
+- `--output-style-file <path>` — Path to custom output style file. Persisted.
+- `--append-system-prompt <text>` — System prompt text to append to Claude's default.
+- `--append-system-prompt-file <path>` — System prompt file to append.
+- `--replace-system-prompt <text>` — Replace Claude's default system prompt entirely.
+- `--replace-system-prompt-file <path>` — Replace default system prompt from file.
 
 ### `clotilde incognito [name] [options]`
 
-Start a new incognito session that automatically deletes when you exit. If no name is provided, a random name like "happy-fox" or "brave-wolf" will be generated.
+Start an incognito session that auto-deletes on exit. Same options as `clotilde start` (`--incognito` is implicit).
 
 ```bash
-# Random name (e.g., "clever-owl")
 clotilde incognito
-
-# Explicit name
 clotilde incognito quick-test
-
-# With model and random name
-clotilde incognito --model haiku
+clotilde incognito --fast --yolo
 ```
-
-**Options:** Same as `clotilde start` (except `--incognito` is implicit), including `--context`
 
 ### `clotilde resume [name] [options]`
 
-Resume a session by name. Shorthand flags are passed directly to Claude Code for that invocation.
+Resume a session by name. Shows an interactive picker if no name is provided (TTY only). Stored settings from `settings.json` are applied automatically; flags override them for this invocation only.
 
 ```bash
 clotilde resume auth-feature
-clotilde resume auth-feature --fast
+clotilde resume auth-feature --model sonnet        # one-off model override
+clotilde resume auth-feature --fast                # one-off fast mode
 clotilde resume auth-feature --accept-edits
 clotilde resume auth-feature --context "now on GH-456"
 ```
 
 **Options:**
-- `--context <text>` - Update session context (e.g. "now working on GH-456")
-- `--accept-edits`, `--yolo`, `--plan`, `--dont-ask`, `--fast` (see [Shorthand Flags](#shorthand-flags))
-
-### `clotilde list`
-
-List all sessions with details (name, model, last used).
-
-### `clotilde inspect <name>`
-
-Show detailed session information including files, settings, context sources, and Claude Code data status.
-
-```bash
-clotilde inspect auth-feature
-```
+- `--context <text>` — Update the stored session context.
+- `--model <model>` — Override model for this invocation only.
+- `--effort <level>` — Override effort level for this invocation only.
+- `--accept-edits`, `--yolo`, `--plan`, `--dont-ask`, `--fast` — Shorthand flags.
 
 ### `clotilde fork <parent> [name] [options]`
 
-Fork a session to try different approaches without losing the original.
-
-If no name is provided for incognito forks, a random name will be generated.
+Fork a session. Inherits settings and context from the parent. If no name is provided with `--incognito`, a random name is generated.
 
 ```bash
 clotilde fork auth-feature auth-experiment
-
-# Create incognito fork with explicit name
-clotilde fork auth-feature temp-experiment --incognito
-
-# Create incognito fork with random name (e.g., "clever-owl")
 clotilde fork auth-feature --incognito
+clotilde fork auth-feature temp --context "trying different approach"
 ```
 
 **Options:**
-- `--context <text>` - Override context for the fork (inherits from parent if not specified)
-- `--incognito` - Create fork as incognito session (auto-deletes on exit)
-- `--accept-edits`, `--yolo`, `--plan`, `--dont-ask`, `--fast` - Shorthand flags (see [Shorthand Flags](#shorthand-flags))
+- `--context <text>` — Context for the fork (inherits from parent if not specified).
+- `--incognito` — Fork as incognito session.
+- `--accept-edits`, `--yolo`, `--plan`, `--dont-ask`, `--fast` — Shorthand flags.
 
-**Note:** You cannot fork FROM incognito sessions, but you can fork TO incognito sessions.
+**Note:** Cannot fork *from* incognito sessions; can fork *to* them.
+
+### `clotilde list`
+
+List all sessions with name, model, and last used timestamp.
+
+### `clotilde inspect <name>`
+
+Show detailed session info: UUID, timestamps, settings, context, associated files, and Claude Code data status.
+
+### `clotilde delete <name> [--force]`
+
+Delete a session and all associated Claude Code data (current and previous transcripts, agent logs).
+
+- `--force, -f` — Skip confirmation.
 
 ### `clotilde stats [name] [--all]`
 
-Show session activity statistics including turn count, timing, tokens, models, and tool usage. Parses Claude Code transcripts for per-session stats.
+Show session statistics: turns, timing, tokens, models used, tool usage. Parsed from Claude Code transcripts.
 
 ```bash
 clotilde stats auth-feature
-# Session stats: auth-feature
-# ---------------------------------
-# Turns         42
-# Started       Mar 9, 2026 10:30
-# Last active   Mar 9, 2026 18:42
-# Total time    8h 12m
-# Active time   2h 35m     (approx)
-# Avg response  3m 41s     (approx)
-#
-# Input tokens  1245k
-# Output tokens 245k
-# Cache read    890k
-#
-# Models        opus
-#
-# Tool usage:
-#   Edit           87
-#   Read           64
-#   Bash           23
-#   Grep           19
+clotilde stats --all         # aggregate across sessions active in last 7 days
 ```
 
-**Options:**
-- `--all` - Show aggregate stats across sessions active in the last 7 days (scoped to current project)
-
-With `--all`, reads from daily JSONL stats files recorded by the SessionEnd hook (enable with `clotilde setup --stats`). Falls back to parsing transcripts if no stats files exist. The JSONL files at `$XDG_DATA_HOME/clotilde/stats/` are designed for consumption by other tools (dashboards, scripts, etc.).
+`--all` reads from daily JSONL stats files (enable with `clotilde setup --stats`), falling back to parsing transcripts. Stats files at `$XDG_DATA_HOME/clotilde/stats/` are available for external tools and dashboards.
 
 ### `clotilde stats backfill`
 
-Generate stats records from existing session transcripts. Parses transcripts for all sessions in the current project and writes records to the daily JSONL files. Skips sessions that already have a record.
-
-```bash
-clotilde stats backfill
-#   auth-feature: 42 turns, 1490k tokens
-#   refactor-db: 18 turns, 520k tokens
-#
-# Backfill complete: 2 written, 1 skipped
-```
-
-Useful for populating stats after enabling tracking on an existing project.
+Generate stats records from existing transcripts for sessions that don't have them yet.
 
 ### `clotilde export <name> [options]`
 
-Export a session transcript as a self-contained HTML file. The output includes markdown rendering, syntax-highlighted code blocks, per-tool formatting, collapsible thinking blocks, and expandable tool outputs.
+Export a session as self-contained HTML with syntax-highlighted code, collapsible thinking blocks, and expandable tool outputs.
 
 ```bash
-# Export to default file (<name>.html)
 clotilde export auth-feature
-
-# Export to specific path
 clotilde export auth-feature -o ~/Desktop/auth-session.html
-
-# Pipe to stdout
 clotilde export auth-feature --stdout | wc -c
 ```
 
 **Options:**
-- `-o, --output <path>` - Output file path (default: `./<name>.html`)
-- `--stdout` - Write to stdout instead of file
+- `-o, --output <path>` — Output path (default: `./<name>.html`).
+- `--stdout` — Write to stdout.
 
-**Keyboard shortcuts** (in the exported HTML):
-- `Ctrl+T` - Toggle all thinking blocks
-- `Ctrl+O` - Toggle all tool outputs
+**Keyboard shortcuts** in the exported HTML: `Ctrl+T` toggles thinking blocks, `Ctrl+O` toggles tool outputs.
 
 ### `clotilde tour list [--dir PATH]`
 
-List all available tours in a project's `.tours/` directory.
+List `.tour` files in the project's `.tours/` directory. `--dir` sets the repository root (default: current directory).
 
-**Options:**
-- `--dir PATH` - Repository directory (default: current directory)
+### `clotilde tour serve [options]`
 
-```bash
-clotilde tour list
-clotilde tour list --dir /path/to/repo
-```
+Start the interactive tour server at `http://localhost:3333`.
 
-### `clotilde tour serve [--dir PATH] [--port PORT] [--model MODEL]`
+**Options:** `--dir PATH`, `--port PORT` (default: 3333), `--model MODEL` (default: haiku).
 
-Start the interactive tour web server. Opens a browser-based codebase walkthrough with integrated Claude chat.
+### `clotilde tour generate [options]`
 
-**Options:**
-- `--dir PATH` - Repository directory (default: current directory)
-- `--port PORT` - Listen port (default: 3333)
-- `--model MODEL` - Claude model for chat (default: haiku; options: haiku, sonnet, opus)
+Generate a tour by having Claude analyze the codebase. Saved to `.tours/<name>.tour`. On failure, raw output goes to `.tours/<name>.tour.invalid`.
 
-```bash
-# Default settings
-clotilde tour serve
-
-# Custom port and model
-clotilde tour serve --port 8080 --model sonnet
-
-# Specific repository
-clotilde tour serve --dir /path/to/repo
-```
-
-The server:
-- Creates a persistent `tour-<repo-name>` Clotilde session for chat history
-- Injects a tour guide system prompt (replaces Claude's default)
-- Serves a local web app with code viewer, tour navigation, and chat
-- Persists step selections in the URL query string
-
-### `clotilde tour generate [--dir PATH] [--name NAME] [--focus FOCUS] [--model MODEL]`
-
-Generate a tour file by analyzing the codebase with Claude. Tours are useful for onboarding, documentation, or understanding unfamiliar code.
-
-**Options:**
-- `--dir PATH` - Repository directory (default: current directory)
-- `--name NAME` - Tour name (output: `.tours/<name>.tour`; default: overview)
-- `--focus FOCUS` - Focus on a specific area (e.g. "authentication", "database layer")
-- `--model MODEL` - Claude model for generation (default: sonnet; options: haiku, sonnet, opus)
-
-```bash
-# Generate a tour of the full codebase
-clotilde tour generate
-
-# Focus on a specific area
-clotilde tour generate --focus "authentication flow" --name auth
-
-# Faster generation with haiku
-clotilde tour generate --name quick --model haiku
-
-# Custom output location
-clotilde tour generate --dir /path/to/repo
-```
-
-Generated tours are saved as `.tours/<name>.tour` in CodeTour format and can be edited manually or served immediately with `clotilde tour serve`.
-
-If generation fails (e.g. invalid JSON from Claude), the raw output is saved to `.tours/<name>.tour.invalid` for inspection.
-
-### `clotilde delete <name> [--force]`
-
-Delete a session and all associated Claude Code data (transcripts, agent logs).
-
-**Options:**
-- `--force, -f` - Skip confirmation prompt
+**Options:** `--dir PATH`, `--name NAME` (default: overview), `--focus FOCUS`, `--model MODEL` (default: sonnet).
 
 ### `clotilde` (no subcommand)
 
-When run without a subcommand in a TTY, clotilde shows an interactive dashboard with quick actions: start a new session, resume, fork, list, or delete.
+Interactive dashboard in TTY: start a new session, resume, fork, list, or delete.
 
 ### `clotilde completion <shell>`
 
-Generate shell completion scripts (bash, zsh, fish, powershell). See `clotilde completion --help` for setup instructions.
+Generate shell completion scripts for bash, zsh, fish, or powershell. See `clotilde completion --help` for setup instructions.
 
 ## Related Work
 
-Claude Code now has native session naming (`-n`/`--name`), `/rename`, `/branch`, and a `/resume` picker. Clotilde uses these features under the hood (passing `-n` to all invocations) and focuses on what Claude Code doesn't provide: profiles, context injection, export, incognito mode, and shorthand flags.
+Claude Code now has native session naming (`-n`/`--name`), `/rename`, `/branch`, and a `/resume` picker. Clotilde uses these under the hood and focuses on what Claude Code doesn't provide: sticky settings, profiles, context injection, incognito sessions, forking by name, session export, and shorthand flags.
 
-**Note on `/branch` and `/rename`:** Clotilde does not detect or track when you use these commands inside Claude Code. If you want clotilde-managed forks, use `clotilde fork`. If you use `/branch` directly, the resulting session lives outside clotilde's tracking.
+**On `/branch` and `/rename`:** Clotilde doesn't detect or track when you use these inside Claude. For clotilde-managed forks with parent/child tracking, use `clotilde fork`. Sessions created via `/branch` live outside Clotilde's tracking.
 
 ### Other tools in this space
 
-- [**tweakcc**](https://github.com/Piebald-AI/tweakcc) - Patches Claude Code to add custom system prompts, toolsets, themes, and more
-- [**claude-code-transcripts**](https://github.com/simonw/claude-code-transcripts) - Python tool for converting JSONL transcripts to HTML (by Simon Willison)
-- [**claude-code-log**](https://github.com/daaain/claude-code-log) - Python CLI for transcript viewing with TUI browser
-- [**OpCode**](https://github.com/winfunc/opcode) - GUI app for managing Claude Code sessions, agents, and background tasks
+- [**tweakcc**](https://github.com/Piebald-AI/tweakcc) — Patches Claude Code to add custom system prompts, toolsets, themes, and more
+- [**claude-code-transcripts**](https://github.com/simonw/claude-code-transcripts) — Python tool for converting JSONL transcripts to HTML (Simon Willison)
+- [**claude-code-log**](https://github.com/daaain/claude-code-log) — Python CLI for transcript viewing with TUI browser
+- [**OpCode**](https://github.com/winfunc/opcode) — GUI app for managing Claude Code sessions, agents, and background tasks
 
-Clotilde is different because:
-
-- Non-invasive (doesn't patch or modify Claude Code)
-- Native Go binary (no runtime dependencies)
-- Focuses on ergonomics: profiles, context injection, incognito sessions, forking by name, session export, shorthand flags, shell completion for session/profile names
-- Built-in cleanup (deletes sessions + associated Claude Code data)
+Clotilde differs in being non-invasive (no patching), a single Go binary with no runtime dependencies, and focused on daily ergonomics rather than UI.
 
 ## Development
 
-**Requirements:**
-- Go 1.25+
-- Make
-- golangci-lint v2.x (for linting - matches CI)
+**Requirements:** Go 1.25+, Make
 
-**Setup golangci-lint:**
 ```bash
-# Install golangci-lint v2.x (required for consistent linting with CI)
-curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
-
-# Verify installation
-golangci-lint --version  # Should show v2.x
+make build         # build to dist/clotilde
+make test          # run tests
+make test-watch    # tests in watch mode
+make coverage      # coverage report
+make fmt           # format code
+make lint          # run linter
+make deadcode      # check for unreachable functions
+make install       # install to ~/.local/bin
 ```
 
-**Configure git hooks** (recommended):
+**Git hooks** (recommended — runs format and lint on commit):
 ```bash
 make setup-hooks
 ```
 
-This enables pre-commit checks that automatically format and lint your code before committing, preventing CI failures.
-
-**Build & Test:**
-
+`make lint` requires golangci-lint v2.x to match CI:
 ```bash
-# Build
-make build
-
-# Run tests
-make test
-
-# Run tests with coverage
-make coverage
-
-# Run tests in watch mode
-make test-watch
-
-# Format code
-make fmt
-
-# Lint
-make lint
-
-# Install locally to ~/.local/bin
-make install
+curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
 ```
 
-**Note:** The `make lint` command will warn you if your local golangci-lint version doesn't match CI (v2.x).
+## About the Name
 
-## License
-
-MIT
+A traditional Brazilian name — sometimes considered old-fashioned or humorous — which adds a light, unpretentious personality to the tool. Pronounced more or less like **KLOH-teel-dee** (Portuguese-ish).
 
 ---
 
