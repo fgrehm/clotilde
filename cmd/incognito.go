@@ -59,7 +59,6 @@ process crashes or is killed (SIGKILL), the session may persist. Use
 				_ = cmd.Flags().Set("model", "haiku")
 				_ = cmd.Flags().Set("effort", "low")
 			}
-			additionalArgs = collectEffortFlag(cmd, additionalArgs)
 
 			// Generate or use provided name
 			var name string

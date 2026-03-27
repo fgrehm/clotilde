@@ -95,7 +95,6 @@ Pass additional flags to Claude Code after '--':
 				_ = cmd.Flags().Set("model", "haiku")
 				_ = cmd.Flags().Set("effort", "low")
 			}
-			additionalArgs = collectEffortFlag(cmd, additionalArgs)
 
 			// Build params from flags
 			params, err := buildSessionCreateParams(cmd, name)
