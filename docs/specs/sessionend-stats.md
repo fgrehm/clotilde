@@ -188,7 +188,7 @@ not worth the complexity.
 Forks are independent sessions with their own UUID, transcript, and name. No special
 handling needed:
 
-- Fork gets a new UUID via `registerFork` in the SessionStart hook. Its transcript file is
+- Fork gets a pre-assigned UUID via `--session-id` before invocation. Its transcript file is
   separate from the parent's.
 - Fork does NOT inherit `previousSessionIds` from the parent. Its transcript list is its
   own (only grows if the fork itself gets `/clear`'d).
@@ -213,28 +213,13 @@ Only the per-invocation delta is wrong for one record. `/clear` is rare enough t
 acceptable. A future improvement could search by (`session_name`, `project_path`) as a
 fallback when UUID lookup finds nothing.
 
-### `/fork` slash command interaction
+### `/branch` slash command interaction
 
-There is an existing spec for handling Claude Code's built-in `/fork` command
-(`docs/specs/slash-fork-handling.md`), but it is **not yet implemented**.
-
-**Current behavior (broken):** When a user runs `/fork` inside a clotilde session, the
-SessionStart hook fires with `source: "resume"` and the fork's new UUID. Since
-`CLOTILDE_FORK_NAME` is not set (only `clotilde fork` sets it), the hook treats this as a
-regular resume. It uses `CLOTILDE_SESSION_NAME` (still pointing to the parent) and may
-update the parent's metadata with the fork's UUID, **corrupting the parent session**.
-
-**Impact on stats:** If the parent's metadata gets corrupted (its `sessionId` replaced with
-the fork's UUID), the SessionEnd hook for the parent would:
-- Look up transcripts using the wrong UUID
-- Produce incorrect cumulative stats
-- `FindLastRecord` would miss prior records (different UUID)
-
-**Mitigation:** The stats feature itself does not need to handle `/fork`. But implementing
-the `/fork` detection spec (Step 1 of `slash-fork-handling.md`) before or alongside this
-work would prevent metadata corruption that breaks stats accuracy. At minimum, document
-this as a known limitation: "Running `/fork` inside a clotilde session may produce
-inaccurate stats for the parent session until `/fork` detection is implemented."
+Clotilde does not detect or track Claude Code's in-session `/branch` command. If a user
+runs `/branch` inside a clotilde session, the resulting branch session lives outside
+clotilde's tracking. Stats for the parent session are unaffected since the hook only
+updates metadata for sessions it knows about (resolved via `CLOTILDE_SESSION_NAME` or
+`CLAUDE_ENV_FILE`). Use `clotilde fork` for tracked forks.
 
 ### Exit behavior and signal safety
 

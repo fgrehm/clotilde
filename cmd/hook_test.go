@@ -231,34 +231,6 @@ var _ = Describe("Hook Commands", func() {
 		})
 
 		Context("source: resume", func() {
-			It("should not overwrite pre-assigned fork UUID (CLOTILDE_FORK_NAME is ignored)", func() {
-				// Fork UUID is now pre-assigned by clotilde fork before invoking claude.
-				// The hook must not modify the existing UUID even if CLOTILDE_FORK_NAME is set.
-				fork := session.NewSession("pre-assigned-fork", "pre-assigned-uuid")
-				fork.Metadata.IsForkedSession = true
-				fork.Metadata.ParentSession = "parent"
-				err := store.Create(fork)
-				Expect(err).NotTo(HaveOccurred())
-
-				_ = os.Setenv("CLOTILDE_FORK_NAME", "pre-assigned-fork")
-				defer func() { _ = os.Unsetenv("CLOTILDE_FORK_NAME") }()
-
-				hookInput := map[string]string{
-					"session_id": "hook-provided-uuid",
-					"source":     "resume",
-				}
-				inputJSON, err := json.Marshal(hookInput)
-				Expect(err).NotTo(HaveOccurred())
-
-				err = executeHookWithInput("sessionstart", inputJSON)
-				Expect(err).NotTo(HaveOccurred())
-
-				// UUID must remain as pre-assigned; hook no longer registers forks
-				updatedFork, err := store.Get("pre-assigned-fork")
-				Expect(err).NotTo(HaveOccurred())
-				Expect(updatedFork.Metadata.SessionID).To(Equal("pre-assigned-uuid"))
-			})
-
 			It("should handle non-clotilde project gracefully", func() {
 				// Change to a directory without clotilde
 				nonClotildeDir := GinkgoT().TempDir()

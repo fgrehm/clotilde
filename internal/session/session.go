@@ -105,8 +105,6 @@ func (s *Session) AddPreviousSessionID(newSessionID string) {
 		}
 	}
 
-	// Always update to new session ID, even if current is empty
-	// (handles forks that haven't had registerFork called yet)
 	s.Metadata.SessionID = newSessionID
 }
 

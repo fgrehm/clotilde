@@ -20,9 +20,7 @@ Analysis of how Claude Code's settings system works, including:
 
 ## Specs
 
-Design specs for planned features live in `specs/`:
-
-- **[Slash Fork Handling](specs/slash-fork-handling.md)** - Auto-detecting and registering forks created via Claude Code's `/fork` command
+Design specs for planned features live in `specs/`.
 
 ---
 
