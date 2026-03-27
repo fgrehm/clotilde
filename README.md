@@ -10,7 +10,7 @@ A traditional Brazilian name - sometimes considered old-fashioned or humorous - 
 
 Claude Code has gotten better at session management: `-n` names sessions at startup, `/rename` and `/branch` work, and the `/resume` picker shows names. But if you work with multiple parallel sessions daily, there's still friction:
 
-- **No per-session configuration**: Want to use Haiku for a quick question and Opus for deep feature work? You have to pass flags every time. There's no way to define reusable presets.
+- **No per-session configuration**: Want to use Haiku for a quick question and Opus for deep feature work? You have to pass flags every time — they don't stick. There's no way to define reusable presets either.
 - **No persistent context injection**: There's no built-in way to feed background context (ticket info, task goals) into every session automatically.
 - **No session export**: Transcripts are JSONL files buried in `~/.claude/projects/`. There's no way to share a readable conversation with a colleague.
 - **No incognito mode**: Every session persists. There's no "quick throwaway" option that cleans up after itself.
@@ -172,6 +172,41 @@ clotilde fork my-session experiment --accept-edits
 
 **`--fast`** sets `--model haiku` and `--effort low`. Cannot be combined with `--model`.
 
+## Sticky Session Settings
+
+Flags passed to `start` and `incognito` are persisted in the session's `settings.json` and automatically re-applied every time you resume — no need to repeat them.
+
+```bash
+# Start with a specific model and effort level
+clotilde start deep-work --model opus --effort high
+
+# Resume later — opus + high effort is applied automatically
+clotilde resume deep-work
+
+# Same with --fast (stores model=haiku and effortLevel=low)
+clotilde start quick-check --fast
+clotilde resume quick-check   # still haiku + low effort
+```
+
+**What gets persisted:**
+- `--model` (model name)
+- `--effort` (effort level)
+- `--fast` (stores both `model=haiku` and `effortLevel=low`)
+- `--permission-mode`, `--allowed-tools`, `--disallowed-tools`, `--add-dir`
+- `--output-style`, `--output-style-file`
+- Profile settings (applied as baseline before CLI flags)
+
+**Override on resume** by passing the flag again — CLI flags always win over stored settings:
+
+```bash
+# Session stored with haiku; resume once with opus
+clotilde resume quick-check --model opus
+
+# Only affects this invocation, stored settings unchanged
+```
+
+Use `clotilde inspect <name>` to see what's stored for a session.
+
 ## Pass-Through Flags
 
 Pass additional Claude Code flags directly using `--` separator:
@@ -195,7 +230,7 @@ clotilde incognito test -- --debug --permission-mode plan
 - `--print` - Non-interactive output for scripting
 - `--output-format json` - JSON output
 
-**Note:** These flags are passed directly to Claude Code for that session only. To persist settings across sessions, use the `--model` flag or configure `settings.json`.
+**Note:** These flags are passed directly to Claude Code for that invocation only and are not persisted. Use `--model`, `--effort`, and other named flags instead if you want settings to stick across resumes (see [Sticky Session Settings](#sticky-session-settings)).
 
 ## Session Profiles
 
