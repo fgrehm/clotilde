@@ -85,7 +85,7 @@ deadcode: ## Check for unreachable functions
 		-e 'cmd/root.go:.*NewRootCmd' \
 		-e 'internal/testutil/claude.go:.*CreateFakeClaude' \
 		-e 'internal/testutil/claude.go:.*ReadClaudeArgs' \
-	); \
+	|| true); \
 	if [ -n "$$output" ]; then \
 		echo "Dead code found:"; \
 		echo "$$output"; \

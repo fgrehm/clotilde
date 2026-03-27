@@ -172,11 +172,18 @@ Pass additional flags to Claude Code after '--':
 
 									// Update the already-copied settings to reference the fork's style
 									parsedSettings.OutputStyle = outputstyle.GetCustomStyleReference(forkName)
-									updatedData, _ := json.MarshalIndent(parsedSettings, "", "  ")
-									_ = os.WriteFile(forkSettingsPath, updatedData, 0o644)
+									updatedData, err := json.MarshalIndent(parsedSettings, "", "  ")
+									if err != nil {
+										return fmt.Errorf("failed to marshal fork settings: %w", err)
+									}
+									if err := os.WriteFile(forkSettingsPath, updatedData, 0o644); err != nil {
+										return fmt.Errorf("failed to write fork settings: %w", err)
+									}
 
 									fork.Metadata.HasCustomOutputStyle = true
-									_ = store.Update(fork)
+									if err := store.Update(fork); err != nil {
+										return fmt.Errorf("failed to update fork metadata: %w", err)
+									}
 								}
 							}
 						}
