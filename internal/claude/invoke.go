@@ -27,7 +27,6 @@ var SessionUsedFunc = DefaultSessionUsed
 type InvokeOptions struct {
 	SessionID        string
 	Resume           bool
-	ForkSession      bool
 	SettingsFile     string
 	SystemPromptFile string
 	SystemPromptMode string // "append" (default) or "replace"
@@ -363,21 +362,3 @@ func (t *tailBuffer) String() string {
 	return string(t.buf)
 }
 
-// Invoke executes claude CLI with custom options (for advanced use cases).
-func Invoke(opts InvokeOptions) error {
-	var args []string
-
-	if opts.Resume {
-		args = append(args, "--resume", opts.SessionID)
-		if opts.ForkSession {
-			args = append(args, "--fork-session")
-		}
-	} else {
-		args = append(args, "--session-id", opts.SessionID)
-	}
-
-	args = appendCommonArgs(args, opts.SettingsFile, opts.SystemPromptFile, opts.SystemPromptMode)
-	args = append(args, opts.AdditionalArgs...)
-
-	return invokeInteractive(args, opts.Env)
-}

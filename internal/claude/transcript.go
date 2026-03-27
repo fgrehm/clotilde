@@ -140,28 +140,6 @@ func FormatModelFamily(fullModel string) string {
 	return fullModel
 }
 
-// LastTranscriptTime returns the timestamp of the last entry in a transcript file.
-// Only the tail of the file is read for efficiency (same technique as ExtractLastModel).
-// Returns zero time if the file can't be opened or contains no timestamped entries.
-func LastTranscriptTime(transcriptPath string) time.Time {
-	type tsEntry struct {
-		Timestamp time.Time `json:"timestamp"`
-	}
-	var last time.Time
-	err := forEachTailLine(transcriptPath, 128*1024, func(line []byte) {
-		var e tsEntry
-		if err := json.Unmarshal(line, &e); err == nil {
-			if !e.Timestamp.IsZero() {
-				last = e.Timestamp
-			}
-		}
-	})
-	if err != nil {
-		return time.Time{}
-	}
-	return last
-}
-
 // ExtractModelAndLastTime reads the transcript tail once and returns both the
 // last model family name and the timestamp of the last entry. More efficient
 // than calling ExtractLastModel and LastTranscriptTime separately.
