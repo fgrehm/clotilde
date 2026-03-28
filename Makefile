@@ -11,7 +11,7 @@ GO_VERSION := $(shell go version | awk '{print $$3}')
 ifeq ($(GIT_TAG),)
 	VERSION := $(BASE_VERSION)-dev+$(shell date -u +"%Y%m%d%H%M%S")
 else
-	VERSION := $(GIT_TAG)
+	VERSION := $(patsubst v%,%,$(GIT_TAG))
 endif
 
 LDFLAGS := -X 'github.com/fgrehm/clotilde/cmd.version=$(VERSION)' \
