@@ -15,7 +15,7 @@ func FormatSize(bytes int64) string {
 	}
 
 	divisor := int64(unit)
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		if bytes < divisor*unit {
 			switch i {
 			case 0:

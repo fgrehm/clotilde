@@ -199,12 +199,9 @@ func (m DashboardModel) renderRecentSessions() string {
 	b.WriteString("\n\n")
 
 	// Show up to recentLimit sessions
-	limit := m.recentLimit
-	if len(m.Sessions) < limit {
-		limit = len(m.Sessions)
-	}
+	limit := min(len(m.Sessions), m.recentLimit)
 
-	for i := 0; i < limit; i++ {
+	for i := range limit {
 		sess := m.Sessions[i]
 
 		// Format session line

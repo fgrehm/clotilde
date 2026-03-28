@@ -1,6 +1,7 @@
 package session
 
 import (
+	"slices"
 	"time"
 )
 
@@ -31,7 +32,7 @@ type Settings struct {
 	Model       string      `json:"model,omitempty"`
 	EffortLevel string      `json:"effortLevel,omitempty"`
 	OutputStyle string      `json:"outputStyle,omitempty"`
-	Permissions Permissions `json:"permissions,omitempty"`
+	Permissions Permissions `json:"permissions,omitzero"`
 }
 
 // Permissions represents the permissions configuration for a session.
@@ -76,15 +77,7 @@ func (s *Session) UpdateLastAccessed() {
 func (s *Session) AddPreviousSessionID(newSessionID string) {
 	// Only add current ID to history if it's not empty and different from new ID
 	if s.Metadata.SessionID != "" && s.Metadata.SessionID != newSessionID {
-		// Check if already in history (idempotent)
-		found := false
-		for _, id := range s.Metadata.PreviousSessionIDs {
-			if id == s.Metadata.SessionID {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if !slices.Contains(s.Metadata.PreviousSessionIDs, s.Metadata.SessionID) {
 			s.Metadata.PreviousSessionIDs = append(s.Metadata.PreviousSessionIDs, s.Metadata.SessionID)
 		}
 	}

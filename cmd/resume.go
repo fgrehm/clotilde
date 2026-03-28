@@ -158,8 +158,8 @@ Pass additional flags to Claude Code after '--':
 // sortSessionsByLastAccessed sorts sessions by last accessed time (most recent first)
 func sortSessionsByLastAccessed(sessions []*session.Session) {
 	// Simple bubble sort - good enough for typical session counts
-	for i := 0; i < len(sessions)-1; i++ {
-		for j := 0; j < len(sessions)-i-1; j++ {
+	for i := range len(sessions) - 1 {
+		for j := range len(sessions) - i - 1 {
 			if sessions[j].Metadata.LastAccessed.Before(sessions[j+1].Metadata.LastAccessed) {
 				sessions[j], sessions[j+1] = sessions[j+1], sessions[j]
 			}

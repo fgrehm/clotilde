@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"slices"
 
 	"github.com/fgrehm/clotilde/internal/claude"
 	"github.com/fgrehm/clotilde/internal/session"
@@ -74,10 +75,8 @@ func findSessionByUUID(store session.Store, uuid string) (string, error) {
 	}
 
 	for _, sess := range sessions {
-		for _, prevID := range sess.Metadata.PreviousSessionIDs {
-			if prevID == uuid {
-				return sess.Name, nil
-			}
+		if slices.Contains(sess.Metadata.PreviousSessionIDs, uuid) {
+			return sess.Name, nil
 		}
 	}
 
