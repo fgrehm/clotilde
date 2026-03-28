@@ -1,23 +1,29 @@
 version: "2"
 
+run:
+  timeout: 3m
+
 linters:
   enable:
+    - bodyclose
+    - copyloopvar
     - errcheck
+    - errorlint
+    - gocritic
     - govet
     - ineffassign
-    - staticcheck
-    - unused
-    - gocritic
-    - errorlint
-    - bodyclose
+    - intrange
+    - misspell
+    - modernize
     - nilerr
-    - copyloopvar
-    - whitespace
+    - staticcheck
     - unconvert
     - unparam
+    - unused
     - usestdlibvars
+    - usetesting
     - wastedassign
-    - misspell
+    - whitespace
   settings:
     gocritic:
       disabled-checks:
@@ -26,6 +32,16 @@ linters:
         - boolExprSimplify
         - nilValReturn
   exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - unparam
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
     paths:
       - vendor
 

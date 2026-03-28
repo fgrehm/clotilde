@@ -20,15 +20,15 @@ func createStreamingFakeClaude(dir string, stdoutLines []string, exitCode int) (
 	argsFile = filepath.Join(dir, "claude-args.txt")
 
 	// Build echo statements for each line
-	var echos string
+	var echos strings.Builder
 	for _, line := range stdoutLines {
-		echos += fmt.Sprintf("echo '%s'\n", line)
+		fmt.Fprintf(&echos, "echo '%s'\n", line)
 	}
 
 	script := fmt.Sprintf(`#!/bin/bash
 echo "$@" > %s
 %sexit %d
-`, argsFile, echos, exitCode)
+`, argsFile, echos.String(), exitCode)
 
 	if err := os.WriteFile(binaryPath, []byte(script), 0o755); err != nil {
 		return "", "", err

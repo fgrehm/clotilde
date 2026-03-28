@@ -311,10 +311,10 @@ func readLastEnvFileValue(key string) string {
 
 	prefix := key + "="
 	var lastValue string
-	for _, line := range strings.Split(string(content), "\n") {
+	for line := range strings.SplitSeq(string(content), "\n") {
 		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, prefix) {
-			lastValue = strings.TrimPrefix(line, prefix)
+		if after, ok := strings.CutPrefix(line, prefix); ok {
+			lastValue = after
 		}
 	}
 	return lastValue

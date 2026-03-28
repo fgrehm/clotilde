@@ -144,3 +144,23 @@ Other examples: `claude.ClaudeBinaryPathFunc`, `claude.VerboseFunc`.
 - Linting: golangci-lint v2, formatting: gofumpt (via `golangci-lint fmt`)
 - Commit format: Conventional Commits, present tense, under 72 chars
 - `CHANGELOG.md` uses Keep a Changelog format
+
+## Tooling
+
+- Go version: see `go.mod`.
+- Linter: golangci-lint v2, managed as a Go tool dependency. Run `make lint` or
+  `go tool golangci-lint run ./...`. Config in `.golangci.yml`.
+- Formatting: `make fmt` runs gofumpt + goimports via `go tool golangci-lint fmt`.
+- Dead code: `make deadcode` runs `go tool deadcode ./...` (hard gate in CI).
+- Complexity: `make audit` runs gocyclo (informational at 15, hard gate at 30 in CI).
+- Tests: `make test` runs Ginkgo with `--randomize-all --race`.
+- Pre-commit hook: `.githooks/pre-commit` auto-formats and lints staged files.
+  Run `make setup-hooks` to activate.
+- Release: tag-triggered via GoReleaser. Release notes extracted from `CHANGELOG.md`.
+  See the Releasing section in CLAUDE.md.
+
+## CHANGELOG
+
+When reviewing PRs, verify that `CHANGELOG.md` has an `[Unreleased]` entry for any
+user-facing change (features, fixes, breaking changes). Use
+[Keep a Changelog](https://keepachangelog.com/) format.

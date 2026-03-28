@@ -1,4 +1,4 @@
-.PHONY: help build test test-watch install clean lint fmt coverage vendor setup-hooks deadcode
+.PHONY: help build test test-watch install clean lint fmt coverage vendor setup-hooks deadcode audit
 
 # Build variables
 BASE_VERSION := $(shell cat VERSION 2>/dev/null || echo "0.0.0")
@@ -11,7 +11,7 @@ GO_VERSION := $(shell go version | awk '{print $$3}')
 ifeq ($(GIT_TAG),)
 	VERSION := $(BASE_VERSION)-dev+$(shell date -u +"%Y%m%d%H%M%S")
 else
-	VERSION := $(GIT_TAG)
+	VERSION := $(patsubst v%,%,$(GIT_TAG))
 endif
 
 LDFLAGS := -X 'github.com/fgrehm/clotilde/cmd.version=$(VERSION)' \
@@ -44,19 +44,10 @@ test-watch: ## Run tests in watch mode
 	@echo "Starting test watch mode..."
 	@go run github.com/onsi/ginkgo/v2/ginkgo watch -r
 
-install: build ## Install clotilde to ~/.local/bin
-	@echo "Installing to ~/.local/bin..."
-	@mkdir -p ~/.local/bin
-	@if [ -L ~/.local/bin/clotilde ]; then \
-		echo "✓ Already installed as symlink (rebuilt binary at dist/clotilde)"; \
-	elif [ -e ~/.local/bin/clotilde ]; then \
-		rm -f ~/.local/bin/clotilde; \
-		cp dist/clotilde ~/.local/bin/clotilde; \
-		echo "✓ Replaced existing file and installed to ~/.local/bin/clotilde"; \
-	else \
-		cp dist/clotilde ~/.local/bin/clotilde; \
-		echo "✓ Installed to ~/.local/bin/clotilde"; \
-	fi
+install: build ## Install clotilde to ~/.local/bin (symlink)
+	@mkdir -p "$(HOME)/.local/bin"
+	@ln -sf "$(CURDIR)/dist/clotilde" "$(HOME)/.local/bin/clotilde"
+	@echo "✓ Installed to ~/.local/bin/clotilde"
 
 clean: ## Remove build artifacts
 	@echo "Cleaning..."
@@ -93,6 +84,13 @@ deadcode: ## Check for unreachable functions
 		exit 1; \
 	fi
 	@echo "✓ No dead code found"
+
+audit: ## Run complexity and vulnerability checks (informational)
+	@echo "=== Cyclomatic complexity (>15) ==="
+	@go tool gocyclo -over 15 . || true
+	@echo ""
+	@echo "=== Vulnerability check ==="
+	@go tool govulncheck ./... || true
 
 vendor: ## Update vendored dependencies
 	@echo "Vendoring dependencies..."

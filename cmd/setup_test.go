@@ -69,12 +69,12 @@ var _ = Describe("Setup Command", func() {
 		content, err := os.ReadFile(settingsPath)
 		Expect(err).NotTo(HaveOccurred())
 
-		var settings map[string]interface{}
+		var settings map[string]any
 		err = json.Unmarshal(content, &settings)
 		Expect(err).NotTo(HaveOccurred())
 
 		Expect(settings).To(HaveKey("hooks"))
-		hooks := settings["hooks"].(map[string]interface{})
+		hooks := settings["hooks"].(map[string]any)
 		Expect(hooks).To(HaveKey("SessionStart"))
 
 		// Only SessionStart should be present (GenerateHookConfig doesn't set the others)
@@ -84,7 +84,7 @@ var _ = Describe("Setup Command", func() {
 		Expect(hooks).NotTo(HaveKey("PostToolUse"))
 		Expect(hooks).NotTo(HaveKey("SessionEnd"))
 
-		sessionStart := hooks["SessionStart"].([]interface{})
+		sessionStart := hooks["SessionStart"].([]any)
 		Expect(sessionStart).To(HaveLen(1))
 	})
 
@@ -122,12 +122,12 @@ var _ = Describe("Setup Command", func() {
 		content, err := os.ReadFile(settingsPath)
 		Expect(err).NotTo(HaveOccurred())
 
-		var settings map[string]interface{}
+		var settings map[string]any
 		err = json.Unmarshal(content, &settings)
 		Expect(err).NotTo(HaveOccurred())
 
-		hooks := settings["hooks"].(map[string]interface{})
-		sessionStart := hooks["SessionStart"].([]interface{})
+		hooks := settings["hooks"].(map[string]any)
+		sessionStart := hooks["SessionStart"].([]any)
 		Expect(sessionStart).To(HaveLen(1))
 	})
 
@@ -137,10 +137,10 @@ var _ = Describe("Setup Command", func() {
 		err := os.MkdirAll(claudeDir, 0o755)
 		Expect(err).NotTo(HaveOccurred())
 
-		existingSettings := map[string]interface{}{
+		existingSettings := map[string]any{
 			"model": "opus",
-			"hooks": map[string]interface{}{
-				"UserPromptSubmit": []interface{}{"echo existing"},
+			"hooks": map[string]any{
+				"UserPromptSubmit": []any{"echo existing"},
 			},
 		}
 		settingsPath := filepath.Join(claudeDir, "settings.json")
@@ -158,7 +158,7 @@ var _ = Describe("Setup Command", func() {
 		content, err = os.ReadFile(settingsPath)
 		Expect(err).NotTo(HaveOccurred())
 
-		var settings map[string]interface{}
+		var settings map[string]any
 		err = json.Unmarshal(content, &settings)
 		Expect(err).NotTo(HaveOccurred())
 
@@ -166,7 +166,7 @@ var _ = Describe("Setup Command", func() {
 		Expect(settings["model"]).To(Equal("opus"))
 
 		// User hook preserved alongside clotilde hooks
-		hooks := settings["hooks"].(map[string]interface{})
+		hooks := settings["hooks"].(map[string]any)
 		Expect(hooks).To(HaveKey("UserPromptSubmit"))
 		Expect(hooks).To(HaveKey("SessionStart"))
 	})
@@ -177,10 +177,10 @@ var _ = Describe("Setup Command", func() {
 		err := os.MkdirAll(claudeDir, 0o755)
 		Expect(err).NotTo(HaveOccurred())
 
-		existingSettings := map[string]interface{}{
-			"hooks": map[string]interface{}{
-				"Stop":       []interface{}{"echo my-stop-hook"},
-				"SessionEnd": []interface{}{"echo my-sessionend-hook"},
+		existingSettings := map[string]any{
+			"hooks": map[string]any{
+				"Stop":       []any{"echo my-stop-hook"},
+				"SessionEnd": []any{"echo my-sessionend-hook"},
 			},
 		}
 		settingsPath := filepath.Join(claudeDir, "settings.json")
@@ -198,18 +198,18 @@ var _ = Describe("Setup Command", func() {
 		content, err = os.ReadFile(settingsPath)
 		Expect(err).NotTo(HaveOccurred())
 
-		var settings map[string]interface{}
+		var settings map[string]any
 		err = json.Unmarshal(content, &settings)
 		Expect(err).NotTo(HaveOccurred())
 
-		hooks := settings["hooks"].(map[string]interface{})
+		hooks := settings["hooks"].(map[string]any)
 
 		// Clotilde's SessionStart hook should be present
 		Expect(hooks).To(HaveKey("SessionStart"))
 
 		// User-defined hooks should be preserved (not overwritten with null)
-		Expect(hooks["Stop"]).To(Equal([]interface{}{"echo my-stop-hook"}))
-		Expect(hooks["SessionEnd"]).To(Equal([]interface{}{"echo my-sessionend-hook"}))
+		Expect(hooks["Stop"]).To(Equal([]any{"echo my-stop-hook"}))
+		Expect(hooks["SessionEnd"]).To(Equal([]any{"echo my-sessionend-hook"}))
 
 		// Hook types not set by GenerateHookConfig should not appear as null keys
 		Expect(hooks).NotTo(HaveKey("Notification"))

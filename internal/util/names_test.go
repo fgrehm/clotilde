@@ -2,6 +2,7 @@ package util
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -33,25 +34,13 @@ func TestGenerateRandomName(t *testing.T) {
 	}
 
 	// Should contain valid adjective
-	found := false
-	for _, adj := range adjectives {
-		if adj == parts[0] {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(adjectives, parts[0])
 	if !found {
 		t.Errorf("Generated name '%s' has invalid adjective '%s'", name, parts[0])
 	}
 
 	// Should contain valid noun
-	found = false
-	for _, n := range nouns {
-		if n == parts[1] {
-			found = true
-			break
-		}
-	}
+	found = slices.Contains(nouns, parts[1])
 	if !found {
 		t.Errorf("Generated name '%s' has invalid noun '%s'", name, parts[1])
 	}
@@ -66,7 +55,7 @@ func TestGenerateRandomName(t *testing.T) {
 func TestGenerateRandomName_Variety(t *testing.T) {
 	// Generate 50 names and ensure we get some variety
 	names := make(map[string]bool)
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		name := GenerateRandomName()
 		names[name] = true
 	}

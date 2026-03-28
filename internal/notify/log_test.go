@@ -65,9 +65,9 @@ var _ = Describe("LogEvent", func() {
 		content, err := os.ReadFile(filepath.Join(logDir, "json-check.events.jsonl"))
 		Expect(err).NotTo(HaveOccurred())
 
-		lines := strings.Split(strings.TrimSpace(string(content)), "\n")
-		for _, line := range lines {
-			var parsed map[string]interface{}
+		lines := strings.SplitSeq(strings.TrimSpace(string(content)), "\n")
+		for line := range lines {
+			var parsed map[string]any
 			err := json.Unmarshal([]byte(line), &parsed)
 			Expect(err).NotTo(HaveOccurred(), "line should be valid JSON: %s", line)
 		}

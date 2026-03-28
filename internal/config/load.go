@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 
@@ -68,11 +69,8 @@ func MergedProfiles(clotildeRoot string) (map[string]Profile, error) {
 	}
 
 	merged := make(map[string]Profile)
-	for name, p := range globalCfg.Profiles {
-		merged[name] = p
-	}
-	for name, p := range projectCfg.Profiles {
-		merged[name] = p // project overrides global
-	}
+	maps.Copy(merged, globalCfg.Profiles)
+	// project overrides global
+	maps.Copy(merged, projectCfg.Profiles)
 	return merged, nil
 }

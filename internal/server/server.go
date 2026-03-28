@@ -155,7 +155,7 @@ func (s *Server) fileContent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Block excluded directories at any depth (same policy as /api/tree)
-	for _, segment := range strings.Split(rel, string(filepath.Separator)) {
+	for segment := range strings.SplitSeq(rel, string(filepath.Separator)) {
 		if excludeDirs[segment] {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
