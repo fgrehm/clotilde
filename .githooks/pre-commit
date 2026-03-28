@@ -1,26 +1,22 @@
 #!/bin/bash
-# Pre-commit hook to enforce formatting and lint
-
 set -e
 
-# Get list of staged Go files
-staged_go_files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
+mapfile -t staged_go_files < <(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
 
-if [ -z "$staged_go_files" ]; then
-    exit 0
+if ((${#staged_go_files[@]} == 0)); then
+  exit 0
 fi
 
-# Run formatters on staged files
-echo "Running formatters on staged Go files..."
-go tool golangci-lint fmt $staged_go_files
+echo "Formatting staged Go files..."
+go tool golangci-lint fmt "${staged_go_files[@]}"
+git add -- "${staged_go_files[@]}"
+echo "Done"
 
-# Re-stage the formatted files
-git add $staged_go_files
-echo "✓ Code formatted"
-
-# Run linter (only on changed files relative to what's being committed)
-echo "Running golangci-lint..."
-go tool golangci-lint run --new-from-rev=HEAD~1 --fix
-# Re-stage any auto-fixed files
-git add $staged_go_files
-echo "✓ Lint passed"
+echo "Running linter..."
+if git rev-parse --verify HEAD >/dev/null 2>&1; then
+  go tool golangci-lint run --new-from-rev=HEAD --fix
+else
+  go tool golangci-lint run --fix "${staged_go_files[@]}"
+fi
+git add -- "${staged_go_files[@]}"
+echo "Done"
