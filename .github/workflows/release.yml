@@ -27,7 +27,7 @@ jobs:
       - name: Extract release notes from CHANGELOG.md
         run: |
           VERSION=${GITHUB_REF_NAME#v}
-          sed -n "/^## \[${VERSION}\]/,/^## \[/{/^## \[/d;p}" CHANGELOG.md \
+          awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" \
             > /tmp/release-notes.md
           if [ ! -s /tmp/release-notes.md ] || ! grep -q '[^[:space:]]' /tmp/release-notes.md; then
             echo "::error::No release notes found for version ${VERSION} in CHANGELOG.md"
