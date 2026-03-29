@@ -152,7 +152,7 @@ var _ = Describe("ReadJSON and WriteJSON", func() {
 	It("should write and read JSON", func() {
 		testFile := filepath.Join(tempDir, "test.json")
 
-		data := map[string]interface{}{
+		data := map[string]any{
 			"name":  "test",
 			"value": 123,
 			"nested": map[string]string{
@@ -163,7 +163,7 @@ var _ = Describe("ReadJSON and WriteJSON", func() {
 		err := util.WriteJSON(testFile, data)
 		Expect(err).NotTo(HaveOccurred())
 
-		var readData map[string]interface{}
+		var readData map[string]any
 		err = util.ReadJSON(testFile, &readData)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(readData["name"]).To(Equal("test"))

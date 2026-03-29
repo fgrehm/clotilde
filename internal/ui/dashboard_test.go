@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -232,13 +233,7 @@ func TestDashboardMenuItems(t *testing.T) {
 	}
 
 	for _, expectedID := range expectedIDs {
-		found := false
-		for _, actualID := range actualIDs {
-			if actualID == expectedID {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(actualIDs, expectedID)
 		if !found {
 			t.Errorf("Expected menu item with ID '%s' not found", expectedID)
 		}

@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -90,26 +91,26 @@ Use --global to install hooks in .claude/settings.json instead (shared with team
 // mergeHooksIntoSettings reads a Claude settings file, merges clotilde's
 // hooks, and writes it back. Returns the merged hooks map for display purposes.
 // The caller is responsible for ensuring the parent directory exists.
-func mergeHooksIntoSettings(settingsPath, clotildeBinary string, opts claude.HookConfigOptions) (map[string]interface{}, error) {
+func mergeHooksIntoSettings(settingsPath, clotildeBinary string, opts claude.HookConfigOptions) (map[string]any, error) {
 	// Read existing settings if they exist
-	var settings map[string]interface{}
+	var settings map[string]any
 	if util.FileExists(settingsPath) {
 		if err := util.ReadJSON(settingsPath, &settings); err != nil {
 			return nil, fmt.Errorf("failed to read existing settings: %w", err)
 		}
 	} else {
-		settings = make(map[string]interface{})
+		settings = make(map[string]any)
 	}
 
 	// Generate hook config
 	hookConfig := claude.GenerateHookConfig(clotildeBinary, opts)
 
 	// Merge hooks into settings, preserving non-clotilde hooks
-	var hooks map[string]interface{}
-	if existingHooks, ok := settings["hooks"].(map[string]interface{}); ok {
+	var hooks map[string]any
+	if existingHooks, ok := settings["hooks"].(map[string]any); ok {
 		hooks = existingHooks
 	} else {
-		hooks = make(map[string]interface{})
+		hooks = make(map[string]any)
 	}
 
 	mergeHookType := func(key string, matchers []claude.HookMatcher) {
@@ -141,29 +142,29 @@ func mergeHooksIntoSettings(settingsPath, clotildeBinary string, opts claude.Hoo
 // appends the new clotilde matchers. Preserves non-clotilde hooks. A hook is
 // considered "clotilde" if its command starts with the clotilde binary path.
 // Returns nil if both existing and new are empty.
-func stripAndAppendHooks(existing interface{}, newMatchers []claude.HookMatcher, clotildeBinary string) []interface{} {
+func stripAndAppendHooks(existing any, newMatchers []claude.HookMatcher, clotildeBinary string) []any {
 	prefix := clotildeBinary + " "
-	var result []interface{}
+	var result []any
 
 	// Process existing matchers: remove clotilde hooks, keep others
-	if arr, ok := existing.([]interface{}); ok {
+	if arr, ok := existing.([]any); ok {
 		for _, item := range arr {
-			matcher, ok := item.(map[string]interface{})
+			matcher, ok := item.(map[string]any)
 			if !ok {
 				result = append(result, item)
 				continue
 			}
 
-			hooksRaw, ok := matcher["hooks"].([]interface{})
+			hooksRaw, ok := matcher["hooks"].([]any)
 			if !ok {
 				result = append(result, item)
 				continue
 			}
 
 			// Filter out clotilde hooks
-			var kept []interface{}
+			var kept []any
 			for _, h := range hooksRaw {
-				hook, ok := h.(map[string]interface{})
+				hook, ok := h.(map[string]any)
 				if !ok {
 					kept = append(kept, h)
 					continue
@@ -176,10 +177,8 @@ func stripAndAppendHooks(existing interface{}, newMatchers []claude.HookMatcher,
 			}
 
 			if len(kept) > 0 {
-				stripped := make(map[string]interface{})
-				for k, v := range matcher {
-					stripped[k] = v
-				}
+				stripped := make(map[string]any)
+				maps.Copy(stripped, matcher)
 				stripped["hooks"] = kept
 				result = append(result, stripped)
 			}

@@ -87,8 +87,8 @@ var _ = Describe("LoadGlobalOrDefault", func() {
 
 		globalDir := filepath.Join(tmpDir, "clotilde")
 		Expect(os.MkdirAll(globalDir, 0o755)).To(Succeed())
-		data, _ := json.Marshal(map[string]interface{}{
-			"profiles": map[string]interface{}{
+		data, _ := json.Marshal(map[string]any{
+			"profiles": map[string]any{
 				"quick": map[string]string{"model": "haiku"},
 			},
 		})

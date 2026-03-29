@@ -45,7 +45,7 @@ func FuzzValidateName(f *testing.F) {
 			if name[0] == '-' || name[len(name)-1] == '-' {
 				t.Errorf("accepted name starting or ending with hyphen: %q", name)
 			}
-			for i := 0; i < len(name)-1; i++ {
+			for i := range len(name) - 1 {
 				if name[i] == '-' && name[i+1] == '-' {
 					t.Errorf("accepted name with consecutive hyphens: %q", name)
 				}

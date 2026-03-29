@@ -108,7 +108,7 @@ func GenerateUniqueRandomName(existingNames []string) string {
 
 	// Fall back to a random adjective-noun name
 	const maxAttempts = 100
-	for i := 0; i < maxAttempts; i++ {
+	for range maxAttempts {
 		name := GenerateRandomName()
 		if _, taken := nameMap[name]; !taken {
 			return name

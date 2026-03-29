@@ -304,24 +304,34 @@ Tours are browser-based interactive walkthroughs of a codebase, integrating a co
 - Mock tour files + source code for server tests
 - WebSocket tests via `github.com/coder/websocket`
 
-## Build & Test
+## Commands
 
-**Setup git hooks** (recommended first step):
 ```bash
-make setup-hooks   # Enables pre-commit checks for formatting and linting
+make build         # compile to dist/clotilde (injects version via ldflags)
+make test          # run tests (Ginkgo, --randomize-all --race)
+make lint          # golangci-lint v2 (go tool)
+make fmt           # format with gofumpt/goimports (go tool)
+make deadcode      # check for unreachable functions
+make audit         # cyclomatic complexity check (gocyclo, informational)
+make govulncheck  # run vulnerability check
+make coverage      # generate HTML coverage report
+make vendor        # tidy and vendor dependencies
+make install       # build and symlink to ~/.local/bin
+make setup-hooks   # configure .githooks/ pre-commit hook
+make clean         # remove build artifacts
+make test-watch    # run tests in watch mode
 ```
 
-**Common commands:**
-```bash
-make build         # Build to dist/clotilde
-make test          # Run all tests
-make test-watch    # Run tests in watch mode
-make coverage      # Generate coverage report
-make fmt           # Format code
-make lint          # Run linter
-make install       # Install to ~/.local/bin
-make clean         # Remove artifacts
-```
+Run a single suite: `go run github.com/onsi/ginkgo/v2/ginkgo -r ./internal/session/`
+
+## CHANGELOG
+
+This project uses [Keep a Changelog](https://keepachangelog.com/) format. When adding
+features, fixing bugs, or making breaking changes, add an entry under the `[Unreleased]`
+section of `CHANGELOG.md` before the session ends. Categories: Added, Changed, Deprecated,
+Removed, Fixed, Security.
+
+Before wrapping up a session, check whether CHANGELOG.md needs an update for the work done.
 
 **Test Organization:**
 - 7 test suites: `internal/util/`, `internal/config/`, `internal/session/`, `internal/claude/`, `internal/outputstyle/`, `internal/ui/`, `cmd/`
@@ -335,6 +345,15 @@ make clean         # Remove artifacts
 - Test both success and error cases
 - Keep tests focused and independent
 - Use descriptive test names
+
+## Releasing
+
+1. Move `CHANGELOG.md` `[Unreleased]` entries to `[X.Y.Z] - YYYY-MM-DD`.
+2. Update `VERSION` file.
+3. Commit: `chore: release vX.Y.Z`
+4. Tag and push: `git tag vX.Y.Z && git push origin main vX.Y.Z`
+
+CI extracts release notes from CHANGELOG.md and runs GoReleaser.
 
 ## Roadmap
 

@@ -23,7 +23,7 @@ builds:
     ldflags:
       - -s -w
       - -X github.com/fgrehm/clotilde/cmd.version={{.Version}}
-      - -X github.com/fgrehm/clotilde/cmd.commit={{.Commit}}
+      - -X github.com/fgrehm/clotilde/cmd.commit={{.ShortCommit}}
       - -X github.com/fgrehm/clotilde/cmd.date={{.Date}}
 
 archives:
@@ -45,14 +45,7 @@ checksum:
   name_template: 'checksums.txt'
 
 changelog:
-  sort: asc
-  filters:
-    exclude:
-      - '^docs:'
-      - '^test:'
-      - '^chore:'
-      - Merge pull request
-      - Merge branch
+  disable: true
 
 release:
   github:

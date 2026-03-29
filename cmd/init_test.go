@@ -97,12 +97,12 @@ var _ = Describe("Init Command", func() {
 		content, err := os.ReadFile(settingsPath)
 		Expect(err).NotTo(HaveOccurred())
 
-		var settings map[string]interface{}
+		var settings map[string]any
 		err = json.Unmarshal(content, &settings)
 		Expect(err).NotTo(HaveOccurred())
 
 		Expect(settings).To(HaveKey("hooks"))
-		hooks := settings["hooks"].(map[string]interface{})
+		hooks := settings["hooks"].(map[string]any)
 		Expect(hooks).To(HaveKey("SessionStart"))
 
 		// Only SessionStart should be present (GenerateHookConfig doesn't set the others)
@@ -113,11 +113,11 @@ var _ = Describe("Init Command", func() {
 		Expect(hooks).NotTo(HaveKey("SessionEnd"))
 
 		// Verify SessionStart structure (unified hook without matchers)
-		sessionStart := hooks["SessionStart"].([]interface{})
+		sessionStart := hooks["SessionStart"].([]any)
 		Expect(sessionStart).To(HaveLen(1))
 
 		// Verify unified hook structure (no matcher field)
-		hook := sessionStart[0].(map[string]interface{})
+		hook := sessionStart[0].(map[string]any)
 		Expect(hook).NotTo(HaveKey("matcher")) // Unified hook has no matcher
 	})
 
@@ -140,12 +140,12 @@ var _ = Describe("Init Command", func() {
 		content, err := os.ReadFile(settingsPath)
 		Expect(err).NotTo(HaveOccurred())
 
-		var settings map[string]interface{}
+		var settings map[string]any
 		err = json.Unmarshal(content, &settings)
 		Expect(err).NotTo(HaveOccurred())
 
 		Expect(settings).To(HaveKey("hooks"))
-		hooks := settings["hooks"].(map[string]interface{})
+		hooks := settings["hooks"].(map[string]any)
 		Expect(hooks).To(HaveKey("SessionStart"))
 	})
 
@@ -155,7 +155,7 @@ var _ = Describe("Init Command", func() {
 		err := os.Mkdir(claudeDir, 0o755)
 		Expect(err).NotTo(HaveOccurred())
 
-		existingSettings := map[string]interface{}{
+		existingSettings := map[string]any{
 			"model": "sonnet",
 			"hooks": map[string]string{
 				"ExistingHook": "echo 'existing'",
@@ -180,7 +180,7 @@ var _ = Describe("Init Command", func() {
 		content, err = os.ReadFile(settingsPath)
 		Expect(err).NotTo(HaveOccurred())
 
-		var settings map[string]interface{}
+		var settings map[string]any
 		err = json.Unmarshal(content, &settings)
 		Expect(err).NotTo(HaveOccurred())
 
@@ -188,12 +188,12 @@ var _ = Describe("Init Command", func() {
 		Expect(settings["model"]).To(Equal("sonnet"))
 
 		// Hooks should be merged
-		hooks := settings["hooks"].(map[string]interface{})
+		hooks := settings["hooks"].(map[string]any)
 		Expect(hooks).To(HaveKey("ExistingHook"))
 		Expect(hooks).To(HaveKey("SessionStart"))
 
 		// Verify SessionStart has unified hook
-		sessionStart := hooks["SessionStart"].([]interface{})
+		sessionStart := hooks["SessionStart"].([]any)
 		Expect(sessionStart).To(HaveLen(1)) // Now using unified hook
 	})
 
@@ -204,16 +204,16 @@ var _ = Describe("Init Command", func() {
 		err := os.Mkdir(claudeDir, 0o755)
 		Expect(err).NotTo(HaveOccurred())
 
-		existingSettings := map[string]interface{}{
-			"hooks": map[string]interface{}{
-				"SessionStart": []interface{}{
-					map[string]interface{}{
-						"hooks": []interface{}{
-							map[string]interface{}{
+		existingSettings := map[string]any{
+			"hooks": map[string]any{
+				"SessionStart": []any{
+					map[string]any{
+						"hooks": []any{
+							map[string]any{
 								"type":    "command",
 								"command": "/old/path/clotilde hook sessionstart",
 							},
-							map[string]interface{}{
+							map[string]any{
 								"type":    "command",
 								"command": "/some/other/tool.sh",
 								"timeout": 5,
@@ -221,20 +221,20 @@ var _ = Describe("Init Command", func() {
 						},
 					},
 				},
-				"SessionEnd": []interface{}{
-					map[string]interface{}{
-						"hooks": []interface{}{
-							map[string]interface{}{
+				"SessionEnd": []any{
+					map[string]any{
+						"hooks": []any{
+							map[string]any{
 								"type":    "command",
 								"command": "/some/other/tool.sh",
 							},
 						},
 					},
 				},
-				"Stop": []interface{}{
-					map[string]interface{}{
-						"hooks": []interface{}{
-							map[string]interface{}{
+				"Stop": []any{
+					map[string]any{
+						"hooks": []any{
+							map[string]any{
 								"type":    "command",
 								"command": "/some/other/tool.sh",
 							},
@@ -265,39 +265,39 @@ var _ = Describe("Init Command", func() {
 		content, err = os.ReadFile(settingsPath)
 		Expect(err).NotTo(HaveOccurred())
 
-		var settings map[string]interface{}
+		var settings map[string]any
 		err = json.Unmarshal(content, &settings)
 		Expect(err).NotTo(HaveOccurred())
 
-		hooks := settings["hooks"].(map[string]interface{})
+		hooks := settings["hooks"].(map[string]any)
 
 		// SessionStart should have 2 matchers: third-party (preserved) + clotilde (new)
-		sessionStart := hooks["SessionStart"].([]interface{})
+		sessionStart := hooks["SessionStart"].([]any)
 		Expect(sessionStart).To(HaveLen(2))
 
 		// First matcher: the third-party hook only (old clotilde hook stripped)
-		firstMatcher := sessionStart[0].(map[string]interface{})
-		firstHooks := firstMatcher["hooks"].([]interface{})
+		firstMatcher := sessionStart[0].(map[string]any)
+		firstHooks := firstMatcher["hooks"].([]any)
 		Expect(firstHooks).To(HaveLen(1))
-		firstCmd := firstHooks[0].(map[string]interface{})["command"]
+		firstCmd := firstHooks[0].(map[string]any)["command"]
 		Expect(firstCmd).To(Equal("/some/other/tool.sh"))
 
 		// Second matcher: new clotilde hook
-		secondMatcher := sessionStart[1].(map[string]interface{})
-		secondHooks := secondMatcher["hooks"].([]interface{})
+		secondMatcher := sessionStart[1].(map[string]any)
+		secondHooks := secondMatcher["hooks"].([]any)
 		Expect(secondHooks).To(HaveLen(1))
-		secondCmd := secondHooks[0].(map[string]interface{})["command"].(string)
+		secondCmd := secondHooks[0].(map[string]any)["command"].(string)
 		Expect(secondCmd).To(ContainSubstring("hook sessionstart"))
 
 		// SessionEnd: third-party preserved, no clotilde added (init doesn't enable stats)
-		sessionEnd := hooks["SessionEnd"].([]interface{})
+		sessionEnd := hooks["SessionEnd"].([]any)
 		Expect(sessionEnd).To(HaveLen(1))
-		endHooks := sessionEnd[0].(map[string]interface{})["hooks"].([]interface{})
-		endCmd := endHooks[0].(map[string]interface{})["command"]
+		endHooks := sessionEnd[0].(map[string]any)["hooks"].([]any)
+		endCmd := endHooks[0].(map[string]any)["command"]
 		Expect(endCmd).To(Equal("/some/other/tool.sh"))
 
 		// Stop: untouched (clotilde doesn't generate Stop hooks)
-		stop := hooks["Stop"].([]interface{})
+		stop := hooks["Stop"].([]any)
 		Expect(stop).To(HaveLen(1))
 	})
 
@@ -319,15 +319,15 @@ var _ = Describe("Init Command", func() {
 		content, err := os.ReadFile(settingsPath)
 		Expect(err).NotTo(HaveOccurred())
 
-		var settings map[string]interface{}
+		var settings map[string]any
 		err = json.Unmarshal(content, &settings)
 		Expect(err).NotTo(HaveOccurred())
 
-		hooks := settings["hooks"].(map[string]interface{})
+		hooks := settings["hooks"].(map[string]any)
 		Expect(hooks).To(HaveKey("SessionStart"))
 
 		// Verify SessionStart has unified hook
-		sessionStart := hooks["SessionStart"].([]interface{})
+		sessionStart := hooks["SessionStart"].([]any)
 		Expect(sessionStart).To(HaveLen(1))
 	})
 })

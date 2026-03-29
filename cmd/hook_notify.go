@@ -22,7 +22,7 @@ Appends the raw hook payload to /tmp/clotilde/<session-id>.events.jsonl for debu
 			return fmt.Errorf("failed to read hook input: %w", err)
 		}
 
-		var payload map[string]interface{}
+		var payload map[string]any
 		if err := json.Unmarshal(input, &payload); err != nil {
 			return fmt.Errorf("failed to parse hook input: %w", err)
 		}

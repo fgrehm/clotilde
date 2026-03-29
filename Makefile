@@ -1,23 +1,21 @@
-.PHONY: help build test test-watch install clean lint fmt coverage vendor setup-hooks deadcode
+.PHONY: help build test test-watch install clean lint fmt coverage vendor setup-hooks deadcode govulncheck audit
 
 # Build variables
 BASE_VERSION := $(shell cat VERSION 2>/dev/null || echo "0.0.0")
 GIT_TAG := $(shell git describe --exact-match --tags 2>/dev/null)
 COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
-GO_VERSION := $(shell go version | awk '{print $$3}')
 
 # If building from a git tag, use it. Otherwise append -dev+timestamp
 ifeq ($(GIT_TAG),)
 	VERSION := $(BASE_VERSION)-dev+$(shell date -u +"%Y%m%d%H%M%S")
 else
-	VERSION := $(GIT_TAG)
+	VERSION := $(patsubst v%,%,$(GIT_TAG))
 endif
 
 LDFLAGS := -X 'github.com/fgrehm/clotilde/cmd.version=$(VERSION)' \
            -X 'github.com/fgrehm/clotilde/cmd.commit=$(COMMIT)' \
-           -X 'github.com/fgrehm/clotilde/cmd.date=$(DATE)' \
-           -X 'github.com/fgrehm/clotilde/cmd.goVersion=$(GO_VERSION)'
+           -X 'github.com/fgrehm/clotilde/cmd.date=$(DATE)'
 
 # Default target
 help: ## Show this help message
@@ -44,19 +42,10 @@ test-watch: ## Run tests in watch mode
 	@echo "Starting test watch mode..."
 	@go run github.com/onsi/ginkgo/v2/ginkgo watch -r
 
-install: build ## Install clotilde to ~/.local/bin
-	@echo "Installing to ~/.local/bin..."
-	@mkdir -p ~/.local/bin
-	@if [ -L ~/.local/bin/clotilde ]; then \
-		echo "✓ Already installed as symlink (rebuilt binary at dist/clotilde)"; \
-	elif [ -e ~/.local/bin/clotilde ]; then \
-		rm -f ~/.local/bin/clotilde; \
-		cp dist/clotilde ~/.local/bin/clotilde; \
-		echo "✓ Replaced existing file and installed to ~/.local/bin/clotilde"; \
-	else \
-		cp dist/clotilde ~/.local/bin/clotilde; \
-		echo "✓ Installed to ~/.local/bin/clotilde"; \
-	fi
+install: build ## Install clotilde to ~/.local/bin (symlink)
+	@mkdir -p "$(HOME)/.local/bin"
+	@ln -sf "$(CURDIR)/dist/clotilde" "$(HOME)/.local/bin/clotilde"
+	@echo "✓ Installed to ~/.local/bin/clotilde"
 
 clean: ## Remove build artifacts
 	@echo "Cleaning..."
@@ -93,6 +82,16 @@ deadcode: ## Check for unreachable functions
 		exit 1; \
 	fi
 	@echo "✓ No dead code found"
+
+govulncheck: ## Run vulnerability check
+	@go tool govulncheck ./...
+
+audit: ## Run complexity and vulnerability checks (informational)
+	@echo "=== Cyclomatic complexity (>15) ==="
+	@go tool gocyclo -over 15 . || true
+	@echo ""
+	@echo "=== Vulnerability check ==="
+	@go tool govulncheck ./... || true
 
 vendor: ## Update vendored dependencies
 	@echo "Vendoring dependencies..."

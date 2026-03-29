@@ -360,8 +360,8 @@ func (m *TableModel) sortRows() {
 	}
 
 	// Simple bubble sort - good enough for typical row counts
-	for i := 0; i < len(m.Rows)-1; i++ {
-		for j := 0; j < len(m.Rows)-i-1; j++ {
+	for i := range len(m.Rows) - 1 {
+		for j := range len(m.Rows) - i - 1 {
 			// Get values to compare
 			val1 := ""
 			val2 := ""
