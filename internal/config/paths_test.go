@@ -294,6 +294,29 @@ var _ = Describe("FindOrCreateClotildeRoot", func() {
 		Expect(root).To(Equal(expectedRoot))
 		Expect(util.DirExists(filepath.Join(root, config.SessionsDir))).To(BeTrue())
 	})
+
+	It("should not walk past project root to find parent .claude/clotilde", func() {
+		// Simulate: parent has .claude/clotilde (e.g. legacy $HOME), child project has .claude/ marker
+		parentClotilde := filepath.Join(tempDir, config.ClotildeDir, config.SessionsDir)
+		err := os.MkdirAll(parentClotilde, 0o755)
+		Expect(err).NotTo(HaveOccurred())
+
+		// Create a child project with its own .claude/ marker
+		childProject := filepath.Join(tempDir, "projects", "my-app")
+		err = os.MkdirAll(filepath.Join(childProject, ".claude"), 0o755)
+		Expect(err).NotTo(HaveOccurred())
+
+		err = os.Chdir(childProject)
+		Expect(err).NotTo(HaveOccurred())
+
+		root, err := config.FindOrCreateClotildeRoot()
+		Expect(err).NotTo(HaveOccurred())
+
+		// Should create in child project, NOT return parent's clotilde root
+		expectedRoot := filepath.Join(childProject, config.ClotildeDir)
+		Expect(root).To(Equal(expectedRoot))
+		Expect(util.DirExists(filepath.Join(root, config.SessionsDir))).To(BeTrue())
+	})
 })
 
 var _ = Describe("IsInitialized", func() {

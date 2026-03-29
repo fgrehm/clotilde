@@ -48,16 +48,11 @@ func resolveSessionName(hookData hookInput, store session.Store, fullFallback bo
 		return "", nil
 	}
 
-	if name := readSessionNameFromEnvFile(); name != "" {
+	if name := readLastEnvFileValue("CLOTILDE_SESSION"); name != "" {
 		return name, nil
 	}
 
 	return findSessionByUUID(store, hookData.SessionID)
-}
-
-// readSessionNameFromEnvFile reads the session name from CLAUDE_ENV_FILE.
-func readSessionNameFromEnvFile() string {
-	return readLastEnvFileValue("CLOTILDE_SESSION")
 }
 
 // findSessionByUUID searches for a session with the given UUID.

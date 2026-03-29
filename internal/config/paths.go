@@ -150,24 +150,26 @@ func ProjectRootFromPath(startPath string) string {
 	return absPath
 }
 
-// FindOrCreateClotildeRoot finds an existing .claude/clotilde directory or creates one.
-// First tries FindClotildeRoot(). If not found, determines the project root,
-// creates the sessions directory, and returns the new clotilde root path.
+// FindOrCreateClotildeRoot finds or creates the .claude/clotilde directory for the
+// current project. It resolves the project root first (which stops at $HOME), then
+// checks if .claude/clotilde exists there. This avoids the bug where an existing
+// ~/.claude/clotilde (from legacy usage) would shadow the correct project-local root.
 func FindOrCreateClotildeRoot() (string, error) {
-	if root, err := FindClotildeRoot(); err == nil {
-		return root, nil
-	}
-
 	projectRoot, err := FindProjectRoot()
 	if err != nil {
 		return "", err
+	}
+
+	clotildeRoot := filepath.Join(projectRoot, ClotildeDir)
+	if info, statErr := os.Stat(clotildeRoot); statErr == nil && info.IsDir() {
+		return clotildeRoot, nil
 	}
 
 	if err := EnsureSessionsDir(projectRoot); err != nil {
 		return "", fmt.Errorf("failed to create clotilde structure: %w", err)
 	}
 
-	return filepath.Join(projectRoot, ClotildeDir), nil
+	return clotildeRoot, nil
 }
 
 // IsInitialized checks if clotilde is initialized in the current directory tree.
