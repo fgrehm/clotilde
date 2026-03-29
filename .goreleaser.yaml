@@ -23,7 +23,7 @@ builds:
     ldflags:
       - -s -w
       - -X github.com/fgrehm/clotilde/cmd.version={{.Version}}
-      - -X github.com/fgrehm/clotilde/cmd.commit={{.Commit}}
+      - -X github.com/fgrehm/clotilde/cmd.commit={{.ShortCommit}}
       - -X github.com/fgrehm/clotilde/cmd.date={{.Date}}
 
 archives:

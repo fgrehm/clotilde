@@ -1,11 +1,10 @@
-.PHONY: help build test test-watch install clean lint fmt coverage vendor setup-hooks deadcode audit
+.PHONY: help build test test-watch install clean lint fmt coverage vendor setup-hooks deadcode govulncheck audit
 
 # Build variables
 BASE_VERSION := $(shell cat VERSION 2>/dev/null || echo "0.0.0")
 GIT_TAG := $(shell git describe --exact-match --tags 2>/dev/null)
 COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
-GO_VERSION := $(shell go version | awk '{print $$3}')
 
 # If building from a git tag, use it. Otherwise append -dev+timestamp
 ifeq ($(GIT_TAG),)
@@ -16,8 +15,7 @@ endif
 
 LDFLAGS := -X 'github.com/fgrehm/clotilde/cmd.version=$(VERSION)' \
            -X 'github.com/fgrehm/clotilde/cmd.commit=$(COMMIT)' \
-           -X 'github.com/fgrehm/clotilde/cmd.date=$(DATE)' \
-           -X 'github.com/fgrehm/clotilde/cmd.goVersion=$(GO_VERSION)'
+           -X 'github.com/fgrehm/clotilde/cmd.date=$(DATE)'
 
 # Default target
 help: ## Show this help message
@@ -84,6 +82,9 @@ deadcode: ## Check for unreachable functions
 		exit 1; \
 	fi
 	@echo "✓ No dead code found"
+
+govulncheck: ## Run vulnerability check
+	@go tool govulncheck ./...
 
 audit: ## Run complexity and vulnerability checks (informational)
 	@echo "=== Cyclomatic complexity (>15) ==="

@@ -313,6 +313,7 @@ make lint          # golangci-lint v2 (go tool)
 make fmt           # format with gofumpt/goimports (go tool)
 make deadcode      # check for unreachable functions
 make audit         # cyclomatic complexity check (gocyclo, informational)
+make govulncheck  # run vulnerability check
 make coverage      # generate HTML coverage report
 make vendor        # tidy and vendor dependencies
 make install       # build and symlink to ~/.local/bin
@@ -344,6 +345,15 @@ Before wrapping up a session, check whether CHANGELOG.md needs an update for the
 - Test both success and error cases
 - Keep tests focused and independent
 - Use descriptive test names
+
+## Releasing
+
+1. Move `CHANGELOG.md` `[Unreleased]` entries to `[X.Y.Z] - YYYY-MM-DD`.
+2. Update `VERSION` file.
+3. Commit: `chore: release vX.Y.Z`
+4. Tag and push: `git tag vX.Y.Z && git push origin main vX.Y.Z`
+
+CI extracts release notes from CHANGELOG.md and runs GoReleaser.
 
 ## Roadmap
 
