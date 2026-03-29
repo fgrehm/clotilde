@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`effortLevel` persisted in `settings.json`**: The `--effort` flag (and `--fast`, which implies `effort: low`) is now stored in the session's `settings.json` as `effortLevel`. This means the effort level is automatically applied on resume without needing to pass `--effort` again.
 - **Session names in Claude's native picker**: All commands (`start`, `resume`, `fork`) now pass `-n <name>` to Claude, so clotilde session names appear as display names in Claude's built-in `/resume` picker and terminal title instead of raw UUIDs.
+- **Fork inherits model and effort from parent**: Forked sessions now copy the parent's `settings.json` (including model and effort level). You can override with `--fast`, `--model`, or `--effort` on the fork command.
 
 ### Fixed
 
