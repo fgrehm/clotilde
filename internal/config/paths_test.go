@@ -295,6 +295,25 @@ var _ = Describe("FindOrCreateClotildeRoot", func() {
 		Expect(util.DirExists(filepath.Join(root, config.SessionsDir))).To(BeTrue())
 	})
 
+	It("should return an error if clotilde root path exists but is a file", func() {
+		// Create .claude/ marker so project root is detected
+		claudeDir := filepath.Join(tempDir, ".claude")
+		err := util.EnsureDir(claudeDir)
+		Expect(err).NotTo(HaveOccurred())
+
+		// Place a file at the clotilde root path
+		clotildePath := filepath.Join(tempDir, config.ClotildeDir)
+		err = os.WriteFile(clotildePath, []byte("oops"), 0o644)
+		Expect(err).NotTo(HaveOccurred())
+
+		err = os.Chdir(tempDir)
+		Expect(err).NotTo(HaveOccurred())
+
+		_, err = config.FindOrCreateClotildeRoot()
+		Expect(err).To(HaveOccurred())
+		Expect(err.Error()).To(ContainSubstring("exists and is not a directory"))
+	})
+
 	It("should not walk past project root to find parent .claude/clotilde", func() {
 		// Simulate: parent has .claude/clotilde (e.g. legacy $HOME), child project has .claude/ marker
 		parentClotilde := filepath.Join(tempDir, config.ClotildeDir, config.SessionsDir)

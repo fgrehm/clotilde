@@ -161,8 +161,13 @@ func FindOrCreateClotildeRoot() (string, error) {
 	}
 
 	clotildeRoot := filepath.Join(projectRoot, ClotildeDir)
-	if info, statErr := os.Stat(clotildeRoot); statErr == nil && info.IsDir() {
+	if info, statErr := os.Stat(clotildeRoot); statErr == nil {
+		if !info.IsDir() {
+			return "", fmt.Errorf("%s exists and is not a directory", clotildeRoot)
+		}
 		return clotildeRoot, nil
+	} else if !os.IsNotExist(statErr) {
+		return "", fmt.Errorf("failed to stat clotilde root %s: %w", clotildeRoot, statErr)
 	}
 
 	if err := EnsureSessionsDir(projectRoot); err != nil {
