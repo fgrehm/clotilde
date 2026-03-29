@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Lazy creation picks wrong project root**: `FindOrCreateClotildeRoot` would find a legacy `~/.claude/clotilde` (or any ancestor's) before checking the current project, causing new sessions to be created in the wrong directory. Now resolves the project root first (respecting the `$HOME` boundary) and only looks for `.claude/clotilde` within it.
+- **Lazy creation picks wrong project root**: `FindOrCreateClotildeRoot` would find a legacy `~/.claude/clotilde` (or any ancestor's) before checking the current project, causing new sessions to be created in the wrong directory. Now resolves the project root first (respecting the `$HOME` boundary) and only looks for `.claude/clotilde` within it. Also returns a clear error when the path exists but is not a directory, or when `os.Stat` fails for reasons other than "not found".
 - **`clotilde fork` UUID mismatch**: Forked sessions ended up with the parent's UUID because `SessionStart` fires with the parent's UUID when using `--fork-session`. Fixed by pre-assigning the fork's UUID via `--session-id` before invocation, the same pattern used by `start`.
 - **Propagate errors in fork custom output style handling**: `json.MarshalIndent`, `os.WriteFile`, and `store.Update` errors during fork style inheritance were previously silently discarded. They now fail loudly instead of leaving the fork in an inconsistent state.
 
