@@ -192,46 +192,6 @@ var _ = Describe("ReadJSON and WriteJSON", func() {
 	})
 })
 
-var _ = Describe("CountLines", func() {
-	var tempDir string
-
-	BeforeEach(func() {
-		tempDir = GinkgoT().TempDir()
-	})
-
-	It("should count lines in a file", func() {
-		testFile := filepath.Join(tempDir, "test.txt")
-		content := "line1\nline2\nline3\n"
-		err := os.WriteFile(testFile, []byte(content), 0o644)
-		Expect(err).NotTo(HaveOccurred())
-
-		count, err := util.CountLines(testFile)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(count).To(Equal(3))
-	})
-
-	It("should return 0 for empty file", func() {
-		testFile := filepath.Join(tempDir, "empty.txt")
-		err := os.WriteFile(testFile, []byte(""), 0o644)
-		Expect(err).NotTo(HaveOccurred())
-
-		count, err := util.CountLines(testFile)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(count).To(Equal(0))
-	})
-
-	It("should count file without trailing newline", func() {
-		testFile := filepath.Join(tempDir, "test.txt")
-		content := "line1\nline2\nline3"
-		err := os.WriteFile(testFile, []byte(content), 0o644)
-		Expect(err).NotTo(HaveOccurred())
-
-		count, err := util.CountLines(testFile)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(count).To(Equal(3))
-	})
-})
-
 var _ = Describe("HomeDir", func() {
 	It("should return the user's home directory", func() {
 		home, err := util.HomeDir()

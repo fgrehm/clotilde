@@ -6,7 +6,7 @@ A power-user companion for Claude Code.
 
 Claude Code has gotten better at session management: `-n` names sessions, `/branch` creates forks, and `/resume` shows a picker. But daily use still has friction:
 
-- **Flags don't stick**: Want opus for deep work and haiku for quick tasks? You re-pass `--model` every time. Clotilde persists model, effort level, permissions, and output style in each session — automatically re-applied on every resume.
+- **Settings leak across sessions**: Claude Code stores model, effort, and permissions in `~/.claude/settings.json` — a single global file shared by every running session. Change `/model` in one terminal and every other open session picks it up immediately ([known issue](https://github.com/anthropics/claude-code/issues/20745)). Clotilde isolates settings per session using a dedicated `settings.json` for each one, re-applied automatically on every resume. Want opus for deep work and haiku for quick tasks? Both can run at the same time without interfering.
 - **No reusable presets**: Clotilde profiles let you define named configurations (model, permissions, output style) in a config file and apply them with `--profile <name>`.
 - **No persistent context**: Clotilde's `--context` flag attaches a note to a session (ticket number, current goal) that's injected into Claude automatically at startup and resume.
 - **Every session persists**: Clotilde's incognito sessions auto-delete all data — metadata, transcripts, logs — when you exit.
@@ -42,13 +42,6 @@ clotilde fork auth-feature auth-experiment
 # Export a session as self-contained HTML
 clotilde export auth-feature
 
-# Session stats: turns, tokens, tool usage
-clotilde stats auth-feature
-clotilde stats --all                                  # aggregate across recent sessions
-
-# Interactive codebase tours with Claude chat (experimental)
-clotilde tour generate --focus "authentication"
-clotilde tour serve
 ```
 
 Clotilde is a thin wrapper: it maps human-readable names to Claude Code UUIDs, invokes `claude` with the right flags, and never patches or modifies Claude Code itself.
@@ -130,7 +123,9 @@ Clotilde never patches or modifies Claude Code.
 
 ### Sticky Session Settings
 
-Flags set on `start` and `incognito` are saved to the session's `settings.json` and re-applied automatically on every resume. No need to repeat flags.
+Claude Code stores model, effort, and permissions in `~/.claude/settings.json` — a global file shared by every running session. Changing `/model` in one terminal affects all others. Clotilde fixes this by giving each session its own `settings.json`, passed via `--settings` on every invocation.
+
+Flags set on `start` and `incognito` are saved to the session and re-applied automatically on every resume. No need to repeat flags.
 
 ```bash
 # Set once
@@ -138,6 +133,10 @@ clotilde start deep-work --model opus --effort high
 
 # Resume any number of times — settings apply automatically
 clotilde resume deep-work
+
+# Run two sessions with different models simultaneously — they don't interfere
+clotilde start quick-task --fast      # haiku in one terminal
+clotilde resume deep-work             # opus in another, unaffected
 ```
 
 **What gets persisted:** `--model`, `--effort`, `--fast` (stores `model=haiku` + `effortLevel=low`), `--permission-mode`, `--allowed-tools`, `--disallowed-tools`, `--add-dir`, `--output-style`.
@@ -275,25 +274,6 @@ clotilde resume my-session -- --verbose
 ```
 
 Pass-through flags apply to that invocation only and are not persisted. Use named flags (`--model`, `--effort`, etc.) if you want settings to stick across resumes.
-
-### Interactive Tours (Experimental)
-
-Browser-based codebase walkthroughs with an integrated Claude chat sidebar. Tours are CodeTour JSON files (`.tours/*.tour`) that step through key files with descriptions and line references.
-
-```bash
-# Generate a tour using Claude
-clotilde tour generate
-clotilde tour generate --focus "authentication" --name auth-flow --model sonnet
-
-# List available tours
-clotilde tour list
-
-# Start the local tour server (default: http://localhost:3333)
-clotilde tour serve
-clotilde tour serve --model sonnet --port 8080
-```
-
-The tour server creates a persistent `tour-<repo-name>` Clotilde session for chat continuity. Chat context includes the current tour step, file, and line. APIs may change — feedback welcome.
 
 ## Commands
 
@@ -434,22 +414,6 @@ clotilde export auth-feature --stdout | wc -c
 - `--stdout` — Write to stdout.
 
 **Keyboard shortcuts** in the exported HTML: `Ctrl+T` toggles thinking blocks, `Ctrl+O` toggles tool outputs.
-
-### `clotilde tour list [--dir PATH]`
-
-List `.tour` files in the project's `.tours/` directory. `--dir` sets the repository root (default: current directory).
-
-### `clotilde tour serve [options]`
-
-Start the interactive tour server at `http://localhost:3333`.
-
-**Options:** `--dir PATH`, `--port PORT` (default: 3333), `--model MODEL` (default: haiku).
-
-### `clotilde tour generate [options]`
-
-Generate a tour by having Claude analyze the codebase. Saved to `.tours/<name>.tour`. On failure, raw output goes to `.tours/<name>.tour.invalid`.
-
-**Options:** `--dir PATH`, `--name NAME` (default: overview), `--focus FOCUS`, `--model MODEL` (default: sonnet).
 
 ### `clotilde` (no subcommand)
 

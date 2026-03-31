@@ -3,7 +3,6 @@ package util
 import (
 	"encoding/json"
 	"errors"
-	"io"
 	"os"
 	"path/filepath"
 )
@@ -87,42 +86,6 @@ func WriteJSON(path string, v any) error {
 		return err
 	}
 	return WriteFile(path, data)
-}
-
-// CountLines counts the number of lines in a file.
-// Returns the line count and any error encountered.
-func CountLines(path string) (int, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return 0, err
-	}
-	defer func() { _ = file.Close() }()
-
-	count := 0
-	buf := make([]byte, 32*1024)
-	lastByte := byte('\n') // treat start-of-file as after a newline
-	for {
-		n, err := file.Read(buf)
-		for i := range n {
-			if buf[i] == '\n' {
-				count++
-			}
-		}
-		if n > 0 {
-			lastByte = buf[n-1]
-		}
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			return 0, err
-		}
-	}
-	// If the file is non-empty and doesn't end with a newline, count the last line
-	if lastByte != '\n' {
-		count++
-	}
-	return count, nil
 }
 
 // HomeDir returns the user's home directory path.
